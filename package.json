@@ -1,6 +1,6 @@
 {
   "name": "gournal",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "bin": {
     "gournal": "./dist/cli.js"
@@ -10,12 +10,19 @@
     "dev": "ts-node src/cli.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["journal", "cli", "nodejs", "typescript", "standup", "tasklog"],
+  "keywords": [
+    "journal",
+    "cli",
+    "nodejs",
+    "typescript",
+    "standup",
+    "tasklog"
+  ],
   "author": "",
   "license": "MIT",
   "repository": {
-  "type": "git",
-  "url": "https://github.com/aelshinawy/gournal"
+    "type": "git",
+    "url": "https://github.com/aelshinawy/gournal"
   },
   "description": "",
   "dependencies": {
