@@ -1,26 +1,32 @@
-import { format } from 'date-fns';
 import chalk from 'chalk';
+import { differenceInDays, format, isWithinInterval } from 'date-fns';
+import { reportConfigs } from './constant/report-configs.js';
 import type { Entry } from './types.js';
+import { ReportOptions } from './types/report-config.js';
 
-export function generateStandupReport(entries: Entry[]): string {
-  const today = new Date();
-  const todayEntries = entries.filter(entry => 
-    new Date(entry.timestamp).toDateString() === today.toDateString()
-  );
-
-  const grouped = todayEntries.reduce((acc, entry) => {
-    acc[entry.project] = acc[entry.project] || [];
-    acc[entry.project].push(entry);
-    return acc;
-  }, {} as Record<string, Entry[]>);
-
-  let output = chalk.bold(`\nStandup for ${format(today, 'yyyy-MM-dd')}\n\n`);
+export const generateStandupReport = (entries: Entry[], options: ReportOptions) => {
+  const now = new Date();
+  const config = reportConfigs.find(c => c.predicate(options)) || reportConfigs[reportConfigs.length - 1];
   
-  for (const [project, entries] of Object.entries(grouped)) {
-    output += chalk.blue.bold(`Project: ${project}\n`);
-    entries.forEach(e => output += `- ${e.message}\n`);
-    output += '\n';
+  const range = config.getRange(now);
+  const isMultiDay = differenceInDays(range.end, range.start) > 0;
+
+  const groupedEntries = entries
+    .filter(e => isWithinInterval(new Date(e.timestamp), config.getRange(now)))
+    .reduce((acc, e) => {
+      const projectEntries = acc.get(e.project) || [];
+      return acc.set(e.project, [...projectEntries, e]);
+    }, new Map<string, Entry[]>());
+
+  if (groupedEntries.size === 0) {
+    return chalk.yellow('\nNo entries found\n');
   }
 
-  return output;
-}
+  const header = chalk.bold(`\nStandup: ${config.formatTitle(now)}\n\n`);
+  const body = Array.from(groupedEntries, ([project, entries]) => 
+    `  ${chalk.blue.bold(project)}\n` +
+    entries.map(e => `  ${chalk.gray(format(new Date(e.timestamp), isMultiDay ? 'EEE dd - HH:mm' : 'HH:mm'))}  ${e.message}`).join('\n')
+  ).join('\n\n');
+
+  return `${header}${body}\n`;
+};

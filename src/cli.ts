@@ -5,13 +5,14 @@ import { readEntries, writeEntries } from './storage.js';
 import { getProjectName } from './git.js';
 import { generateStandupReport } from './report.js';
 import type { Entry } from './types.js';
+import { format } from 'date-fns';
 
 const program = new Command();
 
 program
   .name('gournal')
   .description('CLI development journal with Git integration')
-  .version('0.1.0');
+  .version('0.2.0');
 
 program
   .command('add <message>')
@@ -31,12 +32,14 @@ program
     console.log(chalk.green('✓ Entry added!'));
   });
 
-program
+  program
   .command('standup')
-  .description('Generate today\'s standup report')
-  .action(async () => {
+  .description('Generate standup report')
+  .option('-y, --yesterday', 'Include yesterday\'s entries')
+  .option('-w, --week', 'Show weekly summary')
+  .action(async (options) => {
     const entries = await readEntries();
-    console.log(generateStandupReport(entries));
+    console.log(generateStandupReport(entries, options));
   });
 
 program
@@ -60,7 +63,7 @@ program
     console.log(chalk.bold(`Found ${results.length} entries:\n`));
     results.forEach(entry => {
       console.log(
-        `${chalk.gray(entry.timestamp)} ` +
+        `${chalk.gray(format(new Date(entry.timestamp), 'MMM EEE dd - HH:mm'))} ` +
         `${chalk.blue(`[${entry.project}]`)} ${entry.message} ` +
         `${entry.tags.map(t => chalk.magenta(`#${t}`)).join(' ')}`
       );
