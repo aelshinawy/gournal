@@ -6,6 +6,7 @@ import { getProjectName } from './git.js';
 import { generateStandupReport } from './report.js';
 import type { Entry } from './types.js';
 import { format } from 'date-fns';
+import inquirer from 'inquirer';
 
 const program = new Command();
 
@@ -31,6 +32,23 @@ program
     await writeEntries(entries);
     console.log(chalk.green('✓ Entry added!'));
   });
+
+  program
+    .command('clear')
+    .description('Clear all journal entries')
+    .action(async () => {
+      const { confirm } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'confirm',
+          message: chalk.red(`Are you sure you want to clear all gournal entries?`),
+          default: true,
+        },
+      ]);
+      if (!confirm) return;
+      await writeEntries([]);
+      console.log(chalk.green('✓ Entries cleared!'));
+    });
 
   program
   .command('standup')

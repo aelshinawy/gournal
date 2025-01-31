@@ -8,6 +8,6 @@ export function getProjectName(): string {
       .trim();
     return path.basename(gitDir);
   } catch (error) {
-    return path.basename(process.cwd());
+    return path.basename(`uncategorized`);
   }
 }
