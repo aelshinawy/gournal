@@ -1,6 +1,6 @@
 import { startOfDay, startOfWeek, subDays } from "date-fns";
-import { ReportConfig } from "../types/report-config.js";
-import { Titles } from "../util/date-titles.util.js";
+import { ReportConfig } from "../types/report-config";
+import { Titles } from "../util/date-titles.util";
 
 export const reportConfigs = [
     ReportConfig.builder()

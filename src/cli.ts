@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { readEntries, writeEntries } from './storage.js';
-import { getProjectName } from './git.js';
-import { generateStandupReport } from './report.js';
-import type { Entry } from './types.js';
+import { readEntries, writeEntries } from './storage';
+import { getProjectName } from './git';
+import { generateStandupReport } from './report';
+import type { Entry } from './types';
 import { format } from 'date-fns';
 import inquirer from 'inquirer';
 
