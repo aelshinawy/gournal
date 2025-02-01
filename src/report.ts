@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import { differenceInDays, format, isWithinInterval } from 'date-fns';
-import { reportConfigs } from './constant/report-configs.js';
-import type { Entry } from './types.js';
-import { ReportOptions } from './types/report-config.js';
+import { reportConfigs } from './constant/report-configs';
+import type { Entry } from './types';
+import { ReportOptions } from './types/report-config';
 
 export const generateStandupReport = (entries: Entry[], options: ReportOptions) => {
   const now = new Date();
