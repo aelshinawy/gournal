@@ -15,21 +15,27 @@ const textResult = (text: string) => ({ content: [{ type: 'text' as const, text 
 export function createServer(): McpServer {
   const server = new McpServer({ name: 'gournal', version: '0.3.0' });
 
+  const isoDate = z.string().refine(v => !isNaN(Date.parse(v)), {
+    message: 'must be a valid ISO date/timestamp',
+  });
+
   server.registerTool(
     'list_entries',
     {
       title: 'List journal entries',
-      description: 'List gournal journal entries, optionally filtered by project and/or a date range (inclusive, ISO timestamps).',
+      description: 'List gournal journal entries (newest first), optionally filtered by project and/or a date range (inclusive, ISO timestamps). Capped at `limit` entries to avoid flooding the caller\'s context.',
       inputSchema: {
         project: z.string().optional().describe('Filter to a single project name'),
-        from: z.string().optional().describe('ISO timestamp lower bound (inclusive)'),
-        to: z.string().optional().describe('ISO timestamp upper bound (inclusive)'),
+        from: isoDate.optional().describe('ISO timestamp lower bound (inclusive)'),
+        to: isoDate.optional().describe('ISO timestamp upper bound (inclusive)'),
+        limit: z.number().int().positive().max(500).default(50).describe('Max entries to return, newest first (default 50, max 500)'),
       },
     },
-    async ({ project, from, to }) => {
+    async ({ project, from, to, limit }) => {
       let entries = filterByProject(await readEntries(), project);
       if (from) entries = entries.filter(e => e.timestamp >= from);
       if (to) entries = entries.filter(e => e.timestamp <= to);
+      entries = [...entries].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, limit);
       return textResult(JSON.stringify(entries, null, 2));
     }
   );
@@ -50,21 +56,6 @@ export function createServer(): McpServer {
       const entries = filterByProject(await readEntries(), project);
       const options: ReportOptions = { yesterday, week, month };
       return textResult(generateStandupReport(entries, options));
-    }
-  );
-
-  server.registerTool(
-    'get_monthly_summary',
-    {
-      title: 'Get monthly summary',
-      description: 'Generate the gournal monthly standup summary, optionally filtered by project.',
-      inputSchema: {
-        project: z.string().optional().describe('Filter by project name'),
-      },
-    },
-    async ({ project }) => {
-      const entries = filterByProject(await readEntries(), project);
-      return textResult(generateStandupReport(entries, { month: true }));
     }
   );
 

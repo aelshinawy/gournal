@@ -57,9 +57,8 @@ gournal export --format csv --project gournal --output entries.csv
 `gournal mcp` starts an [MCP](https://modelcontextprotocol.io) server (stdio transport) that exposes your journal to AI agents like Claude Code. It reuses the same storage/report/export logic as the CLI, so agents see exactly what you'd see.
 
 Tools exposed:
-- `list_entries` — list entries, filterable by `project`, `from`, `to`
+- `list_entries` — list entries newest-first, filterable by `project`, `from`, `to`, capped by `limit` (default 50, max 500)
 - `get_standup` — generate a standup report (`yesterday` / `week` / `month`, filterable by `project`)
-- `get_monthly_summary` — generate the monthly standup summary
 - `export_entries` — export entries to `md` or `csv`
 
 ### Using with Claude Code
