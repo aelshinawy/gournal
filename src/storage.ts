@@ -11,5 +11,6 @@ export async function readEntries(path = ENTRIES_PATH): Promise<Entry[]> {
 }
 
 export async function writeEntries(entries: Entry[], path = ENTRIES_PATH): Promise<void> {
+  await fs.ensureDir(DATA_DIR);
   await fs.writeJSON(path, entries, { spaces: 2 });
 }
