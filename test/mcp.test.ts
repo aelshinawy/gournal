@@ -69,12 +69,25 @@ describe('MCP server tools', () => {
     expect((result.content as any[])[0].text).toBe('STANDUP OUTPUT');
   });
 
-  test('get_monthly_summary calls generateStandupReport with month: true', async () => {
+  test('get_standup with month: true covers the monthly summary case', async () => {
     mockedStandup.mockReturnValue('MONTHLY OUTPUT');
     const client = await connectedClient();
-    const result = await client.callTool({ name: 'get_monthly_summary', arguments: {} });
-    expect(mockedStandup).toHaveBeenCalledWith(entries, { month: true });
+    const result = await client.callTool({ name: 'get_standup', arguments: { month: true } });
+    expect(mockedStandup).toHaveBeenCalledWith(entries, { yesterday: undefined, week: undefined, month: true });
     expect((result.content as any[])[0].text).toBe('MONTHLY OUTPUT');
+  });
+
+  test('list_entries respects a custom limit', async () => {
+    const client = await connectedClient();
+    const result = await client.callTool({ name: 'list_entries', arguments: { limit: 1 } });
+    const text = (result.content as any[])[0].text;
+    expect(JSON.parse(text)).toEqual([entries[0]]);
+  });
+
+  test('list_entries rejects a malformed date instead of silently mis-filtering', async () => {
+    const client = await connectedClient();
+    const result = await client.callTool({ name: 'list_entries', arguments: { from: 'not-a-date' } });
+    expect(result.isError).toBe(true);
   });
 
   test('export_entries defaults to markdown', async () => {
