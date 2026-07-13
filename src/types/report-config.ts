@@ -1,5 +1,5 @@
 export type DateRange = { start: Date; end: Date };
-export type ReportOptions = { week?: boolean; yesterday?: boolean };
+export type ReportOptions = { week?: boolean; month?: boolean; yesterday?: boolean };
 
 export class ReportConfig {
   constructor(
