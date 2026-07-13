@@ -1,6 +1,6 @@
 {
   "name": "gournal",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "bin": {
     "gournal": "./dist/cli.js"
   },
@@ -15,7 +15,11 @@
     "nodejs",
     "typescript",
     "standup",
-    "tasklog"
+    "tasklog",
+    "export",
+    "productivity",
+    "developer-tools",
+    "git"
   ],
   "author": "",
   "license": "MIT",
@@ -23,7 +27,7 @@
     "type": "git",
     "url": "https://github.com/aelshinawy/gournal"
   },
-  "description": "",
+  "description": "A developer's command-line journal with Git integration: log work, generate standup reports, and export your history to Markdown or CSV.",
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^13.1.0",
