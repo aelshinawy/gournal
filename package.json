@@ -4,6 +4,9 @@
   "bin": {
     "gournal": "./dist/cli.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/cli.ts",
