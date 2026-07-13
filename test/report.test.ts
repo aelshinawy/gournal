@@ -37,4 +37,18 @@ describe('Standup Report Generation', () => {
     expect(report).toContain('api');
     expect(report).toContain('infra');
   });
+
+  test('Generates monthly report', () => {
+    const report = generateStandupReport(mockEntries, { month: true });
+    expect(report).toContain('Standup: Monthly');
+    expect(report).toContain('api');
+    expect(report).toContain('infra');
+  });
+
+  test('Filters by project before generating report', () => {
+    const filtered = mockEntries.filter(e => e.project === 'api');
+    const report = generateStandupReport(filtered, {});
+    expect(report).toContain('api');
+    expect(report).not.toContain('infra');
+  });
 });

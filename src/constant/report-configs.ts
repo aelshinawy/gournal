@@ -1,8 +1,18 @@
-import { startOfDay, startOfWeek, subDays } from "date-fns";
+import { startOfDay, startOfMonth, startOfWeek, subDays } from "date-fns";
 import { ReportConfig } from "../types/report-config";
 import { Titles } from "../util/date-titles.util";
 
 export const reportConfigs = [
+    ReportConfig.builder()
+      .name('month')
+      .when(opts => !!opts.month)
+      .dateRange(now => ({
+        start: startOfMonth(now),
+        end: now
+      }))
+      .title(Titles.monthlyTitle)
+      .build(),
+
     ReportConfig.builder()
       .name('week')
       .when(opts => !!opts.week)
