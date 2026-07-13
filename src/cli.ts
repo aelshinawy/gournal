@@ -4,9 +4,11 @@ import chalk from 'chalk';
 import { readEntries, writeEntries } from './storage';
 import { getProjectName } from './git';
 import { generateStandupReport } from './report';
+import { generateCsvExport, generateMarkdownExport } from './export';
 import type { Entry } from './types';
 import { format } from 'date-fns';
 import inquirer from 'inquirer';
+import fs from 'fs-extra';
 
 const program = new Command();
 
@@ -55,9 +57,42 @@ program
   .description('Generate standup report')
   .option('-y, --yesterday', 'Include yesterday\'s entries')
   .option('-w, --week', 'Show weekly summary')
+  .option('-m, --month', 'Show monthly summary')
+  .option('-p, --project <project>', 'Filter by project name')
   .action(async (options) => {
-    const entries = await readEntries();
+    let entries = await readEntries();
+    if (options.project) {
+      entries = entries.filter((e: Entry) => e.project === options.project);
+    }
     console.log(generateStandupReport(entries, options));
+  });
+
+program
+  .command('export')
+  .description('Export journal entries to Markdown or CSV')
+  .option('-f, --format <format>', 'Output format: md or csv', 'md')
+  .option('-p, --project <project>', 'Filter by project name')
+  .option('-o, --output <file>', 'Write to a file instead of stdout')
+  .action(async (options: { format: string; project?: string; output?: string }) => {
+    let entries = await readEntries();
+    if (options.project) {
+      entries = entries.filter(e => e.project === options.project);
+    }
+
+    const exportFormat = options.format.toLowerCase();
+    if (exportFormat !== 'md' && exportFormat !== 'csv') {
+      console.log(chalk.red(`Unknown format "${options.format}". Use "md" or "csv".`));
+      return;
+    }
+
+    const output = exportFormat === 'csv' ? generateCsvExport(entries) : generateMarkdownExport(entries);
+
+    if (options.output) {
+      await fs.writeFile(options.output, output);
+      console.log(chalk.green(`✓ Exported ${entries.length} entries to ${options.output}`));
+    } else {
+      console.log(output);
+    }
   });
 
 program
