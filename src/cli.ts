@@ -5,6 +5,7 @@ import { readEntries, writeEntries } from './storage';
 import { getProjectName } from './git';
 import { generateStandupReport } from './report';
 import { generateCsvExport, generateMarkdownExport } from './export';
+import { startMcpServer } from './mcp';
 import type { Entry } from './types';
 import { format } from 'date-fns';
 import inquirer from 'inquirer';
@@ -121,6 +122,13 @@ program
         `${entry.tags.map(t => chalk.magenta(`#${t}`)).join(' ')}`
       );
     });
+  });
+
+program
+  .command('mcp')
+  .description('Start an MCP server exposing gournal entries, standup reports, and export as tools')
+  .action(async () => {
+    await startMcpServer();
   });
 
 program.parse(process.argv);
