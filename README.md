@@ -11,13 +11,7 @@ Gournal is a CLI tool that helps developers:
 - Log daily work in context of Git projects
 - Generate standup reports automatically
 
-<!--
-TODO(Ahmed): Add a terminal recording here (e.g. via asciinema or a GIF from vhs/terminalizer).
-It should walk through:
-  1. `gournal log` / `gournal add` — logging a journal entry
-  2. `gournal standup` — generating a daily/weekly/monthly summary
-  3. `gournal export` — exporting entries to Markdown or CSV
--->
+![gournal demo](./demo.gif)
 
 ## ✨ Features
 
