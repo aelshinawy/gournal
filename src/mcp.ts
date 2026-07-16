@@ -1,7 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { readEntries } from './storage';
+import { readEntries, writeEntries } from './storage';
+import { getProjectName } from './git';
 import { generateStandupReport } from './report';
 import { generateCsvExport, generateMarkdownExport } from './export';
 import type { Entry } from './types';
@@ -18,6 +19,31 @@ export function createServer(): McpServer {
   const isoDate = z.string().refine(v => !isNaN(Date.parse(v)), {
     message: 'must be a valid ISO date/timestamp',
   });
+
+  server.registerTool(
+    'add_entry',
+    {
+      title: 'Add journal entry',
+      description: 'Add a new gournal journal entry. Pass `project` explicitly whenever you know it, the server process\'s own working directory is not a reliable signal for which project the calling agent is actually in, unlike the CLI where cwd matches. Falls back to git-detecting the server\'s own cwd only when `project` is omitted.',
+      inputSchema: {
+        message: z.string().min(1).describe('What got done, one concise summary line'),
+        project: z.string().optional().describe('Project/repo name to tag this entry with; pass it explicitly rather than relying on server cwd detection'),
+        tags: z.array(z.string()).optional().describe('Optional tags for this entry'),
+      },
+    },
+    async ({ message, project, tags }) => {
+      const entry: Entry = {
+        timestamp: new Date().toISOString(),
+        message,
+        project: project ?? getProjectName(),
+        tags: tags ?? [],
+      };
+      const entries = await readEntries();
+      entries.push(entry);
+      await writeEntries(entries);
+      return textResult(`Entry added to ${entry.project}: ${message}`);
+    }
+  );
 
   server.registerTool(
     'list_entries',

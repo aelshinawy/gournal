@@ -5,13 +5,17 @@ import { Entry } from '../src/types';
 jest.mock('../src/storage');
 jest.mock('../src/report');
 jest.mock('../src/export');
+jest.mock('../src/git');
 
-import { readEntries } from '../src/storage';
+import { readEntries, writeEntries } from '../src/storage';
+import { getProjectName } from '../src/git';
 import { generateStandupReport } from '../src/report';
 import { generateCsvExport, generateMarkdownExport } from '../src/export';
 import { createServer } from '../src/mcp';
 
 const mockedReadEntries = readEntries as jest.MockedFunction<typeof readEntries>;
+const mockedWriteEntries = writeEntries as jest.MockedFunction<typeof writeEntries>;
+const mockedGetProjectName = getProjectName as jest.MockedFunction<typeof getProjectName>;
 const mockedStandup = generateStandupReport as jest.MockedFunction<typeof generateStandupReport>;
 const mockedCsv = generateCsvExport as jest.MockedFunction<typeof generateCsvExport>;
 const mockedMd = generateMarkdownExport as jest.MockedFunction<typeof generateMarkdownExport>;
@@ -32,7 +36,35 @@ async function connectedClient() {
 describe('MCP server tools', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedReadEntries.mockResolvedValue(entries);
+    // fresh shallow copy each call: add_entry mutates the array it reads (same
+    // as the real CLI path), a shared reference here would leak between tests
+    mockedReadEntries.mockImplementation(() => Promise.resolve([...entries]));
+  });
+
+  test('add_entry writes a new entry tagged with the passed project', async () => {
+    const client = await connectedClient();
+    const result = await client.callTool({
+      name: 'add_entry',
+      arguments: { message: 'Shipped the thing', project: 'gournal', tags: ['feature'] },
+    });
+    expect(mockedWriteEntries).toHaveBeenCalledTimes(1);
+    const written = mockedWriteEntries.mock.calls[0][0];
+    expect(written).toHaveLength(entries.length + 1);
+    expect(written[written.length - 1]).toMatchObject({
+      message: 'Shipped the thing',
+      project: 'gournal',
+      tags: ['feature'],
+    });
+    expect(mockedGetProjectName).not.toHaveBeenCalled();
+    expect((result.content as any[])[0].text).toContain('gournal');
+  });
+
+  test('add_entry falls back to git-detected project when omitted', async () => {
+    mockedGetProjectName.mockReturnValue('detected-project');
+    const client = await connectedClient();
+    await client.callTool({ name: 'add_entry', arguments: { message: 'No project passed' } });
+    const written = mockedWriteEntries.mock.calls[0][0];
+    expect(written[written.length - 1]).toMatchObject({ project: 'detected-project', tags: [] });
   });
 
   test('list_entries calls readEntries and returns all entries', async () => {
