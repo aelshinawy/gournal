@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { readEntries, writeEntries } from './storage';
 import { getProjectName } from './git';
 import { generateStandupReport } from './report';
+import { generateWorkLog } from './log';
 import { generateCsvExport, generateMarkdownExport } from './export';
 import { startMcpServer } from './mcp';
 import { filterByProject, filterByTags } from './util/entries.util';
@@ -67,6 +68,20 @@ program
   .action(async (options) => {
     const entries = filterByProject(await readEntries(), options.project);
     console.log(generateStandupReport(entries, options));
+  });
+
+program
+  .command('log')
+  .description('Show a chronological work log, grouped by day (today by default)')
+  .option('-y, --yesterday', 'Include yesterday\'s entries')
+  .option('-w, --week', 'Show weekly log')
+  .option('-m, --month', 'Show monthly log')
+  .option('-p, --project <project>', 'Filter by project name')
+  .option('-t, --tags <tags>', 'Comma-separated tags')
+  .action(async (options) => {
+    let entries = filterByProject(await readEntries(), options.project);
+    entries = filterByTags(entries, options.tags ? options.tags.split(',').filter(Boolean) : undefined);
+    console.log(generateWorkLog(entries, options));
   });
 
 program
