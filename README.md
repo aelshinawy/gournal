@@ -17,6 +17,10 @@ Gournal is a CLI tool that helps developers:
 
 - **Git-Aware Logging**: Auto-tag entries with project names
 - **Standup Reports**: `gournal standup` generates daily, weekly, or monthly summaries
+- **Work Log**: `gournal log` shows a chronological, by-day view (daily/weekly/monthly), unlike `standup`'s per-project grouping
+- **Stats**: `gournal stats` shows entry counts by project/tag and your current daily streak
+- **Undo**: `gournal undo` removes the most recently added entry
+- **Lookup**: `gournal tags` / `gournal projects` list distinct values with counts
 - **Project Filtering**: Scope standup/export/find output to a single project with `--project`
 - **Export**: `gournal export` writes entries to Markdown or CSV
 - **MCP Server**: `gournal mcp` exposes your journal to AI agents like Claude Code
@@ -46,6 +50,21 @@ gournal standup --month
 
 # Scope any report to one project
 gournal standup --week --project gournal
+
+# Chronological work log
+gournal log --week
+gournal log --month --tags bug,testing
+
+# Undo the last entry
+gournal undo
+
+# Stats and lookups
+gournal stats
+gournal tags
+gournal projects
+
+# Find entries in a date range
+gournal find "auth" --from 2026-07-01 --to 2026-07-15
 
 # Export entries
 gournal export --format md
