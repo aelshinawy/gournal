@@ -10,13 +10,16 @@ import type { Entry } from './types';
 import { format } from 'date-fns';
 import inquirer from 'inquirer';
 import fs from 'fs-extra';
+import path from 'path';
+
+const { version } = fs.readJsonSync(path.join(__dirname, '..', 'package.json'));
 
 const program = new Command();
 
 program
   .name('gournal')
   .description('CLI development journal with Git integration')
-  .version('0.2.0');
+  .version(version);
 
 program
   .command('add <message>')
