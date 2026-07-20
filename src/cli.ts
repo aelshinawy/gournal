@@ -5,6 +5,7 @@ import { readEntries, writeEntries } from './storage';
 import { getProjectName } from './git';
 import { generateStandupReport } from './report';
 import { generateWorkLog } from './log';
+import { generateStats } from './stats';
 import { generateCsvExport, generateMarkdownExport } from './export';
 import { startMcpServer } from './mcp';
 import { filterByProject, filterByTags } from './util/entries.util';
@@ -96,6 +97,15 @@ program
     let entries = filterByProject(await readEntries(), options.project);
     entries = filterByTags(entries, options.tags ? options.tags.split(',').filter(Boolean) : undefined);
     console.log(generateWorkLog(entries, options));
+  });
+
+program
+  .command('stats')
+  .description('Show entry counts by project/tag and your current daily streak')
+  .option('-p, --project <project>', 'Filter by project name')
+  .action(async (options) => {
+    const entries = filterByProject(await readEntries(), options.project);
+    console.log(generateStats(entries));
   });
 
 program
