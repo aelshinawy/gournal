@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import type { Entry } from './types';
+import { groupByProject } from './util/entries.util';
 
 const escapeCsv = (value: string): string =>
   /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
@@ -13,10 +14,7 @@ export const generateCsvExport = (entries: Entry[]): string => {
 };
 
 export const generateMarkdownExport = (entries: Entry[]): string => {
-  const grouped = entries.reduce((acc, e) => {
-    const projectEntries = acc.get(e.project) || [];
-    return acc.set(e.project, [...projectEntries, e]);
-  }, new Map<string, Entry[]>());
+  const grouped = groupByProject(entries);
 
   if (grouped.size === 0) return '# Gournal Export\n\nNo entries found.\n';
 
