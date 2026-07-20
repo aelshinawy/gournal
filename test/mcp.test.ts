@@ -6,11 +6,13 @@ jest.mock('../src/storage');
 jest.mock('../src/report');
 jest.mock('../src/export');
 jest.mock('../src/git');
+jest.mock('../src/log');
 
 import { readEntries, writeEntries } from '../src/storage';
 import { getProjectName } from '../src/git';
 import { generateStandupReport } from '../src/report';
 import { generateCsvExport, generateMarkdownExport } from '../src/export';
+import { generateWorkLog } from '../src/log';
 import { createServer } from '../src/mcp';
 
 const mockedReadEntries = readEntries as jest.MockedFunction<typeof readEntries>;
@@ -19,6 +21,7 @@ const mockedGetProjectName = getProjectName as jest.MockedFunction<typeof getPro
 const mockedStandup = generateStandupReport as jest.MockedFunction<typeof generateStandupReport>;
 const mockedCsv = generateCsvExport as jest.MockedFunction<typeof generateCsvExport>;
 const mockedMd = generateMarkdownExport as jest.MockedFunction<typeof generateMarkdownExport>;
+const mockedWorkLog = generateWorkLog as jest.MockedFunction<typeof generateWorkLog>;
 
 const entries: Entry[] = [
   { timestamp: '2026-07-13T10:00:00.000Z', message: 'Fixed auth middleware', project: 'api', tags: ['bug'] },
@@ -140,5 +143,27 @@ describe('MCP server tools', () => {
     });
     expect(mockedCsv).toHaveBeenCalledWith([entries[1]]);
     expect((result.content as any[])[0].text).toBe('CSV OUTPUT');
+  });
+
+  test('get_work_log calls generateWorkLog with matching options', async () => {
+    mockedWorkLog.mockReturnValue('LOG OUTPUT');
+    const client = await connectedClient();
+    const result = await client.callTool({ name: 'get_work_log', arguments: { week: true, project: 'api' } });
+    expect(mockedWorkLog).toHaveBeenCalledWith([entries[0]], { yesterday: undefined, week: true, month: undefined });
+    expect((result.content as any[])[0].text).toBe('LOG OUTPUT');
+  });
+
+  test('list_tags returns distinct tags with counts', async () => {
+    const client = await connectedClient();
+    const result = await client.callTool({ name: 'list_tags', arguments: {} });
+    const text = (result.content as any[])[0].text;
+    expect(JSON.parse(text)).toEqual([{ tag: 'bug', count: 1 }]);
+  });
+
+  test('list_projects returns distinct projects with counts', async () => {
+    const client = await connectedClient();
+    const result = await client.callTool({ name: 'list_projects', arguments: {} });
+    const text = (result.content as any[])[0].text;
+    expect(JSON.parse(text)).toEqual([{ project: 'api', count: 1 }, { project: 'infra', count: 1 }]);
   });
 });
