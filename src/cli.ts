@@ -59,6 +59,20 @@ program
     });
 
   program
+    .command('undo')
+    .description('Remove the most recently added journal entry')
+    .action(async () => {
+      const entries = await readEntries();
+      if (entries.length === 0) {
+        console.log(chalk.yellow('No entries to undo.'));
+        return;
+      }
+      const removed = entries.pop()!;
+      await writeEntries(entries);
+      console.log(chalk.green(`✓ Removed: ${removed.message}`));
+    });
+
+  program
   .command('standup')
   .description('Generate standup report')
   .option('-y, --yesterday', 'Include yesterday\'s entries')
