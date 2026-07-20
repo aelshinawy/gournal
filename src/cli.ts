@@ -80,8 +80,10 @@ program
   .option('-w, --week', 'Show weekly summary')
   .option('-m, --month', 'Show monthly summary')
   .option('-p, --project <project>', 'Filter by project name')
+  .option('-t, --tags <tags>', 'Comma-separated tags')
   .action(async (options) => {
-    const entries = filterByProject(await readEntries(), options.project);
+    let entries = filterByProject(await readEntries(), options.project);
+    entries = filterByTags(entries, options.tags ? options.tags.split(',').filter(Boolean) : undefined);
     console.log(generateStandupReport(entries, options));
   });
 
@@ -139,9 +141,11 @@ program
   .description('Export journal entries to Markdown or CSV')
   .option('-f, --format <format>', 'Output format: md or csv', 'md')
   .option('-p, --project <project>', 'Filter by project name')
+  .option('-t, --tags <tags>', 'Comma-separated tags')
   .option('-o, --output <file>', 'Write to a file instead of stdout')
-  .action(async (options: { format: string; project?: string; output?: string }) => {
+  .action(async (options: { format: string; project?: string; tags?: string; output?: string }) => {
     let entries = filterByProject(await readEntries(), options.project);
+    entries = filterByTags(entries, options.tags ? options.tags.split(',').filter(Boolean) : undefined);
 
     const exportFormat = options.format.toLowerCase();
     if (exportFormat !== 'md' && exportFormat !== 'csv') {
@@ -164,9 +168,14 @@ program
   .description('Find entries by keyword')
   .option('-p, --project <project>', 'Filter by project name')
   .option('-t, --tags <tags>', 'Comma-separated tags')
-  .action(async (query: string, options: { project?: string; tags?: string }) => {
+  .option('--from <date>', 'ISO date lower bound (inclusive)')
+  .option('--to <date>', 'ISO date upper bound (inclusive)')
+  .action(async (query: string, options: { project?: string; tags?: string; from?: string; to?: string }) => {
     let entries = filterByProject(await readEntries(), options.project);
     entries = filterByTags(entries, options.tags ? options.tags.split(',').filter(Boolean) : undefined);
+    if (options.from) entries = entries.filter(e => e.timestamp >= options.from!);
+    if (options.to) entries = entries.filter(e => e.timestamp <= options.to!);
+
     const results = entries.filter(entry => entry.message.toLowerCase().includes(query.toLowerCase()));
 
     console.log(chalk.bold(`Found ${results.length} entries:\n`));
