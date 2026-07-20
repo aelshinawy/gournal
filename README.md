@@ -60,6 +60,9 @@ Tools exposed:
 - `list_entries` — list entries newest-first, filterable by `project`, `from`, `to`, capped by `limit` (default 50, max 500)
 - `get_standup` — generate a standup report (`yesterday` / `week` / `month`, filterable by `project`)
 - `export_entries` — export entries to `md` or `csv`
+- `get_work_log` — generate a chronological work log grouped by day (`yesterday` / `week` / `month`, filterable by `project`/`tags`)
+- `list_tags` — distinct tags with counts, filterable by `project`
+- `list_projects` — distinct projects with counts
 
 ### Using with Claude Code
 

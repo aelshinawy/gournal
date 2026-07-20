@@ -5,7 +5,9 @@ import { readEntries, writeEntries } from './storage';
 import { getProjectName } from './git';
 import { generateStandupReport } from './report';
 import { generateCsvExport, generateMarkdownExport } from './export';
-import { filterByProject } from './util/entries.util';
+import { filterByProject, filterByTags } from './util/entries.util';
+import { generateWorkLog } from './log';
+import { countBy } from './stats';
 import type { Entry } from './types';
 import type { ReportOptions } from './types/report-config';
 
@@ -80,6 +82,57 @@ export function createServer(): McpServer {
       const entries = filterByProject(await readEntries(), project);
       const options: ReportOptions = { yesterday, week, month };
       return textResult(generateStandupReport(entries, options));
+    }
+  );
+
+  server.registerTool(
+    'get_work_log',
+    {
+      title: 'Get chronological work log',
+      description: 'Generate a gournal work log grouped by day (today by default, or yesterday/week/month), optionally filtered by project and/or tags.',
+      inputSchema: {
+        yesterday: z.boolean().optional(),
+        week: z.boolean().optional(),
+        month: z.boolean().optional(),
+        project: z.string().optional().describe('Filter by project name'),
+        tags: z.array(z.string()).optional().describe('Filter to entries containing all of these tags'),
+      },
+    },
+    async ({ yesterday, week, month, project, tags }) => {
+      let entries = filterByProject(await readEntries(), project);
+      entries = filterByTags(entries, tags);
+      const options: ReportOptions = { yesterday, week, month };
+      return textResult(generateWorkLog(entries, options));
+    }
+  );
+
+  server.registerTool(
+    'list_tags',
+    {
+      title: 'List distinct tags',
+      description: 'List distinct tags used across gournal entries with their counts, optionally filtered by project.',
+      inputSchema: {
+        project: z.string().optional().describe('Filter by project name'),
+      },
+    },
+    async ({ project }) => {
+      const entries = filterByProject(await readEntries(), project);
+      const counts = countBy(entries.flatMap(e => e.tags));
+      return textResult(JSON.stringify(counts.map(([tag, count]) => ({ tag, count })), null, 2));
+    }
+  );
+
+  server.registerTool(
+    'list_projects',
+    {
+      title: 'List distinct projects',
+      description: 'List distinct projects with entry counts across the whole gournal journal.',
+      inputSchema: {},
+    },
+    async () => {
+      const entries = await readEntries();
+      const counts = countBy(entries.map(e => e.project));
+      return textResult(JSON.stringify(counts.map(([project, count]) => ({ project, count })), null, 2));
     }
   );
 
