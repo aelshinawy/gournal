@@ -5,7 +5,7 @@ import { readEntries, writeEntries } from './storage';
 import { getProjectName } from './git';
 import { generateStandupReport } from './report';
 import { generateWorkLog } from './log';
-import { generateStats } from './stats';
+import { generateStats, countBy } from './stats';
 import { generateCsvExport, generateMarkdownExport } from './export';
 import { startMcpServer } from './mcp';
 import { filterByProject, filterByTags } from './util/entries.util';
@@ -106,6 +106,32 @@ program
   .action(async (options) => {
     const entries = filterByProject(await readEntries(), options.project);
     console.log(generateStats(entries));
+  });
+
+program
+  .command('tags')
+  .description('List distinct tags with entry counts')
+  .action(async () => {
+    const entries = await readEntries();
+    const counts = countBy(entries.flatMap(e => e.tags));
+    if (counts.length === 0) {
+      console.log(chalk.yellow('No tags found.'));
+      return;
+    }
+    counts.forEach(([tag, count]) => console.log(`${chalk.magenta(`#${tag}`)}  ${count}`));
+  });
+
+program
+  .command('projects')
+  .description('List distinct projects with entry counts')
+  .action(async () => {
+    const entries = await readEntries();
+    const counts = countBy(entries.map(e => e.project));
+    if (counts.length === 0) {
+      console.log(chalk.yellow('No projects found.'));
+      return;
+    }
+    counts.forEach(([project, count]) => console.log(`${chalk.blue(project)}  ${count}`));
   });
 
 program
