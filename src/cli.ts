@@ -6,6 +6,7 @@ import { getProjectName } from './git';
 import { generateStandupReport } from './report';
 import { generateCsvExport, generateMarkdownExport } from './export';
 import { startMcpServer } from './mcp';
+import { filterByProject, filterByTags } from './util/entries.util';
 import type { Entry } from './types';
 import { format } from 'date-fns';
 import inquirer from 'inquirer';
@@ -64,10 +65,7 @@ program
   .option('-m, --month', 'Show monthly summary')
   .option('-p, --project <project>', 'Filter by project name')
   .action(async (options) => {
-    let entries = await readEntries();
-    if (options.project) {
-      entries = entries.filter((e: Entry) => e.project === options.project);
-    }
+    const entries = filterByProject(await readEntries(), options.project);
     console.log(generateStandupReport(entries, options));
   });
 
@@ -78,10 +76,7 @@ program
   .option('-p, --project <project>', 'Filter by project name')
   .option('-o, --output <file>', 'Write to a file instead of stdout')
   .action(async (options: { format: string; project?: string; output?: string }) => {
-    let entries = await readEntries();
-    if (options.project) {
-      entries = entries.filter(e => e.project === options.project);
-    }
+    let entries = filterByProject(await readEntries(), options.project);
 
     const exportFormat = options.format.toLowerCase();
     if (exportFormat !== 'md' && exportFormat !== 'csv') {
@@ -105,17 +100,9 @@ program
   .option('-p, --project <project>', 'Filter by project name')
   .option('-t, --tags <tags>', 'Comma-separated tags')
   .action(async (query: string, options: { project?: string; tags?: string }) => {
-    const entries = await readEntries();
-    
-    const results = entries.filter(entry => {
-      const matchesText = entry.message.toLowerCase().includes(query.toLowerCase());
-      const matchesProject = options.project ? entry.project === options.project : true;
-      const matchesTags = options.tags 
-        ? options.tags.split(',').every(t => entry.tags.includes(t))
-        : true;
-      
-      return matchesText && matchesProject && matchesTags;
-    });
+    let entries = filterByProject(await readEntries(), options.project);
+    entries = filterByTags(entries, options.tags ? options.tags.split(',').filter(Boolean) : undefined);
+    const results = entries.filter(entry => entry.message.toLowerCase().includes(query.toLowerCase()));
 
     console.log(chalk.bold(`Found ${results.length} entries:\n`));
     results.forEach(entry => {

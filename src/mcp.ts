@@ -5,11 +5,9 @@ import { readEntries, writeEntries } from './storage';
 import { getProjectName } from './git';
 import { generateStandupReport } from './report';
 import { generateCsvExport, generateMarkdownExport } from './export';
+import { filterByProject } from './util/entries.util';
 import type { Entry } from './types';
 import type { ReportOptions } from './types/report-config';
-
-const filterByProject = (entries: Entry[], project?: string): Entry[] =>
-  project ? entries.filter(e => e.project === project) : entries;
 
 const textResult = (text: string) => ({ content: [{ type: 'text' as const, text }] });
 
