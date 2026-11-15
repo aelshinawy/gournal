@@ -5,7 +5,7 @@ test('normalizes case, whitespace, and spaces', () =>
 test('applies aliases after normalizing', () =>
   expect(normalizeTags(['Specs', 'gamedev'], { specs: 'spec', gamedev: 'game-dev' }).tags).toEqual(['spec', 'game-dev']));
 test('ticket-like tags become uppercase jira refs', () =>
-  expect(normalizeTags(['sbdc-1749', 'SBDC-1750', 'step-4'])).toEqual({
+  expect(normalizeTags(['sbdc-1749', 'SBDC-1750', 'step-4'], {}, { ticketPrefixes: ['SBDC'] })).toEqual({
     tags: ['step-4'],
     refs: [{ type: 'jira', value: 'SBDC-1749' }, { type: 'jira', value: 'SBDC-1750' }],
   }));
@@ -28,3 +28,12 @@ test('ticketPrefixes limits which prefixes are tickets', () =>
 test('aliases ignore the prototype chain', () =>
   expect(normalizeTags(['constructor', '__proto__']).tags).toEqual(['constructor', '__proto__']));
 test('closeTags ignores short tags for distance', () => expect(closeTags('ci', ['pr', 'ui'])).toEqual([]));
+test('without ticketPrefixes, ticket-shaped tags stay tags', () =>
+  expect(normalizeTags(['sbdc-1749', 'task-1', 'world-2'])).toEqual({ tags: ['sbdc-1749', 'task-1', 'world-2'], refs: [] }));
+test('with ticketPrefixes, only matching tags convert', () =>
+  expect(normalizeTags(['sbdc-1749', 'SBDC-1750', 'task-1'], {}, { ticketPrefixes: ['SBDC'] })).toEqual({
+    tags: ['task-1'],
+    refs: [{ type: 'jira', value: 'SBDC-1749' }, { type: 'jira', value: 'SBDC-1750' }],
+  }));
+test('pr-N tags always become pr refs', () =>
+  expect(normalizeTags(['pr-401'])).toEqual({ tags: [], refs: [{ type: 'pr', value: '401' }] }));

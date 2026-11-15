@@ -8,7 +8,8 @@ export function normalizeTags(raw: string[], aliases: Record<string, string> = {
     let tag = item.trim().toLowerCase().replace(/\s+/g, '-');
     if (!tag) continue;
     const ref = ticketToRef(tag, opts);
-    if (ref) {
+    // Only pr-N is always a ref. A jira ref needs a configured ticket prefix.
+    if (ref && (ref.type === 'pr' || (opts.ticketPrefixes?.length ?? 0) > 0)) {
       refs.push(ref);
       continue;
     }
