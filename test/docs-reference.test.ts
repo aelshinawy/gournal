@@ -229,3 +229,56 @@ test('every MCP field row has a description', async () => {
   }
   expect(empty).toEqual([]);
 });
+
+import { inertProgram } from '../site/scripts/reference/generate';
+import { leafNames } from '../site/scripts/reference/cli';
+import { listTools } from '../site/scripts/reference/mcp';
+import { CAPABILITIES, GROUPS, checkCoverage } from '../site/scripts/reference/capabilities';
+
+describe('capability registry', () => {
+  test('every CLI leaf and MCP tool maps to exactly one capability', async () => {
+    const cli = leafNames(inertProgram());
+    const mcp = (await listTools()).map((t) => t.name);
+    expect(cli.length).toBeGreaterThan(0);
+    expect(mcp.length).toBeGreaterThan(0);
+    expect(checkCoverage(cli, mcp)).toEqual([]);
+  });
+
+  test('checkCoverage names an unmapped command and the file to edit', () => {
+    const problems = checkCoverage(['add', 'brand-new'], ['add_entry', 'new_tool']);
+    const text = problems.join('\n');
+    expect(text).toContain('brand-new');
+    expect(text).toContain('new_tool');
+    expect(text).toContain('site/scripts/reference/capabilities.ts');
+  });
+
+  test('checkCoverage names a command mapped twice', () => {
+    const dup = [...CAPABILITIES, { ...CAPABILITIES[0], slug: 'dup-add' }];
+    const problems = checkCoverage(['add'], ['add_entry'], dup);
+    expect(problems.join('\n')).toMatch(/add.*(twice|more than one)/);
+  });
+
+  test('capability slugs are unique and do not clash with configuration, environment, output-shapes, or index', () => {
+    const slugs = CAPABILITIES.map((c) => c.slug);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    for (const reserved of ['configuration', 'environment', 'output-shapes', 'index']) {
+      expect(slugs).not.toContain(reserved);
+    }
+    const groupIds = GROUPS.map((g) => g.id);
+    for (const c of CAPABILITIES) expect(groupIds).toContain(c.group);
+  });
+
+  test('related entries point to a capability or an existing guide', () => {
+    const slugs = new Set(CAPABILITIES.map((c) => c.slug));
+    for (const c of CAPABILITIES) {
+      expect(c.related.length).toBeGreaterThanOrEqual(1);
+      for (const r of c.related) {
+        if (r.startsWith('guides/')) {
+          expect(fs.existsSync(path.join(siteRoot, 'src/content/docs/docs', `${r}.md`))).toBe(true);
+        } else {
+          expect(slugs.has(r)).toBe(true);
+        }
+      }
+    }
+  });
+});

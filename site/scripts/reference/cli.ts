@@ -25,6 +25,11 @@ function leaves(parent: Command, prefix: string[]): Leaf[] {
   return out;
 }
 
+/** Visible leaf command names joined by a space, in program order. */
+export function leafNames(program: Command): string[] {
+  return leaves(program, []).map((l) => l.names.join(' '));
+}
+
 function argText(arg: Argument): string {
   const name = `${arg.name()}${arg.variadic ? '...' : ''}`;
   return arg.required ? `<${name}>` : `[${name}]`;

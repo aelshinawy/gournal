@@ -22,7 +22,7 @@ export const OWNED: ReadonlyArray<{ dir: string } | { file: string }> = [
 ];
 
 /** A program build must not open the journal. These no-op seams keep it inert. */
-function inertProgram() {
+export function inertProgram() {
   return buildProgram({
     out: () => undefined,
     err: () => undefined,

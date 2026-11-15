@@ -59,7 +59,7 @@ export function createDocsServer() {
   return { server, touched: () => hit };
 }
 
-async function listTools(): Promise<Tool[]> {
+export async function listTools(): Promise<Tool[]> {
   const { server, touched } = createDocsServer();
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'docs-generator', version: '0.0.0' });
