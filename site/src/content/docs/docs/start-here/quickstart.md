@@ -1,6 +1,114 @@
 ---
 title: Quickstart
-description: Log your first entry and read your first standup.
+description: Install gournal, connect Claude Code, log an entry, read a standup, and sync GitHub activity.
 ---
 
-This page is coming soon.
+This page takes you from nothing to a working setup. Each step shows real output. The examples ran in a clean home folder, so the home folder shows as `/Users/you`.
+
+## 1. Install
+
+You need Node.js 22.13 or newer. Run this command.
+
+```bash
+npm install -g gournal
+gournal --version
+```
+
+Gournal prints its version number, for example `0.9.0`. See [Install](/gournal/docs/start-here/install/) for details.
+
+## 2. Connect Claude Code (optional)
+
+Skip this step if you do not use Claude Code. You can add entries yourself with the CLI.
+
+```console
+$ gournal setup claude --yes
+MCP server: register gournal for all projects (claude mcp add --scope user gournal -- gournal mcp).
+MCP server: the claude CLI was not found. Run this command yourself:
+  claude mcp add --scope user gournal -- gournal mcp
+Skill: write /Users/you/.claude/skills/gournal/SKILL.md.
+Skill: installed.
+Stop hook: not enabled (add --hook to enable it).
+```
+
+The command does up to three things:
+
+1. It registers the gournal MCP server with Claude Code.
+2. It writes a skill file that tells Claude when to log work.
+3. It adds a Stop hook, only when you pass `--hook`.
+
+This example ran on a machine with no `claude` CLI. When `claude` is installed, gournal runs the `claude mcp add` command for you. When it is missing, gournal prints the command, and you run it yourself.
+
+Without `--yes`, gournal shows each change and asks first. See [Claude Code setup](/gournal/docs/guides/claude-code-setup/) and [`gournal setup claude`](/gournal/docs/reference/cli/setup-claude/).
+
+## 3. Add entries
+
+Go to a git repository. Then add an entry. Gournal records the project, the repository, and the branch from the current directory.
+
+```console
+$ gournal add "Fix rounding error in invoice totals" -t bugfix,invoices
+✓ Entry added! (5C9ASMEJ)
+```
+
+Add a planned step with `--kind next`. Use `--kind blocker` for something that stops you.
+
+```console
+$ gournal add "Add a regression test for tax rounding" -k next -t testing
+✓ Entry added! (KNWP3VQV)
+```
+
+The id in the output is the last 8 characters of the entry id. Your ids are different. See [`gournal add`](/gournal/docs/reference/cli/add/).
+
+## 4. Read your standup
+
+```console
+$ gournal standup
+
+Standup: Today (2026-11-15)
+
+  Done
+  billing-api
+  16:19  Fix rounding error in invoice totals
+
+  Next
+    Nov 15  KNWP3VQV  Add a regression test for tax rounding  [billing-api]
+```
+
+The standup lists what you finished today, grouped by project. It also lists open blockers and next items. Use `--yesterday`, `--week`, or `--month` for other periods. See [`gournal standup`](/gournal/docs/reference/cli/standup/) and [Standups and work logs](/gournal/docs/guides/standups-and-work-logs/).
+
+## 5. Sync GitHub activity (optional)
+
+Sign in with `gh auth login` first. Then run this command.
+
+```console
+$ gournal sync
+Synced GitHub activity since Oct 16: 2 new, 0 updated, 2 links.
+```
+
+This example used a stand-in `gh` program with fixture data for one pull request. Your numbers are different. The first sync covers the last 30 days. Later syncs start where the last sync stopped.
+
+If you are not signed in, gournal tells you why it stopped. For example, `gh` is not signed in, and you must run `gh auth login`.
+
+Now run the standup again. Gournal linked the pull request and its commit to the entry, because the entry and the pull request share a repository and a branch.
+
+```console
+$ gournal standup
+
+Standup: Today (2026-11-15)
+
+  Done
+  billing-api
+  16:19  Fix rounding error in invoice totals
+         ↳ opened #42 Fix rounding error in invoice totals
+         ↳ 1 commit
+
+  Next
+    Nov 15  KNWP3VQV  Add a regression test for tax rounding  [billing-api]
+```
+
+`gournal standup` and `gournal log` also sync for you, at most once every 15 minutes. See [GitHub activity](/gournal/docs/guides/github-activity/) and [`gournal sync`](/gournal/docs/reference/cli/sync/).
+
+## Next steps
+
+1. Read [Core concepts](/gournal/docs/start-here/core-concepts/).
+2. Let your agent log for you: [Logging with AI agents](/gournal/docs/guides/logging-with-ai-agents/).
+3. Browse the [CLI reference](/gournal/docs/reference/cli/add/).
