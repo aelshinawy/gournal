@@ -2,28 +2,28 @@ import { z } from 'zod';
 import type { Activity, Entry, StandupModel, WorkLogModel } from '../core';
 
 export const EntrySchema = z.object({
-  id: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  deletedAt: z.string().nullable(),
-  deviceId: z.string(),
-  summary: z.string(),
-  details: z.string().nullable(),
-  kind: z.enum(['done', 'blocker', 'next']),
-  status: z.enum(['open', 'resolved']).nullable(),
-  resolvedAt: z.string().nullable(),
-  resolvedByEntryId: z.string().nullable(),
-  project: z.string(),
-  repo: z.string().nullable(),
-  branch: z.string().nullable(),
-  source: z.enum(['cli', 'mcp', 'migration']),
-  agent: z.string().nullable(),
-  tags: z.array(z.string()),
+  id: z.string().describe('Unique id of the entry. The last 8 characters work as a short id.'),
+  createdAt: z.string().describe('When the entry was created, as an ISO timestamp.'),
+  updatedAt: z.string().describe('When the entry last changed, as an ISO timestamp.'),
+  deletedAt: z.string().nullable().describe('When the entry was deleted, or null if it is not deleted.'),
+  deviceId: z.string().describe('Id of the device that created the entry.'),
+  summary: z.string().describe('One line that says what happened.'),
+  details: z.string().nullable().describe('Longer text for the entry, or null.'),
+  kind: z.enum(['done', 'blocker', 'next']).describe('done, blocker (something stops you), or next (a planned step).'),
+  status: z.enum(['open', 'resolved']).nullable().describe('open or resolved for a blocker or next entry. Null for a done entry.'),
+  resolvedAt: z.string().nullable().describe('When the entry was resolved, or null.'),
+  resolvedByEntryId: z.string().nullable().describe('Id of the entry that resolved this one, or null.'),
+  project: z.string().describe('Project name.'),
+  repo: z.string().nullable().describe('Repository (owner/name), or null.'),
+  branch: z.string().nullable().describe('Git branch, or null.'),
+  source: z.enum(['cli', 'mcp', 'migration']).describe('Where the entry came from: the CLI, the MCP server, or a migration.'),
+  agent: z.string().nullable().describe('Name of the agent that logged the entry, or null.'),
+  tags: z.array(z.string()).describe('Tags of the entry.'),
   refs: z.array(z.object({
-    type: z.enum(['pr', 'jira', 'commit', 'url']),
-    value: z.string(),
-    repo: z.string().optional(),
-  })),
+    type: z.enum(['pr', 'jira', 'commit', 'url']).describe('Kind of reference.'),
+    value: z.string().describe('The PR number, ticket key, commit hash, or URL.'),
+    repo: z.string().optional().describe('Repository (owner/name) of the reference.'),
+  })).describe('References such as PRs and ticket keys.'),
 });
 export type EntryJson = z.infer<typeof EntrySchema>;
 
@@ -76,10 +76,16 @@ export const WorkLogSchema = z.object({
 });
 export type WorkLogJson = z.infer<typeof WorkLogSchema>;
 
-export const EntryListSchema = z.object({ entries: z.array(EntrySchema), count: z.number() });
+export const EntryListSchema = z.object({
+  entries: z.array(EntrySchema).describe('The matching entries.'),
+  count: z.number().describe('Number of entries returned.'),
+});
 export const TagCountsSchema = z.object({ tags: z.array(z.object({ tag: z.string(), count: z.number() })) });
 export const ProjectCountsSchema = z.object({ projects: z.array(z.object({ project: z.string(), count: z.number() })) });
-export const EntryResultSchema = z.object({ entry: EntrySchema, notes: z.array(z.string()) });
+export const EntryResultSchema = z.object({
+  entry: EntrySchema.describe('The entry after the change.'),
+  notes: z.array(z.string()).describe('Hints and warnings, for example a close tag name or an id that could not be resolved.'),
+});
 
 export function entryJson(e: Entry): EntryJson {
   return { ...e, tags: [...e.tags], refs: e.refs.map((r) => ({ ...r })) };

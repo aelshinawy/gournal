@@ -12,8 +12,8 @@ Mark an open blocker or next entry as resolved. Optionally pass `by`, the id of 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | `string` | yes |  |
-| `by` | `string` | no |  |
+| `id` | `string` | yes | Full id or the last 8 characters of the open blocker or next entry. |
+| `by` | `string` | no | Id of the entry that resolved it. |
 
 ## Output
 

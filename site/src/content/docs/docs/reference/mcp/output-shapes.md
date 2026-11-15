@@ -14,29 +14,29 @@ Tools that return this shape: [`find_entries`](/gournal/docs/reference/mcp/find_
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `entries` | `object[]` | yes |  |
-| `entries.id` | `string` | yes |  |
-| `entries.createdAt` | `string` | yes |  |
-| `entries.updatedAt` | `string` | yes |  |
-| `entries.deletedAt` | `string \| null` | yes |  |
-| `entries.deviceId` | `string` | yes |  |
-| `entries.summary` | `string` | yes |  |
-| `entries.details` | `string \| null` | yes |  |
-| `entries.kind` | `"done" \| "blocker" \| "next"` | yes |  |
-| `entries.status` | `"open" \| "resolved" \| null` | yes |  |
-| `entries.resolvedAt` | `string \| null` | yes |  |
-| `entries.resolvedByEntryId` | `string \| null` | yes |  |
-| `entries.project` | `string` | yes |  |
-| `entries.repo` | `string \| null` | yes |  |
-| `entries.branch` | `string \| null` | yes |  |
-| `entries.source` | `"cli" \| "mcp" \| "migration"` | yes |  |
-| `entries.agent` | `string \| null` | yes |  |
-| `entries.tags` | `string[]` | yes |  |
-| `entries.refs` | `object[]` | yes |  |
-| `entries.refs.type` | `"pr" \| "jira" \| "commit" \| "url"` | yes |  |
-| `entries.refs.value` | `string` | yes |  |
-| `entries.refs.repo` | `string` | no |  |
-| `count` | `number` | yes |  |
+| `entries` | `object[]` | yes | The matching entries. |
+| `entries.id` | `string` | yes | Unique id of the entry. The last 8 characters work as a short id. |
+| `entries.createdAt` | `string` | yes | When the entry was created, as an ISO timestamp. |
+| `entries.updatedAt` | `string` | yes | When the entry last changed, as an ISO timestamp. |
+| `entries.deletedAt` | `string \| null` | yes | When the entry was deleted, or null if it is not deleted. |
+| `entries.deviceId` | `string` | yes | Id of the device that created the entry. |
+| `entries.summary` | `string` | yes | One line that says what happened. |
+| `entries.details` | `string \| null` | yes | Longer text for the entry, or null. |
+| `entries.kind` | `"done" \| "blocker" \| "next"` | yes | done, blocker (something stops you), or next (a planned step). |
+| `entries.status` | `"open" \| "resolved" \| null` | yes | open or resolved for a blocker or next entry. Null for a done entry. |
+| `entries.resolvedAt` | `string \| null` | yes | When the entry was resolved, or null. |
+| `entries.resolvedByEntryId` | `string \| null` | yes | Id of the entry that resolved this one, or null. |
+| `entries.project` | `string` | yes | Project name. |
+| `entries.repo` | `string \| null` | yes | Repository (owner/name), or null. |
+| `entries.branch` | `string \| null` | yes | Git branch, or null. |
+| `entries.source` | `"cli" \| "mcp" \| "migration"` | yes | Where the entry came from: the CLI, the MCP server, or a migration. |
+| `entries.agent` | `string \| null` | yes | Name of the agent that logged the entry, or null. |
+| `entries.tags` | `string[]` | yes | Tags of the entry. |
+| `entries.refs` | `object[]` | yes | References such as PRs and ticket keys. |
+| `entries.refs.type` | `"pr" \| "jira" \| "commit" \| "url"` | yes | Kind of reference. |
+| `entries.refs.value` | `string` | yes | The PR number, ticket key, commit hash, or URL. |
+| `entries.refs.repo` | `string` | no | Repository (owner/name) of the reference. |
+| `count` | `number` | yes | Number of entries returned. |
 
 ## Entry result
 
@@ -44,26 +44,26 @@ Tools that return this shape: [`add_entry`](/gournal/docs/reference/mcp/add_entr
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `entry` | `object` | yes |  |
-| `entry.id` | `string` | yes |  |
-| `entry.createdAt` | `string` | yes |  |
-| `entry.updatedAt` | `string` | yes |  |
-| `entry.deletedAt` | `string \| null` | yes |  |
-| `entry.deviceId` | `string` | yes |  |
-| `entry.summary` | `string` | yes |  |
-| `entry.details` | `string \| null` | yes |  |
-| `entry.kind` | `"done" \| "blocker" \| "next"` | yes |  |
-| `entry.status` | `"open" \| "resolved" \| null` | yes |  |
-| `entry.resolvedAt` | `string \| null` | yes |  |
-| `entry.resolvedByEntryId` | `string \| null` | yes |  |
-| `entry.project` | `string` | yes |  |
-| `entry.repo` | `string \| null` | yes |  |
-| `entry.branch` | `string \| null` | yes |  |
-| `entry.source` | `"cli" \| "mcp" \| "migration"` | yes |  |
-| `entry.agent` | `string \| null` | yes |  |
-| `entry.tags` | `string[]` | yes |  |
-| `entry.refs` | `object[]` | yes |  |
-| `entry.refs.type` | `"pr" \| "jira" \| "commit" \| "url"` | yes |  |
-| `entry.refs.value` | `string` | yes |  |
-| `entry.refs.repo` | `string` | no |  |
-| `notes` | `string[]` | yes |  |
+| `entry` | `object` | yes | The entry after the change. |
+| `entry.id` | `string` | yes | Unique id of the entry. The last 8 characters work as a short id. |
+| `entry.createdAt` | `string` | yes | When the entry was created, as an ISO timestamp. |
+| `entry.updatedAt` | `string` | yes | When the entry last changed, as an ISO timestamp. |
+| `entry.deletedAt` | `string \| null` | yes | When the entry was deleted, or null if it is not deleted. |
+| `entry.deviceId` | `string` | yes | Id of the device that created the entry. |
+| `entry.summary` | `string` | yes | One line that says what happened. |
+| `entry.details` | `string \| null` | yes | Longer text for the entry, or null. |
+| `entry.kind` | `"done" \| "blocker" \| "next"` | yes | done, blocker (something stops you), or next (a planned step). |
+| `entry.status` | `"open" \| "resolved" \| null` | yes | open or resolved for a blocker or next entry. Null for a done entry. |
+| `entry.resolvedAt` | `string \| null` | yes | When the entry was resolved, or null. |
+| `entry.resolvedByEntryId` | `string \| null` | yes | Id of the entry that resolved this one, or null. |
+| `entry.project` | `string` | yes | Project name. |
+| `entry.repo` | `string \| null` | yes | Repository (owner/name), or null. |
+| `entry.branch` | `string \| null` | yes | Git branch, or null. |
+| `entry.source` | `"cli" \| "mcp" \| "migration"` | yes | Where the entry came from: the CLI, the MCP server, or a migration. |
+| `entry.agent` | `string \| null` | yes | Name of the agent that logged the entry, or null. |
+| `entry.tags` | `string[]` | yes | Tags of the entry. |
+| `entry.refs` | `object[]` | yes | References such as PRs and ticket keys. |
+| `entry.refs.type` | `"pr" \| "jira" \| "commit" \| "url"` | yes | Kind of reference. |
+| `entry.refs.value` | `string` | yes | The PR number, ticket key, commit hash, or URL. |
+| `entry.refs.repo` | `string` | no | Repository (owner/name) of the reference. |
+| `notes` | `string[]` | yes | Hints and warnings, for example a close tag name or an id that could not be resolved. |

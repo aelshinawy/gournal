@@ -108,11 +108,11 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('add <summary>')
-    .description('Add a new journal entry')
-    .option('-t, --tags <tags>', 'Comma-separated tags', '')
-    .option('-d, --details <text>', 'Longer text for this entry')
-    .option('-k, --kind <kind>', 'done (default), blocker, or next')
-    .option('--resolves <ids>', 'Comma-separated ids of open blocker or next entries that this entry closes')
+    .description('Add a journal entry. Gournal records the project, repo, and branch of the current directory.')
+    .option('-t, --tags <tags>', 'Tag the entry. Separate tags with commas.', '')
+    .option('-d, --details <text>', 'Save longer text with the entry. The summary stays one line.')
+    .option('-k, --kind <kind>', 'Set the entry kind: done (default), blocker, or next.')
+    .option('--resolves <ids>', 'Close the open blocker or next entries with these ids. Separate ids with commas.')
     .action(async (summary: string, options: { tags: string; details?: string; kind?: string; resolves?: string }) => {
       if (options.kind !== undefined && !KINDS.includes(options.kind as Kind)) {
         throw new Error(`Unknown kind "${options.kind}". Use done, blocker, or next.`);
@@ -143,7 +143,7 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('clear')
-    .description('Clear all journal entries')
+    .description('Remove all journal entries after you confirm. This command needs a terminal.')
     .action(async () => {
       if (!io.isTTY) throw new Error('Not a terminal; nothing cleared.');
       let confirmed: boolean;
@@ -163,7 +163,7 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('undo')
-    .description('Remove the most recently added journal entry')
+    .description('Remove the last entry that you added on this device. Restore it later by id.')
     .action(async () => {
       await withJournal(({ repo }) => {
         const latest = repo.latestForDevice();
@@ -178,7 +178,7 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('restore <id>')
-    .description('Restore a removed journal entry (full id or last 8 characters)')
+    .description('Bring back a removed entry. Pass the full id or the last 8 characters.')
     .action(async (id: string) => {
       await withJournal(({ repo }) => {
         const entry = repo.restore(id);
@@ -188,7 +188,7 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('resolve <id>')
-    .description('Mark an open blocker or next entry as resolved (full id or last 8 characters)')
+    .description('Mark an open blocker or next entry as resolved. Pass the full id or the last 8 characters.')
     .action(async (id: string) => {
       await withJournal(({ repo }) => {
         const entry = repo.resolve(id);
@@ -198,16 +198,16 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('standup')
-    .description('Generate standup report: Done, open Blockers and Next items, and a Stale line')
-    .option('-y, --yesterday', 'Include yesterday\'s entries')
-    .option('-w, --week', 'Show weekly summary')
-    .option('-m, --month', 'Show monthly summary')
-    .option('--from <date>', 'Start date (inclusive, local day or ISO timestamp)')
-    .option('--to <date>', 'End date (inclusive, local day or ISO timestamp)')
-    .option('-p, --project <project>', 'Filter by project name')
-    .option('--repo <owner/name>', 'Filter by repository')
-    .option('-t, --tags <tags>', 'Comma-separated tags')
-    .option('--activity', 'List all GitHub activity that has no entry, not only the counts')
+    .description('Show a standup report for today, or for the period that you choose. The report lists done entries, open blockers, open next items, and a Stale line.')
+    .option('-y, --yesterday', 'Report on yesterday and today.')
+    .option('-w, --week', 'Report on the current week.')
+    .option('-m, --month', 'Report on the current month.')
+    .option('--from <date>', 'Start of the period (inclusive). Use a local day or an ISO timestamp.')
+    .option('--to <date>', 'End of the period (inclusive). Use a local day or an ISO timestamp.')
+    .option('-p, --project <project>', 'Show only entries of this project.')
+    .option('--repo <owner/name>', 'Show only entries of this repository.')
+    .option('-t, --tags <tags>', 'Show only entries with all of these tags. Separate tags with commas.')
+    .option('--activity', 'List every GitHub activity item that has no entry. Without this option, the report shows only counts.')
     .action(async (options: PeriodCliOptions & { activity?: boolean }) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
       await withJournal(async (journal) => {
@@ -220,15 +220,15 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('log')
-    .description('Show a chronological work log, grouped by day (today by default)')
-    .option('-y, --yesterday', 'Include yesterday\'s entries')
-    .option('-w, --week', 'Show weekly log')
-    .option('-m, --month', 'Show monthly log')
-    .option('--from <date>', 'Start date (inclusive, local day or ISO timestamp)')
-    .option('--to <date>', 'End date (inclusive, local day or ISO timestamp)')
-    .option('-p, --project <project>', 'Filter by project name')
-    .option('--repo <owner/name>', 'Filter by repository')
-    .option('-t, --tags <tags>', 'Comma-separated tags')
+    .description('Show your entries in time order, grouped by day. The log covers today unless you choose a period.')
+    .option('-y, --yesterday', 'Report on yesterday and today.')
+    .option('-w, --week', 'Show the current week.')
+    .option('-m, --month', 'Show the current month.')
+    .option('--from <date>', 'Start of the period (inclusive). Use a local day or an ISO timestamp.')
+    .option('--to <date>', 'End of the period (inclusive). Use a local day or an ISO timestamp.')
+    .option('-p, --project <project>', 'Show only entries of this project.')
+    .option('--repo <owner/name>', 'Show only entries of this repository.')
+    .option('-t, --tags <tags>', 'Show only entries with all of these tags. Separate tags with commas.')
     .action(async (options: PeriodCliOptions) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
       await withJournal(async (journal) => {
@@ -240,8 +240,8 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('stats')
-    .description('Show entry counts by project/tag and your current daily streak')
-    .option('-p, --project <project>', 'Filter by project name')
+    .description('Show how many entries you have for each project and tag, and your current daily streak.')
+    .option('-p, --project <project>', 'Count only entries of this project.')
     .action(async (options: { project?: string }) => {
       const query = buildQuery({ project: options.project });
       await withJournal(({ repo }) => {
@@ -251,7 +251,7 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('tags')
-    .description('List distinct tags with entry counts')
+    .description('List every tag that you use, with the number of entries for each tag.')
     .action(async () => {
       await withJournal(({ repo }) => {
         io.out(tagCountsText(repo.tagCounts()));
@@ -260,7 +260,7 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('projects')
-    .description('List distinct projects with entry counts')
+    .description('List every project that you log to, with the number of entries for each project.')
     .action(async () => {
       await withJournal(({ repo }) => {
         io.out(projectCountsText(repo.projectCounts()));
@@ -269,13 +269,13 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('export')
-    .description('Export journal entries to Markdown, CSV, or a full bundle')
-    .option('-f, --format <format>', 'Output format: md, csv, or bundle', 'md')
-    .option('-p, --project <project>', 'Filter by project name (md and csv only)')
-    .option('-t, --tags <tags>', 'Comma-separated tags (md and csv only)')
-    .option('--from <date>', 'Start date (inclusive, md and csv only)')
-    .option('--to <date>', 'End date (inclusive, md and csv only)')
-    .option('-o, --output <file>', 'Write to a file instead of stdout')
+    .description('Write journal entries as Markdown or CSV, or write a full bundle for backup and import. Output goes to the terminal unless you pass --output.')
+    .option('-f, --format <format>', 'Choose the output format: md, csv, or bundle.', 'md')
+    .option('-p, --project <project>', 'Export only entries of this project. Applies to md and csv.')
+    .option('-t, --tags <tags>', 'Export only entries with all of these tags. Separate tags with commas. Applies to md and csv.')
+    .option('--from <date>', 'Export entries from this date (inclusive). Applies to md and csv.')
+    .option('--to <date>', 'Export entries up to this date (inclusive). Applies to md and csv.')
+    .option('-o, --output <file>', 'Write the output to this file instead of the terminal.')
     .action(async (options: { format: string; project?: string; tags?: string; from?: string; to?: string; output?: string }) => {
       const exportFormat = options.format.toLowerCase();
       if (exportFormat !== 'md' && exportFormat !== 'csv' && exportFormat !== 'bundle') {
@@ -307,7 +307,7 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('import <file>')
-    .description('Import a bundle file made by gournal export --format bundle')
+    .description('Load entries from a bundle file. Make the bundle with gournal export --format bundle.')
     .action(async (file: string) => {
       let bundle: unknown;
       try {
@@ -342,15 +342,15 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('find <text>')
-    .description('Find entries by keyword')
-    .option('-p, --project <project>', 'Filter by project name')
-    .option('-t, --tags <tags>', 'Comma-separated tags')
-    .option('-k, --kind <kinds>', 'Comma-separated kinds: done, blocker, next')
-    .option('--status <status>', 'open or resolved')
-    .option('--repo <owner/name>', 'Filter by repository')
-    .option('--from <date>', 'ISO date lower bound (inclusive)')
-    .option('--to <date>', 'ISO date upper bound (inclusive)')
-    .option('-n, --limit <n>', 'Show at most n entries')
+    .description('Search your entries for words. Every word must match. The newest entries come first.')
+    .option('-p, --project <project>', 'Show only entries of this project.')
+    .option('-t, --tags <tags>', 'Show only entries with all of these tags. Separate tags with commas.')
+    .option('-k, --kind <kinds>', 'Show only these kinds: done, blocker, next. Separate kinds with commas.')
+    .option('--status <status>', 'Show only open or resolved entries.')
+    .option('--repo <owner/name>', 'Show only entries of this repository.')
+    .option('--from <date>', 'Show entries from this date (inclusive). Use a local day or an ISO timestamp.')
+    .option('--to <date>', 'Show entries up to this date (inclusive). Use a local day or an ISO timestamp.')
+    .option('-n, --limit <n>', 'Show at most this many entries.')
     .action(async (text: string, options: FindCliOptions) => {
       const query = buildQuery(options, text);
       await withJournal(({ repo }) => {
@@ -362,10 +362,10 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('migrate')
-    .description('Import entries.json into the database, or apply a reviewed migration plan')
-    .option('--plan <file>', 'Reviewed migration plan (JSON)')
-    .option('--dry-run', 'Compute the changes and write nothing')
-    .option('--diff <file>', 'Write the dry-run diff (markdown) to this file')
+    .description('Import the old entries.json file into the database, or apply a reviewed migration plan.')
+    .option('--plan <file>', 'Apply this reviewed migration plan (a JSON file).')
+    .option('--dry-run', 'Compute the changes and write nothing. Needs --plan and --diff.')
+    .option('--diff <file>', 'Write the dry-run diff (Markdown) to this file. Needs --dry-run.')
     .action(async (options: { plan?: string; dryRun?: boolean; diff?: string }) => {
       if (options.diff && !options.dryRun) throw new Error('--diff only applies with --dry-run');
       if (options.dryRun && !options.plan) throw new Error('--dry-run needs --plan <file>');
@@ -405,7 +405,7 @@ export function buildProgram(io: CliIo): Command {
       }
     });
 
-  const index = program.command('index').description('Maintain the search index');
+  const index = program.command('index').description('Maintain the full-text search index.');
   index
     .command('rebuild')
     .description('Drop and recreate the full-text search index. Run it only when every gournal process uses a Node build with FTS5.')
@@ -425,8 +425,8 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('sync')
-    .description('Fetch your GitHub activity (PRs, commits, reviews) through the gh CLI')
-    .option('--since <date>', 'Start date (local day or ISO timestamp). Default: the last sync.')
+    .description('Fetch your GitHub activity (PRs, commits, reviews) through the gh CLI. Gournal links the activity to your entries.')
+    .option('--since <date>', 'Fetch activity from this date. Use a local day or an ISO timestamp. Default: the last sync.')
     .action(async (options: { since?: string }) => {
       const since = options.since === undefined ? undefined : parseSince(options.since); // fail before the journal opens
       const report = await withJournal((journal) =>
@@ -436,13 +436,13 @@ export function buildProgram(io: CliIo): Command {
       io.out(report.status === 'partial' && report.warning ? `${line} ${report.warning}` : line);
     });
 
-  const setup = program.command('setup').description('Set gournal up for another tool');
+  const setup = program.command('setup').description('Set gournal up for another tool.');
   setup
     .command('claude')
-    .description('Register the MCP server, install the skill, and optionally add a Stop hook for Claude Code')
-    .option('--uninstall', 'Remove what setup added')
-    .option('-y, --yes', 'Apply the MCP and skill steps without asking')
-    .option('--hook', 'Also add the Stop hook that reminds Claude to log work')
+    .description('Register the gournal MCP server and install the gournal skill for Claude Code. You can also add a Stop hook.')
+    .option('--uninstall', 'Remove the MCP server, the skill, and the hook that setup added.')
+    .option('-y, --yes', 'Apply the MCP server and skill steps without asking.')
+    .option('--hook', 'Also add the Stop hook. The hook reminds Claude to log its work.')
     .action(async (options: { uninstall?: boolean; yes?: boolean; hook?: boolean }) => {
       const code = await setupClaude({
         out: io.out, err: io.err, isTTY: io.isTTY,
@@ -453,10 +453,10 @@ export function buildProgram(io: CliIo): Command {
       if (code !== 0) throw new CommanderError(code, 'gournal.setup', 'setup did not finish'); // setup already printed why
     });
 
-  const hook = program.command('hook', { hidden: true }).description('Claude Code hook entry points');
+  const hook = program.command('hook', { hidden: true }).description('Claude Code hook entry points.');
   hook
     .command('stop')
-    .description('Stop hook: ask the agent to log edited work once per session')
+    .description('Stop hook. Ask the agent to log edited work once per session.')
     .action(async () => {
       // Never opens the database. Never fails: any error means no output and exit 0.
       let stdin = '';
@@ -473,7 +473,7 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('mcp')
-    .description('Start an MCP server exposing gournal entries, standup reports, and export as tools')
+    .description('Start the gournal MCP server on stdio. It offers entries, standup reports, work logs, and export as tools.')
     .action(async () => {
       await startMcpServer();
     });
