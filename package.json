@@ -15,7 +15,8 @@
     "dev": "ts-node src/cli.ts",
     "test": "jest",
     "lint": "depcruise src --config .dependency-cruiser.cjs",
-    "check:dashes": "node scripts/check-dashes.mjs"
+    "check:dashes": "node scripts/check-dashes.mjs",
+    "docs:gen": "ts-node --transpile-only site/scripts/reference/run.ts"
   },
   "keywords": [
     "journal",
