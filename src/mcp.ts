@@ -155,7 +155,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
           if (close.length) hints.push(`New tag "${tag}". Close existing tags: ${close.join(', ')}`);
         }
       }
-      const id = await resolveCallIdentity(args, { identity, roots, processCwd });
+      const identityOfCall = await resolveCallIdentity(args, { identity, roots, processCwd });
       // A bad resolves id never stops the entry. Drop it and report it.
       // The check and the add share one transaction, so a target cannot change in between.
       const dropped: string[] = [];
@@ -177,9 +177,9 @@ export function createServer(deps: ServerDeps = {}): McpServer {
           summary: check.summary,
           details: check.details,
           kind: args.kind,
-          project: id.project,
-          repo: id.repo ?? undefined,
-          branch: id.branch ?? undefined,
+          project: identityOfCall.project,
+          repo: identityOfCall.repo ?? undefined,
+          branch: identityOfCall.branch ?? undefined,
           agent: args.agent,
           source: 'mcp',
           tags: args.tags,

@@ -1,3 +1,4 @@
+import path from 'path';
 import type { RepoIdentity } from '../core';
 
 export interface IdentityDeps {
@@ -19,7 +20,8 @@ export async function resolveCallIdentity(
   let base: RepoIdentity | undefined;
   const needsBase = args.project === undefined || args.repo === undefined || args.branch === undefined;
   if (needsBase) {
-    let dir = args.cwd;
+    // A relative cwd would resolve against the server's own cwd, so it counts as absent.
+    let dir = args.cwd && path.isAbsolute(args.cwd) ? args.cwd : undefined;
     if (!dir) {
       try { dir = (await deps.roots())[0]; } catch { dir = undefined; }
     }

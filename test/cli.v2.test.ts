@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { execFileSync } from 'child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { runIn } from './helpers/run-cli';
 
@@ -137,6 +138,32 @@ describe('gournal CLI on the SQLite journal', () => {
     expect(r.status).toBe(1);
     expect(r.stdout).toBe('');
     expect(r.stderr).toContain('Unknown format "xml". Use md, csv, or bundle.');
+  });
+
+  describe('add stores repo identity', () => {
+    let tmpBase: string;
+    let repoDir: string;
+    beforeEach(() => {
+      tmpBase = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-git-')));
+      repoDir = path.join(tmpBase, 'collection-app');
+      fs.mkdirSync(repoDir);
+      const g = (...a: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main', '-C', repoDir, ...a], { stdio: 'ignore' });
+      g('init'); g('remote', 'add', 'origin', 'git@github.com:acme/collection-app.git');
+      g('commit', '--allow-empty', '-m', 'i'); g('checkout', '-b', 'lane-b');
+    });
+    afterEach(() => fs.rmSync(tmpBase, { recursive: true, force: true }));
+    const stored = () => rows(home, 'SELECT project, repo, branch FROM entries');
+
+    test('project, repo, and branch come from the cwd', async () => {
+      expect((await runIn(home, ['add', 'x'], { cwd: repoDir })).status).toBe(0);
+      expect(stored()).toEqual([{ project: 'collection-app', repo: 'acme/collection-app', branch: 'lane-b' }]);
+    });
+
+    test('config projectAliases reach resolveIdentity', async () => {
+      fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ projectAliases: { 'acme/collection-app': 'Collection' } }));
+      expect((await runIn(home, ['add', 'x'], { cwd: repoDir })).status).toBe(0);
+      expect(stored()[0]).toMatchObject({ project: 'Collection', repo: 'acme/collection-app' });
+    });
   });
 });
 

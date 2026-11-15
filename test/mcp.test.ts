@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { execFileSync } from 'child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
@@ -103,9 +104,9 @@ test('cwd sets project, repo, and branch', async () => {
 
 test('explicit fields win per field over cwd', async () => {
   await call('add_entry', { summary: 'Mixed', cwd: '/w', project: 'mine' });
-  expect(journal.repo.find()[0]).toMatchObject({ project: 'mine', repo: 'o/stub', branch: 'b-/w' });
+  expect(journal.repo.find().find(e => e.summary === 'Mixed')).toMatchObject({ project: 'mine', repo: 'o/stub', branch: 'b-/w' });
   await call('add_entry', { summary: 'Mixed two', cwd: '/w', branch: 'x', repo: 'a/b' });
-  expect(journal.repo.find({ order: 'desc' })[0]).toMatchObject({ project: 'stub-project', repo: 'a/b', branch: 'x' });
+  expect(journal.repo.find().find(e => e.summary === 'Mixed two')).toMatchObject({ project: 'stub-project', repo: 'a/b', branch: 'x' });
 });
 
 test('process cwd is not used when project is explicit', async () => {
@@ -125,6 +126,27 @@ test('a client without roots falls back to the process cwd', async () => {
   const c = await connect(journal, {});
   await c.callTool({ name: 'add_entry', arguments: { summary: 'No roots' } });
   expect(journal.repo.find()[0].branch).toBe('b-/proc');
+});
+
+test('a relative cwd is ignored', async () => {
+  const c = await connect(journal, {});
+  await c.callTool({ name: 'add_entry', arguments: { summary: 'Relative', cwd: 'some/dir' } });
+  expect(identityStub).toHaveBeenCalledTimes(1);
+  expect(identityStub).toHaveBeenCalledWith('/proc');
+});
+
+test('the default identity applies config aliases to a real repo', async () => {
+  const repoDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-git-')));
+  try {
+    const g = (...a: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main', '-C', repoDir, ...a], { stdio: 'ignore' });
+    g('init'); g('remote', 'add', 'origin', 'git@github.com:acme/collection-app.git'); g('commit', '--allow-empty', '-m', 'i');
+    const aliased = { repo: journal.repo, config: { ...journal.config, projectAliases: { 'acme/collection-app': 'Collection' } } };
+    const c = await connect(undefined, { journal: aliased, identity: undefined });
+    await c.callTool({ name: 'add_entry', arguments: { summary: 'Real', cwd: repoDir } });
+    expect(journal.repo.find()[0]).toMatchObject({ project: 'Collection', repo: 'acme/collection-app', branch: 'main' });
+  } finally {
+    fs.rmSync(repoDir, { recursive: true, force: true });
+  }
 });
 
 test('bad cwd never blocks add_entry', async () => {
