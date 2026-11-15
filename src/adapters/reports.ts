@@ -28,8 +28,8 @@ function filterActivity(list: Activity[], opts: ReportOptions, aliases: Record<s
 
 /**
  * Done entries use the period bounds. Open blockers and next items use only the end bound,
- * so older open items carry forward. Activity linked to a shown entry folds under it.
- * Activity with no link goes to the Also section.
+ * so older open items carry forward. Activity linked to a shown done entry folds under it.
+ * All other activity in the period goes to the Also section, also when it links to an entry that is not shown.
  */
 export function standupModel(journal: ReportJournal, opts: ReportOptions, now: Date): StandupModel {
   const { repo, activity, config } = journal;
@@ -39,7 +39,7 @@ export function standupModel(journal: ReportJournal, opts: ReportOptions, now: D
   const open = repo.find({ ...base, kind: ['blocker', 'next'], status: 'open', to: period.end.toISOString() });
   const linked = activity.linkedTo(done.map((e) => e.id));
   const unlinked = filterActivity(
-    activity.find({ from: period.start.toISOString(), to: period.end.toISOString(), repo: opts.repo, linked: false }),
+    activity.find({ from: period.start.toISOString(), to: period.end.toISOString(), repo: opts.repo }),
     opts, config.projectAliases,
   );
   return buildStandup({ period, done, open, now, staleAfterDays: config.staleAfterDays, linked, unlinked });

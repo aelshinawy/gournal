@@ -13,7 +13,7 @@ export interface StandupModel {
   stale: { count: number; ids: string[]; days: number };
   /** Activity linked to an entry, by entry id. */
   linked: Record<string, Activity[]>;
-  /** Activity with no entry. Null when there is none. */
+  /** Activity in the period that is not folded under a shown done entry. Null when there is none. */
   also: { activity: Activity[]; counts: ActivityCounts } | null;
 }
 
@@ -22,7 +22,9 @@ const byCreatedAt = (a: Entry, b: Entry): number => Date.parse(a.createdAt) - Da
 
 export function buildStandup(input: {
   period: Period; done: Entry[]; open: Entry[]; now: Date; staleAfterDays: number;
-  linked?: Record<string, Activity[]>; unlinked?: Activity[];
+  linked?: Record<string, Activity[]>;
+  /** The activity of the period. The ids in `linked` are subtracted from it to make Also. */
+  unlinked?: Activity[];
 }): StandupModel {
   const { period, now, staleAfterDays } = input;
   const linked = input.linked ?? {};

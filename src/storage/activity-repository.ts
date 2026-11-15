@@ -181,7 +181,9 @@ export function createActivityRepository(db: DatabaseSync, config: Config, dbPat
         else { where.push(`type IN (${marks(q.types.length)})`); vals.push(...q.types); }
       }
       if (q.linked !== undefined) {
-        where.push(`${q.linked ? '' : 'NOT '}EXISTS (SELECT 1 FROM links l WHERE l.activity_id = activity.id AND l.deleted_at IS NULL)`);
+        // A link counts only while its entry is live. Deleting an entry does not delete its links.
+        where.push(`${q.linked ? '' : 'NOT '}EXISTS (SELECT 1 FROM links l JOIN entries e ON e.id = l.entry_id
+          WHERE l.activity_id = activity.id AND l.deleted_at IS NULL AND e.deleted_at IS NULL)`);
       }
       return liveActivity(db.prepare(`SELECT * FROM activity WHERE ${where.join(' AND ')} ORDER BY occurred_at, id`).all(...vals) as unknown as ActivityRow[]);
     },
@@ -189,8 +191,8 @@ export function createActivityRepository(db: DatabaseSync, config: Config, dbPat
     linkedTo(entryIds) {
       const out: Record<string, Activity[]> = {};
       for (const part of chunks(entryIds)) {
-        const rows = db.prepare(`SELECT l.entry_id AS entry_id, a.* FROM links l JOIN activity a ON a.id = l.activity_id
-          WHERE l.deleted_at IS NULL AND a.deleted_at IS NULL AND l.entry_id IN (${marks(part.length)})
+        const rows = db.prepare(`SELECT l.entry_id AS entry_id, a.* FROM links l JOIN activity a ON a.id = l.activity_id JOIN entries e ON e.id = l.entry_id
+          WHERE l.deleted_at IS NULL AND a.deleted_at IS NULL AND e.deleted_at IS NULL AND l.entry_id IN (${marks(part.length)})
           ORDER BY a.occurred_at, a.id`).all(...part) as unknown as (ActivityRow & { entry_id: string })[];
         for (const r of rows) (out[r.entry_id] ?? (out[r.entry_id] = [])).push(rowToActivity(r));
       }
