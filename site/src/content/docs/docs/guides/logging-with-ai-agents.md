@@ -15,7 +15,7 @@ The agent and the CLI share one journal. An entry that an agent adds shows in `g
 
 ## Connect Claude Code
 
-Run one command. It does all three parts.
+Run one command. It registers the MCP server and installs the skill. It can also add the Stop hook.
 
 ```bash
 gournal setup claude

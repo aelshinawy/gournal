@@ -89,7 +89,7 @@ An agent that uses the MCP server passes its working directory as `cwd`, so gour
 Activity is what GitHub says you did. Gournal stores four types:
 
 1. A pull request that you opened.
-2. A pull request that you merged.
+2. A merge event of a pull request that you opened. Whoever merged it, gournal records the event.
 3. A commit that you authored in one of your pull requests.
 4. A review that you gave on another person's pull request.
 
@@ -107,6 +107,6 @@ A link follows one of three rules:
 2. **Commit reference.** The entry has a `commit` ref of at least 7 hex characters. It must match exactly one commit.
 3. **Branch and time.** A `done` entry has the same repository and branch as an activity, and is within 2 hours of it. Exactly one entry must fit.
 
-Linked activity shows under its entry in `standup` and `log`. Activity that has no link to a shown entry shows in the standup as one `Also` line. Run `gournal standup --activity` to list every item.
+Linked activity shows under its entry in `standup` and `log`. Activity that is not linked to a shown done entry shows in the standup under `Also`. The standup prints an `Also:` line with counts, and one line for each pull request. Run `gournal standup --activity` to list every item.
 
 See [Standups and work logs](/gournal/docs/guides/standups-and-work-logs/) and [GitHub activity](/gournal/docs/guides/github-activity/).

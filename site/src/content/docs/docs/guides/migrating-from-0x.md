@@ -7,7 +7,7 @@ Versions 0.5 and 0.6 kept your entries in a file named `entries.json`. Version 0
 
 ## What happens when you upgrade
 
-Gournal imports `entries.json` for you. Each time gournal opens the journal and finds `entries.json`, it imports every line that it has not imported yet. The first time, gournal prints a line on stderr:
+Gournal imports `entries.json` for you. Each time gournal opens the journal and finds `entries.json`, it imports every line that it has not imported yet. When it imports new lines, it prints a line on stderr:
 
 ```text
 gournal: imported 2 entries from entries.json

@@ -38,6 +38,8 @@ The command does up to three things:
 
 This example ran on a machine with no `claude` CLI. When `claude` is installed, gournal runs the `claude mcp add` command for you. When it is missing, gournal prints the command, and you run it yourself.
 
+Restart Claude Code after setup. Then run `claude mcp list`. The list must show `gournal`. In Claude Code, the `/mcp` command also lists the connected servers.
+
 Without `--yes`, gournal shows each change and asks first. See [Claude Code setup](/gournal/docs/guides/claude-code-setup/) and [`gournal setup claude`](/gournal/docs/reference/cli/setup-claude/).
 
 ## 3. Add entries
@@ -84,7 +86,7 @@ $ gournal sync
 Synced GitHub activity since Oct 16: 2 new, 0 updated, 2 links.
 ```
 
-This example used a stand-in `gh` program with fixture data for one pull request. Your numbers are different. The first sync covers the last 30 days. Later syncs start where the last sync stopped.
+This example used one sample pull request, so your numbers are different. The first sync covers the last 30 days. Later syncs start where the last sync stopped.
 
 If you are not signed in, gournal tells you why it stopped. For example, `gh` is not signed in, and you must run `gh auth login`.
 
