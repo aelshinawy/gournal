@@ -195,4 +195,15 @@ describe('an edit in the same millisecond as the import', () => {
     expect(liveSummaries(mine)).toEqual(['One', 'Two']);
     expect(byText(mine, 'One').filter((e) => e.deletedAt === null).map((e) => e.id)).toEqual([id]);
   });
+
+  test('update to a blocker then resolve still beats a pristine bundle copy', () => {
+    const { theirs, mine } = pair();
+    const bundle = ship(theirs);
+    const id = byText(mine, 'One')[0].id;
+    mine.repo.update(id, { kind: 'blocker' });
+    mine.repo.resolve(id);
+    importBundle(mine.db, bundle);
+    expect(mine.repo.get(id)).toMatchObject({ deletedAt: null, kind: 'blocker', status: 'resolved' });
+    expect(byText(mine, 'One').filter((e) => e.deletedAt === null).map((e) => e.id)).toEqual([id]);
+  });
 });

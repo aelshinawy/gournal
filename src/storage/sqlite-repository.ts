@@ -15,6 +15,12 @@ export class AmbiguousIdError extends Error {
 }
 
 const MIN_SUFFIX = 6;
+/**
+ * SQL for every write that edits a live entry. It takes the current time as its one parameter and keeps
+ * updated_at strictly rising, even within one millisecond. The bundle merge calls an entry pristine when
+ * updated_at equals imported_at, so an edit must never land on that value.
+ */
+const BUMP_UPDATED_AT = 'updated_at = max(?, updated_at + 1)';
 let backupWarned = false;
 
 function checkSummary(summary: string): void {
@@ -90,7 +96,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
     const id = requireId(inputId);
     const row = db.prepare('SELECT kind, status FROM entries WHERE id = ?').get(id) as { kind: string | null; status: string | null };
     if (!isActionable(row.kind) || row.status !== 'open') throw new Error('only an open blocker or next can be resolved');
-    db.prepare("UPDATE entries SET status = 'resolved', resolved_at = ?, resolved_by_entry_id = ?, updated_at = ? WHERE id = ?")
+    db.prepare(`UPDATE entries SET status = 'resolved', resolved_at = ?, resolved_by_entry_id = ?, ${BUMP_UPDATED_AT} WHERE id = ?`)
       .run(now, byEntryId, now, id);
     return id;
   }
@@ -151,8 +157,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
           set('resolved_at', null);
           set('resolved_by_entry_id', null);
         }
-        // An edit must move updated_at past imported_at, even within the same millisecond: the bundle merge calls an entry pristine when they are equal.
-        sets.push('updated_at = max(?, updated_at + 1)'); vals.push(now);
+        sets.push(BUMP_UPDATED_AT); vals.push(now);
         db.prepare(`UPDATE entries SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id);
         if (patch.tags !== undefined || patch.refs !== undefined) {
           const norm = patch.tags !== undefined ? normalize(patch.tags) : { tags: cur.tags, refs: [] as Ref[] };
@@ -176,8 +181,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
     restore(inputId) {
       return write(() => {
         const id = requireId(inputId);
-        // Same rule as update: a restored entry must not look pristine.
-        db.prepare('UPDATE entries SET deleted_at = NULL, updated_at = max(?, updated_at + 1) WHERE id = ? AND deleted_at IS NOT NULL').run(Date.now(), id);
+        db.prepare(`UPDATE entries SET deleted_at = NULL, ${BUMP_UPDATED_AT} WHERE id = ? AND deleted_at IS NOT NULL`).run(Date.now(), id);
         return load(id);
       });
     },
