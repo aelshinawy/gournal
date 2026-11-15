@@ -1,7 +1,7 @@
 import { Command, CommanderError } from 'commander';
 import chalk from 'chalk';
 import { execGh, resolveIdentity, type GhRunner } from '../../sources';
-import { parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
+import { maybeAutoSync, parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
 import { startMcpServer } from '../mcp';
 import { standupModel, workLogModel } from '../reports';
 import { buildStats, checkSummary, resolveQuery, shortId } from '../../core';
@@ -190,10 +190,14 @@ export function buildProgram(io: CliIo): Command {
     .option('-p, --project <project>', 'Filter by project name')
     .option('--repo <owner/name>', 'Filter by repository')
     .option('-t, --tags <tags>', 'Comma-separated tags')
-    .action(async (options: PeriodCliOptions) => {
+    .option('--activity', 'List all GitHub activity that has no entry, not only the counts')
+    .action(async (options: PeriodCliOptions & { activity?: boolean }) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
-      await withJournal(({ repo, config }) => {
-        io.out(standupText(standupModel(repo, config, { ...options, tags: splitList(options.tags) }, new Date())));
+      await withJournal(async (journal) => {
+        const warning = await maybeAutoSync(journal, io.gh ?? execGh(), new Date());
+        if (warning) io.err(warning);
+        const model = standupModel(journal, { ...options, tags: splitList(options.tags) }, new Date());
+        io.out(standupText(model, { expandActivity: options.activity === true }));
       });
     });
 
@@ -210,8 +214,10 @@ export function buildProgram(io: CliIo): Command {
     .option('-t, --tags <tags>', 'Comma-separated tags')
     .action(async (options: PeriodCliOptions) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
-      await withJournal(({ repo, config }) => {
-        io.out(workLogText(workLogModel(repo, config, { ...options, tags: splitList(options.tags) }, new Date())));
+      await withJournal(async (journal) => {
+        const warning = await maybeAutoSync(journal, io.gh ?? execGh(), new Date());
+        if (warning) io.err(warning);
+        io.out(workLogText(workLogModel(journal, { ...options, tags: splitList(options.tags) }, new Date())));
       });
     });
 

@@ -19,14 +19,14 @@ export function standupMarkdown(m: StandupModel): string {
       lines.push(`**${project}**`, ...entries.flatMap((e) => [`- ${format(new Date(e.createdAt), timeFormat)} ${e.summary}`, ...fold(m.linked[e.id])]), '');
     }
   }
-  if (m.also) {
-    lines.push(`- Also: ${alsoCountsText(m.also.counts)}`, ...alsoPrs(m.also.activity).map((p) => `  - ${p.verb} ${p.ref}${p.title ? ` ${p.title}` : ''}`), '');
-  }
   if (m.blockers.length > 0) lines.push('### Blockers', ...m.blockers.map(open), '');
   if (m.next.length > 0) lines.push('### Next', ...m.next.map(open), '');
   if (m.stale.count > 0) {
     const n = m.stale.count;
     lines.push(`Stale: ${n} open ${plural(n, 'item', 'items')} older than ${m.stale.days} ${plural(m.stale.days, 'day', 'days')}: ${m.stale.ids.map((id) => `\`${id}\``).join(', ')}`, '');
+  }
+  if (m.also) {
+    lines.push(`- Also: ${alsoCountsText(m.also.counts)}`, ...alsoPrs(m.also.activity).map((p) => `  - ${p.verb} ${p.ref}${p.title ? ` ${p.title}` : ''}`), '');
   }
   return lines.join('\n');
 }

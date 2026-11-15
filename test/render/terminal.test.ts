@@ -196,6 +196,18 @@ describe('terminal renderers with activity', () => {
     expect(out).not.toContain('--activity to expand');
   });
 
+  test('Also renders last, after Blockers, Next, and the Stale line', () => {
+    const old = makeEntry({ kind: 'next', status: 'open', createdAt: subDays(now, 30), summary: 'Old next' });
+    const blocker = makeEntry({ kind: 'blocker', status: 'open', createdAt: at(14, 9), summary: 'A blocker' });
+    const next = makeEntry({ kind: 'next', status: 'open', createdAt: at(14, 10), summary: 'A next' });
+    const m = buildStandup({ period: resolvePeriod({}, now, 1), done: [entry], open: [old, blocker, next], now, staleAfterDays: 14, unlinked: [merged327] });
+    const out = standupText(m);
+    const at_ = (t: string) => out.indexOf(t);
+    expect(at_('Blockers')).toBeGreaterThan(at_('Done'));
+    expect(at_('Stale:')).toBeGreaterThan(at_('Next'));
+    expect(at_('  Also:')).toBeGreaterThan(at_('Stale:'));
+  });
+
   test('multi-day ranges use the day-of-week time on activity lines', () => {
     const out = standupText(model([merged327], {}, { week: true }), { expandActivity: true });
     expect(out).toContain('    Sun 15 09:00  merged  #327  Add widget cache\n');

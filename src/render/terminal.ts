@@ -59,13 +59,13 @@ export function standupText(m: StandupModel, opts: { expandActivity?: boolean } 
 
   const sections: string[] = [];
   if (m.done.length > 0) sections.push((hasOpen ? `  ${chalk.green.bold('Done')}\n` : '') + done);
-  if (m.also) sections.push(opts.expandActivity ? alsoExpanded(m.also, activityTimeFormat) : alsoCollapsed(m.also));
   if (m.blockers.length > 0) sections.push(`  ${chalk.red.bold('Blockers')}\n${m.blockers.map(openItemLine).join('\n')}`);
   if (m.next.length > 0) sections.push(`  ${chalk.yellow.bold('Next')}\n${m.next.map(openItemLine).join('\n')}`);
   if (m.stale.count > 0) {
     const n = m.stale.count;
     sections.push(chalk.gray(`  Stale: ${n} open ${plural(n, 'item', 'items')} older than ${m.stale.days} ${plural(m.stale.days, 'day', 'days')} (ids: ${m.stale.ids.join(', ')})`));
   }
+  if (m.also) sections.push(opts.expandActivity ? alsoExpanded(m.also, activityTimeFormat) : alsoCollapsed(m.also));
   return `${chalk.bold(`\nStandup: ${m.title}\n\n`)}${sections.join('\n\n')}\n`;
 }
 

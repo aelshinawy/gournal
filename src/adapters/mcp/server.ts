@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { fileURLToPath } from 'url';
 import { execGh, resolveIdentity, type GhRunner } from '../../sources';
-import { parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
+import { maybeAutoSync, parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
 import { resolveCallIdentity } from './identity';
 import { VERSION } from '../version';
 import { checkSummary, closeTags, normalizeTags, shortId } from '../../core';
@@ -39,6 +39,10 @@ type TextResult = { content: { type: 'text'; text: string }[] };
 type ToolResult = TextResult | ReturnType<typeof dataResult> | ReturnType<typeof errorResult>;
 const entryResult = (text: string, entry: Entry, notes: string[] = []) =>
   dataResult(text, { entry: entryJson(entry), notes });
+
+/** The sync warning is the last line of the text. */
+const withWarning = (markdown: string, warning: string | null): string =>
+  warning === null ? markdown : `${markdown.endsWith('\n') ? markdown : `${markdown}\n`}${warning}\n`;
 
 const KIND = z.enum(['done', 'blocker', 'next']);
 
@@ -330,12 +334,13 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     {
       title: 'Get standup report',
       description: 'Generate a gournal standup report (today by default, or yesterday/week/month, or a from/to range). Done entries use the period. Open blockers and next items carry forward from before it. Optionally filter by project, repo, and tags.',
-      outputSchema: StandupSchema,
+      outputSchema: StandupSchema.extend({ syncWarning: z.string().nullable() }),
       inputSchema: periodInput,
     },
-    guarded((args: PeriodArgs, { repo, config }) => {
-      const model = standupModel(repo, config, args, new Date());
-      return dataResult(standupMarkdown(model), standupJson(model));
+    guarded(async (args: PeriodArgs, journal) => {
+      const syncWarning = await maybeAutoSync(journal, deps.gh ?? execGh(), new Date());
+      const model = standupModel(journal, args, new Date());
+      return dataResult(withWarning(standupMarkdown(model), syncWarning), { ...standupJson(model), syncWarning });
     })
   );
 
@@ -344,12 +349,13 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     {
       title: 'Get chronological work log',
       description: 'Generate a gournal work log grouped by day (today by default, or yesterday/week/month, or a from/to range). Optionally filter by project, repo, and tags.',
-      outputSchema: WorkLogSchema,
+      outputSchema: WorkLogSchema.extend({ syncWarning: z.string().nullable() }),
       inputSchema: periodInput,
     },
-    guarded((args: PeriodArgs, { repo, config }) => {
-      const model = workLogModel(repo, config, args, new Date());
-      return dataResult(workLogMarkdown(model), workLogJson(model));
+    guarded(async (args: PeriodArgs, journal) => {
+      const syncWarning = await maybeAutoSync(journal, deps.gh ?? execGh(), new Date());
+      const model = workLogModel(journal, args, new Date());
+      return dataResult(withWarning(workLogMarkdown(model), syncWarning), { ...workLogJson(model), syncWarning });
     })
   );
 

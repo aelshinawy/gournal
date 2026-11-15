@@ -637,6 +637,76 @@ describe('sync_activity', () => {
   });
 });
 
+describe('get_standup and get_work_log with activity', () => {
+  const savedNoAuto = process.env.GOURNAL_NO_AUTOSYNC;
+  afterEach(() => {
+    if (savedNoAuto === undefined) delete process.env.GOURNAL_NO_AUTOSYNC; else process.env.GOURNAL_NO_AUTOSYNC = savedNoAuto;
+  });
+  const merged = (over: Record<string, unknown> = {}) => ({
+    type: 'pr_merged' as const, occurredAt: new Date().toISOString(), repo: 'acme/widgets', branch: null,
+    externalId: 'm327', title: 'Add widget cache', url: null, pr: 327, payload: { pr: 327 }, ...over,
+  });
+  const down = (async () => { throw new GhError('auth', 'x'); }) as GhRunner;
+
+  test('get_standup JSON contains the full activity list and its markdown is collapsed', async () => {
+    journal.activity.upsert([merged(), merged({ type: 'review', externalId: 'r1', repo: 'octo/app', pr: 412, title: 'Fix login', payload: { pr: 412 } })]);
+    const r = await call('get_standup');
+    expect(r.isError).toBeFalsy();
+    expect(r.structuredContent.also.activity).toHaveLength(2);
+    expect(r.structuredContent.also.counts).toMatchObject({ prsMerged: 1, reviews: 1, repos: 2 });
+    expect(r.structuredContent.syncWarning).toBeNull();
+    expect(text(r)).toContain('- Also: 1 PR merged, 1 review in 2 repos');
+    expect(text(r)).not.toContain('Also happened');
+  });
+
+  test('get_standup carries linked activity under an entry', async () => {
+    journal.activity.upsert([merged({ pr: 5, payload: { pr: 5 }, externalId: 'm5', title: 'Add x' })]);
+    const e = journal.repo.add({ summary: 'Shipped x', project: 'p', source: 'mcp', repo: 'acme/widgets', refs: [{ type: 'pr', value: '5' }] });
+    journal.activity.relinkEntries([e.id]);
+    const r = await call('get_standup');
+    expect(r.structuredContent.linkedActivity[e.id]).toHaveLength(1);
+    expect(r.structuredContent.also).toBeNull();
+  });
+
+  test('get_standup honours the project and tags filters on activity', async () => {
+    journal.activity.upsert([merged(), merged({ externalId: 'g', repo: 'octo/gears', pr: 2, payload: { pr: 2 } })]);
+    seed('Tagged', { project: 'widgets', tags: ['bug'] });
+    const byProject = await call('get_standup', { project: 'widgets' });
+    expect(byProject.structuredContent.also.activity.map((a: any) => a.repo)).toEqual(['acme/widgets']);
+    const byTags = await call('get_standup', { tags: ['bug'] });
+    expect(byTags.structuredContent.also).toBeNull();
+  });
+
+  test('get_standup adds the sync warning as the last markdown line and as syncWarning', async () => {
+    delete process.env.GOURNAL_NO_AUTOSYNC;
+    seed('Did a thing');
+    const c = await connect(journal, { gh: down });
+    const r: any = await c.callTool({ name: 'get_standup', arguments: {} });
+    const warning = 'gournal: GitHub sync skipped (gh is not signed in; run gh auth login); showing stored activity';
+    expect(r.structuredContent.syncWarning).toBe(warning);
+    expect(text(r).trimEnd().split('\n').pop()).toBe(warning);
+    expect(text(r)).toContain('Did a thing');
+  });
+
+  test('get_work_log runs auto-sync and reports the warning', async () => {
+    delete process.env.GOURNAL_NO_AUTOSYNC;
+    seed('Did a thing');
+    const c = await connect(journal, { gh: down });
+    const r: any = await c.callTool({ name: 'get_work_log', arguments: {} });
+    expect(r.structuredContent.syncWarning).toContain('GitHub sync skipped');
+    expect(text(r).trimEnd().split('\n').pop()).toContain('GitHub sync skipped');
+  });
+
+  test('get_work_log folds linked activity and has no Also section', async () => {
+    journal.activity.upsert([merged({ pr: 5, payload: { pr: 5 }, externalId: 'm5', title: 'Add x' })]);
+    const e = journal.repo.add({ summary: 'Shipped x', project: 'p', source: 'mcp', repo: 'acme/widgets', refs: [{ type: 'pr', value: '5' }] });
+    journal.activity.relinkEntries([e.id]);
+    const r = await call('get_work_log');
+    expect(r.structuredContent.linkedActivity[e.id]).toHaveLength(1);
+    expect(text(r)).not.toContain('Also');
+  });
+});
+
 test('the server lists 12 tools', async () => {
   const { tools } = await client.listTools();
   expect(tools).toHaveLength(12);

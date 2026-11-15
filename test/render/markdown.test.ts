@@ -114,6 +114,16 @@ describe('markdown renderers', () => {
       ].join('\n'));
     });
 
+    test('Also renders last, after Blockers, Next, and the Stale line', () => {
+      const old = makeEntry({ kind: 'next', status: 'open', createdAt: new Date(2026, 9, 1), summary: 'Old next' });
+      const blocker = makeEntry({ kind: 'blocker', status: 'open', createdAt: new Date(2026, 10, 14, 9), summary: 'A blocker' });
+      const next = makeEntry({ kind: 'next', status: 'open', createdAt: new Date(2026, 10, 14, 10), summary: 'A next' });
+      const out = standupMarkdown(buildStandup({ period, done: [done], open: [old, blocker, next], now, staleAfterDays: 14, unlinked: [merged327] }));
+      expect(out.indexOf('### Next')).toBeGreaterThan(out.indexOf('### Blockers'));
+      expect(out.indexOf('Stale:')).toBeGreaterThan(out.indexOf('### Next'));
+      expect(out.indexOf('- Also:')).toBeGreaterThan(out.indexOf('Stale:'));
+    });
+
     test('work log folds linked activity as sub-bullets', () => {
       const log = workLogMarkdown(buildWorkLog(period, [done], { [done.id]: [mergedPr4, commits[0]] }));
       expect(log).toContain('- 10:30 `ABCD1234` Shipped find [gournal] #release\n  - merged #4 Phase 2 layers\n  - 1 commit\n');
