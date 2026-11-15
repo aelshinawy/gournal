@@ -151,7 +151,8 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
           set('resolved_at', null);
           set('resolved_by_entry_id', null);
         }
-        set('updated_at', now);
+        // An edit must move updated_at past imported_at, even within the same millisecond: the bundle merge calls an entry pristine when they are equal.
+        sets.push('updated_at = max(?, updated_at + 1)'); vals.push(now);
         db.prepare(`UPDATE entries SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id);
         if (patch.tags !== undefined || patch.refs !== undefined) {
           const norm = patch.tags !== undefined ? normalize(patch.tags) : { tags: cur.tags, refs: [] as Ref[] };
@@ -175,7 +176,8 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
     restore(inputId) {
       return write(() => {
         const id = requireId(inputId);
-        db.prepare('UPDATE entries SET deleted_at = NULL, updated_at = ? WHERE id = ? AND deleted_at IS NOT NULL').run(Date.now(), id);
+        // Same rule as update: a restored entry must not look pristine.
+        db.prepare('UPDATE entries SET deleted_at = NULL, updated_at = max(?, updated_at + 1) WHERE id = ? AND deleted_at IS NOT NULL').run(Date.now(), id);
         return load(id);
       });
     },

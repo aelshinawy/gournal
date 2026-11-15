@@ -159,3 +159,40 @@ test('a pre-v2 database migrates with NULL imported_at and counts as not pristin
   importBundle(mine.db, ship(theirs));
   expect(mine.repo.list().map((e) => e.id).sort()).toEqual(localIds);
 });
+
+// With the clock frozen, an edit lands in the same millisecond as the legacy import. The edit must
+// still be told apart from a pristine copy. The side with the smaller id plays "theirs", so a wrong
+// pristine check always loses the local edit (a tie falls to the smaller id).
+describe('an edit in the same millisecond as the import', () => {
+  let now: jest.SpyInstance;
+  beforeEach(() => { now = jest.spyOn(Date, 'now').mockReturnValue(1_900_000_000_000); });
+  afterEach(() => { now.mockRestore(); });
+
+  function pair(): { theirs: Side; mine: Side } {
+    const x = side('x.db');
+    const y = side('y.db');
+    const [theirs, mine] = byText(x, 'One')[0].id < byText(y, 'One')[0].id ? [x, y] : [y, x];
+    return { theirs, mine };
+  }
+
+  test('update still beats a pristine bundle copy', () => {
+    const { theirs, mine } = pair();
+    const bundle = ship(theirs);
+    mine.repo.update(byText(mine, 'One')[0].id, { summary: 'One mine' });
+    importBundle(mine.db, bundle);
+    expect(liveSummaries(mine)).toContain('One mine');
+    expect(liveSummaries(mine)).not.toContain('One');
+  });
+
+  test('restore still beats a pristine bundle copy', () => {
+    const { theirs, mine } = pair();
+    const bundle = ship(theirs);
+    const id = byText(mine, 'One')[0].id;
+    mine.repo.softDelete(id);
+    mine.repo.restore(id);
+    importBundle(mine.db, bundle);
+    expect(mine.repo.get(id)?.deletedAt).toBeNull();
+    expect(liveSummaries(mine)).toEqual(['One', 'Two']);
+    expect(byText(mine, 'One').filter((e) => e.deletedAt === null).map((e) => e.id)).toEqual([id]);
+  });
+});
