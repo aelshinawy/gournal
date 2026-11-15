@@ -69,8 +69,8 @@ Find entries that match a word.
 $ gournal find rounding
 Found 2 entries:
 
-Nov Sun 15 - 16:04 53X22ZXF [billing-api] Fix rounding error in invoice totals #bugfix #invoices
-Nov Sun 15 - 16:04 V91XZBEK [billing-api] Add a regression test for tax rounding #testing #invoices
+Nov Sun 15 - 23:18 DA4FVKYK [billing-api] Fix rounding error in invoice totals #review
+Nov Sun 15 - 23:18 27GTPX08 [billing-api] Add a regression test for tax rounding #review
 ```
 
 Combine the search with filters. This command finds open blockers only.
@@ -79,7 +79,7 @@ Combine the search with filters. This command finds open blockers only.
 $ gournal find webhook --kind blocker --status open
 Found 1 entries:
 
-Nov Sun 15 - 16:04 0MC5VPCQ [billing-api] Cannot reproduce the failing webhook retry in staging #webhooks
+Nov Sun 15 - 23:18 4XEG1TD4 [billing-api] Cannot reproduce the failing webhook retry in staging 
 ```
 
 ### MCP
@@ -100,8 +100,8 @@ Find done and next entries that match a word.
 The text result:
 
 ```markdown
-- 2026-11-15 16:04 `TXG3ZWS3` [billing-api] Add a regression test for tax rounding #testing #invoices (next, open)
-- 2026-11-15 16:04 `YDZR73PK` [billing-api] Fix rounding error in invoice totals #bugfix #invoices
+- 2026-11-15 23:18 `27GTPX08` [billing-api] Add a regression test for tax rounding #review (next, open)
+- 2026-11-15 23:18 `DA4FVKYK` [billing-api] Fix rounding error in invoice totals #review
 ```
 
 The structured result lists each entry with all of its fields. This example shows the first entry only.
@@ -110,11 +110,11 @@ The structured result lists each entry with all of its fields. This example show
 {
   "entries": [
     {
-      "id": "01M7FRCQ9H56YJ9S1ATXG3ZWS3",
-      "createdAt": "2026-11-15T14:04:47.281Z",
-      "updatedAt": "2026-11-15T14:04:47.281Z",
+      "id": "01M7GH6EZ45MKNZFFM27GTPX08",
+      "createdAt": "2026-11-15T21:18:16.548Z",
+      "updatedAt": "2026-11-15T21:18:16.548Z",
       "deletedAt": null,
-      "deviceId": "01M7FRCQ7JDAH7AYES8A121Y7N",
+      "deviceId": "01M7GH6EYY3YJAMZA5DHHG60SJ",
       "summary": "Add a regression test for tax rounding",
       "details": null,
       "kind": "next",
@@ -127,8 +127,7 @@ The structured result lists each entry with all of its fields. This example show
       "source": "mcp",
       "agent": null,
       "tags": [
-        "testing",
-        "invoices"
+        "review"
       ],
       "refs": []
     },

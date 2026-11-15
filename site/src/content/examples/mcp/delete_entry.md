@@ -2,15 +2,15 @@ Delete an entry. The entry stays in the database. The text result tells you the 
 
 ```json
 {
-  "id": "1QGS52KG"
+  "id": "MR0CE5K0"
 }
 ```
 
 The text result:
 
 ```text
-Entry 1QGS52KG removed: Draft the release notes for 2.4
-restore with gournal restore 1QGS52KG
+Entry MR0CE5K0 removed: Document the invoice export endpoint
+restore with gournal restore MR0CE5K0
 ```
 
 The structured result has the same shape as the `add_entry` result. The `deletedAt` field holds the time of the deletion.
@@ -18,21 +18,21 @@ The structured result has the same shape as the `add_entry` result. The `deleted
 ```json
 {
   "entry": {
-    "id": "01M7G81WDZ12AE5Q5X1QGS52KG",
-    "createdAt": "2026-11-15T18:38:29.311Z",
-    "updatedAt": "2026-11-15T18:39:12.024Z",
-    "deletedAt": "2026-11-15T18:39:12.024Z",
-    "deviceId": "01M7G81PASZ2E8T209BWDT235N",
-    "summary": "Draft the release notes for 2.4",
+    "id": "01M7GH6EZ36EVX33KZMR0CE5K0",
+    "createdAt": "2026-11-15T21:18:16.547Z",
+    "updatedAt": "2026-11-15T21:21:00.144Z",
+    "deletedAt": "2026-11-15T21:21:00.144Z",
+    "deviceId": "01M7GH6EYY3YJAMZA5DHHG60SJ",
+    "summary": "Document the invoice export endpoint",
     "details": null,
     "kind": "done",
     "status": null,
     "resolvedAt": null,
     "resolvedByEntryId": null,
     "project": "billing-api",
-    "repo": null,
-    "branch": "main",
-    "source": "cli",
+    "repo": "acme/billing-api",
+    "branch": "fix/invoice-rounding",
+    "source": "mcp",
     "agent": null,
     "tags": [
       "docs"

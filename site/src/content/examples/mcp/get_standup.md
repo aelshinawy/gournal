@@ -14,13 +14,15 @@ The text result:
 ### Done
 
 **billing-api**
-- 16:04 Fix rounding error in invoice totals
+- 23:18 Fix rounding error in invoice totals
+- 23:18 Document the invoice export endpoint
+- 23:18 Add keyboard focus styles to the invoice date picker
 
 ### Blockers
-- `WESHEAS9` Cannot reproduce the failing webhook retry in staging (billing-api, since Nov 15)
+- `4XEG1TD4` Cannot reproduce the failing webhook retry in staging (billing-api, since Nov 15)
 
 ### Next
-- `TXG3ZWS3` Add a regression test for tax rounding (billing-api, since Nov 15)
+- `27GTPX08` Add a regression test for tax rounding (billing-api, since Nov 15)
 ```
 
 The structured result holds the same data as JSON. This example shows the entries as `...` to stay short.
@@ -29,7 +31,7 @@ The structured result holds the same data as JSON. This example shows the entrie
 {
   "title": "Today (2026-11-15)",
   "start": "2026-11-14T22:00:00.000Z",
-  "end": "2026-11-15T14:04:47.282Z",
+  "end": "2026-11-15T21:21:00.167Z",
   "isMultiDay": false,
   "done": [
     {

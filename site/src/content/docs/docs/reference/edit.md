@@ -38,12 +38,11 @@ Fix the summary of an entry, replace its tags, and add a pull request reference.
 
 ```json
 {
-  "id": "E8NCXFNC",
+  "id": "DA4FVKYK",
   "summary": "Fix one-cent rounding error in invoice totals",
   "tags": [
-    "bugfix",
-    "invoices",
-    "billing"
+    "review",
+    "docs"
   ],
   "refs": [
     {
@@ -58,7 +57,7 @@ Fix the summary of an entry, replace its tags, and add a pull request reference.
 The text result:
 
 ```text
-Entry E8NCXFNC updated: Fix one-cent rounding error in invoice totals
+Entry DA4FVKYK updated: Fix one-cent rounding error in invoice totals
 ```
 
 The structured result:
@@ -66,11 +65,11 @@ The structured result:
 ```json
 {
   "entry": {
-    "id": "01M7G81PBKX4K9HC1XE8NCXFNC",
-    "createdAt": "2026-11-15T18:38:23.091Z",
-    "updatedAt": "2026-11-15T18:39:12.022Z",
+    "id": "01M7GH6EZ2E6SQ8017DA4FVKYK",
+    "createdAt": "2026-11-15T21:18:16.546Z",
+    "updatedAt": "2026-11-15T21:21:00.510Z",
     "deletedAt": null,
-    "deviceId": "01M7G81PASZ2E8T209BWDT235N",
+    "deviceId": "01M7GH6EYY3YJAMZA5DHHG60SJ",
     "summary": "Fix one-cent rounding error in invoice totals",
     "details": "Totals were off by one cent when a discount applied after tax.",
     "kind": "done",
@@ -78,14 +77,13 @@ The structured result:
     "resolvedAt": null,
     "resolvedByEntryId": null,
     "project": "billing-api",
-    "repo": null,
-    "branch": "main",
-    "source": "cli",
+    "repo": "acme/billing-api",
+    "branch": "fix/invoice-rounding",
+    "source": "mcp",
     "agent": null,
     "tags": [
-      "bugfix",
-      "invoices",
-      "billing"
+      "review",
+      "docs"
     ],
     "refs": [
       {

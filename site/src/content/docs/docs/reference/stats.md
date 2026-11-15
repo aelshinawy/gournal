@@ -32,38 +32,36 @@ $ gournal stats
 
 Stats
 
-  Total entries: 5
+  Total entries: 8
   Current streak: 1 day
 
   By project
-    billing-api: 3
-    web-app: 2
+    billing-api: 5
+    worker: 3
 
   By tag
-    #invoices: 2
-    #ui: 2
-    #a11y: 1
-    #bugfix: 1
-    #testing: 1
-    #webhooks: 1
+    #review: 3
+    #ui: 3
+    #docs: 2
 ```
 
 Limit the numbers to one project.
 
 ```console
-$ gournal stats -p web-app
+$ gournal stats -p worker
 
 Stats
 
-  Total entries: 2
+  Total entries: 3
   Current streak: 1 day
 
   By project
-    web-app: 2
+    worker: 3
 
   By tag
     #ui: 2
-    #a11y: 1
+    #docs: 1
+    #review: 1
 ```
 
 ## Related

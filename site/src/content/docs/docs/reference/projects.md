@@ -39,8 +39,8 @@ List every project with its number of entries.
 
 ```console
 $ gournal projects
-billing-api  3
-web-app  2
+billing-api  5
+worker  3
 ```
 
 ### MCP
@@ -58,11 +58,11 @@ The structured result:
   "projects": [
     {
       "project": "billing-api",
-      "count": 4
+      "count": 5
     },
     {
-      "project": "web-app",
-      "count": 2
+      "project": "worker",
+      "count": 3
     }
   ]
 }

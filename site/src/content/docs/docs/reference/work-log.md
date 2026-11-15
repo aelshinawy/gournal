@@ -73,13 +73,16 @@ $ gournal log
 Work Log: Today (2026-11-15)
 
   Sun Nov 15
-    16:04 53X22ZXF  Fix rounding error in invoice totals  [billing-api] #bugfix #invoices
-    16:04 0MC5VPCQ  Cannot reproduce the failing webhook retry in staging  [billing-api] #webhooks
-    16:04 V91XZBEK  Add a regression test for tax rounding  [billing-api] #testing #invoices
-    16:04 TR4Q5EFK  Move the settings page to the new form components  [web-app] #ui
-    16:04 4C537GWA  Add keyboard focus styles to the date picker  [web-app] #ui #a11y
+    23:18 DA4FVKYK  Fix rounding error in invoice totals  [billing-api] #review
+    23:18 MR0CE5K0  Document the invoice export endpoint  [billing-api] #docs
+    23:18 X90K7DWT  Add keyboard focus styles to the invoice date picker  [billing-api] #ui
+    23:18 1DM8DTMK  Review the queue backoff change  [worker] #review #ui
+    23:18 27GTPX08  Add a regression test for tax rounding  [billing-api] #review
+    23:18 13T25F97  Document the retry policy for webhooks  [worker] #docs
+    23:18 4XEG1TD4  Cannot reproduce the failing webhook retry in staging  [billing-api] 
+    23:18 DZ1DB7ZW  Move the settings page to the new form components  [worker] #ui
 
-  5 entries across 2 projects.
+  8 entries across 2 projects.
 ```
 
 ## Related

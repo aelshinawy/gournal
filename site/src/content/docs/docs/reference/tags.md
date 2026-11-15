@@ -41,12 +41,9 @@ List every tag with its number of entries. The most used tags come first.
 
 ```console
 $ gournal tags
-#invoices  2
-#ui  2
-#a11y  1
-#bugfix  1
-#testing  1
-#webhooks  1
+#review  3
+#ui  3
+#docs  2
 ```
 
 ### MCP
@@ -55,7 +52,7 @@ List the tags of one project before you add an entry. Reuse these names.
 
 ```json
 {
-  "project": "billing-api"
+  "project": "worker"
 }
 ```
 
@@ -64,11 +61,9 @@ The structured result:
 ```json
 {
   "tags": [
-    { "tag": "invoices", "count": 2 },
-    { "tag": "bugfix", "count": 1 },
+    { "tag": "ui", "count": 2 },
     { "tag": "docs", "count": 1 },
-    { "tag": "testing", "count": 1 },
-    { "tag": "webhooks", "count": 1 }
+    { "tag": "review", "count": 1 }
   ]
 }
 ```
