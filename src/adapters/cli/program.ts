@@ -439,8 +439,8 @@ export function buildProgram(io: CliIo): Command {
     .command('claude')
     .description('Register the gournal MCP server and install the gournal skill for Claude Code. You can also add a Stop hook.')
     .option('--uninstall', 'Remove the MCP server, the skill, and the hook that setup added.')
-    .option('-y, --yes', 'Answer yes to the install and removal prompts. The prompt to replace an existing MCP registration still asks. Without a terminal and without this option, setup prints its plan and exits with code 1.')
-    .option('--hook', 'Also add the Stop hook. The hook reminds Claude to log its work. With --yes, the hook is added only when you pass this option. Before it changes an existing settings.json, setup saves a copy as settings.json.gournal-backup.')
+    .option('-y, --yes', 'Answer yes to the install and removal prompts. On a terminal, the prompt to replace an existing MCP registration still asks. Without a terminal and without this option, setup prints its plan and exits with code 1.')
+    .option('--hook', 'Also add the Stop hook. The hook reminds Claude to log its work. With --yes, the hook is added only when you pass this option. Before it changes an existing settings.json, setup saves a copy as settings.json.gournal-backup if that file does not exist yet.')
     .action(async (options: { uninstall?: boolean; yes?: boolean; hook?: boolean }) => {
       const code = await setupClaude({
         out: io.out, err: io.err, isTTY: io.isTTY,

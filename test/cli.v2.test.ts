@@ -376,6 +376,7 @@ describe('gournal CLI reads on Query and renderers', () => {
     const day = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const old = new Date(daysAgo(20));
     const weekOnly = await run('log', '--week');
+    expect(weekOnly.status).toBe(0);
     expect(weekOnly.stdout).not.toContain('old entry');
     const both = await run('log', '--week', '--from', day(old), '--to', day(old));
     expect(both.status).toBe(0);

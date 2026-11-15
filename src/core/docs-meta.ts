@@ -27,7 +27,7 @@ export const CONFIG_KEY_DOCS: readonly ConfigKeyDoc[] = [
     key: 'weekStartsOn',
     type: 'integer',
     default: '1',
-    description: 'The first day of the week, from 0 (Sunday) to 6. It sets the `--week` option, the MCP `week` period, and the window that links GitHub activity to entries.',
+    description: 'The first day of the week, from 0 (Sunday) to 6. It sets the start of the `--week` option, the MCP `week` period, and the window that links GitHub activity to entries.',
     validation: 'An integer from 0 to 6. Other values give a warning and the default.',
   },
   {

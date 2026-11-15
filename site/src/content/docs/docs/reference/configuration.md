@@ -9,7 +9,7 @@ The config file is `config.json` in the gournal home folder. These keys are supp
 | Key | Type | Default | Validation | Description |
 |-----|------|---------|------------|-------------|
 | `deviceId` | string | Generated on first run | A non-empty string. Any other value stops gournal with an error. | Gournal generates this stable id for the machine. Do not change it. |
-| `weekStartsOn` | integer | 1 | An integer from 0 to 6. Other values give a warning and the default. | The first day of the week, from 0 (Sunday) to 6. It sets the `--week` option, the MCP `week` period, and the window that links GitHub activity to entries. |
+| `weekStartsOn` | integer | 1 | An integer from 0 to 6. Other values give a warning and the default. | The first day of the week, from 0 (Sunday) to 6. It sets the start of the `--week` option, the MCP `week` period, and the window that links GitHub activity to entries. |
 | `projectAliases` | Record<string, string> | {} | An object of strings. An alias chain is an error: if `a` maps to `b`, then `b` must not be a key in the same map. | Maps an old project name to the name to use, for example `{ "old-name": "new-name" }`. |
 | `tagAliases` | Record<string, string> | {} | An object of strings. An alias chain is an error: if `a` maps to `b`, then `b` must not be a key in the same map. | Maps an old tag to the tag to use, for example `{ "bugfix": "bug" }`. |
 | `ticketPrefixes` | string[] | [] | An array of strings. Any other value stops gournal with an error. | Lists ticket prefixes, for example `["SBDC", "PLAT"]`. A tag that looks like a ticket becomes a Jira ref only when its prefix is in this list. |

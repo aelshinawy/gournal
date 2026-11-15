@@ -120,7 +120,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       description: 'Add a journal entry. Pass `project` explicitly whenever you know it, and pass `cwd` so that gournal can record the repo and branch. The server process\'s own working directory is not a reliable signal for which project the calling agent is actually in. Fields come from the explicit arguments first, then from `cwd`, then from the first client root, and last from the server\'s own cwd (only when `project` is omitted).',
       outputSchema: EntryResultSchema,
       inputSchema: {
-        summary: z.string().optional().describe('One line, max 120 characters. A longer summary is split into details when you pass `details`, or when you retry the same summary within 10 minutes. Otherwise the server rejects it.'),
+        summary: z.string().optional().describe('One line, max 120 characters. A longer summary is split into details when you pass `details`, or when you retry a summary with the same first 60 characters within 10 minutes. Otherwise the server rejects it.'),
         message: z.string().optional().describe('Deprecated alias for summary. Use summary instead.'),
         details: z.string().optional().describe('Longer text for this entry. Use it when the summary needs more room.'),
         kind: KIND.default('done').describe('Entry kind: done (default), blocker (something stops you), or next (a planned step).'),
