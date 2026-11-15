@@ -115,8 +115,8 @@ describe('check-dashes', () => {
   });
 });
 
-test('astro config keeps smartypants off', () => {
+test('astro config keeps smart punctuation off', () => {
   const config = fs.readFileSync(path.join(root, 'site/astro.config.mjs'), 'utf8');
   // Smartypants turns "--" into an en dash. A flag such as --format would render wrong in the docs.
-  expect(config).toMatch(/smartypants:\s*false/);
+  expect(config).toMatch(/smartPunctuation:\s*false/);
 });

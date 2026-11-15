@@ -110,6 +110,16 @@ describe('design tokens', () => {
   }
 });
 
+describe('dark theme blocks', () => {
+  test('data-theme dark and prefers-color-scheme blocks define the same values', () => {
+    const css = fs.readFileSync(path.join(root, 'site/src/styles/tokens.css'), 'utf8');
+    const explicit = parseBlock(css, /:root\[data-theme='dark'\] \{([\s\S]*?)^\}/m);
+    const media = parseBlock(css, /:root:not\(\[data-theme\]\) \{([\s\S]*?)^  \}/m);
+    expect(Object.keys(media).length).toBeGreaterThan(5);
+    expect(media).toEqual(explicit);
+  });
+});
+
 describe('docs.css', () => {
   test('reduced motion block has no universal selector', () => {
     const css = fs.readFileSync(path.join(root, 'site/src/styles/docs.css'), 'utf8');

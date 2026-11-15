@@ -9,7 +9,9 @@ import referenceSidebar from './src/generated/reference-sidebar.json' with { typ
 export default defineConfig({
   site: 'https://aelshinawy.github.io',
   base: '/gournal/',
-  markdown: { smartypants: false, processor: satteri({ hastPlugins: [rehypeTableRegion()] }) },
+  markdown: {
+    processor: satteri({ features: { smartPunctuation: false }, hastPlugins: [rehypeTableRegion()] })
+  },
   integrations: [
     starlight({
       title: 'gournal',
