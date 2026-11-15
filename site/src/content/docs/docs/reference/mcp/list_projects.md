@@ -16,6 +16,6 @@ This tool takes no input.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `projects` | `object[]` | yes |  |
-| `projects.project` | `string` | yes |  |
-| `projects.count` | `number` | yes |  |
+| `projects` | `object[]` | yes | Projects, most entries first. |
+| `projects.project` | `string` | yes | Project name. |
+| `projects.count` | `number` | yes | Number of entries in this project. |

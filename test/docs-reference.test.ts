@@ -214,3 +214,18 @@ describe('MCP reference', () => {
     expect(fs.existsSync(path.join(process.env.HOME as string, '.gournal'))).toBe(false);
   });
 });
+
+test('every MCP field row has a description', async () => {
+  const pages = (await generateReference({ examplesDir })).filter((p) => p.path.startsWith('mcp/'));
+  expect(pages.length).toBeGreaterThan(0);
+  const empty: string[] = [];
+  for (const p of pages) {
+    for (const line of p.content.split('\n')) {
+      const cells = line.split(/(?<!\\)\|/).map((c) => c.trim());
+      // A field row starts with a code-quoted name. The description is the last cell before the closing pipe.
+      if (cells.length < 5 || !cells[1]?.startsWith('`')) continue;
+      if (cells[cells.length - 2] === '') empty.push(`${p.path}: ${cells[1]}`);
+    }
+  }
+  expect(empty).toEqual([]);
+});

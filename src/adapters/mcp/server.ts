@@ -108,16 +108,16 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     };
 
   const refSchema = z.object({
-    type: z.enum(['pr', 'jira', 'commit', 'url']),
-    value: z.string().min(1),
-    repo: z.string().optional(),
+    type: z.enum(['pr', 'jira', 'commit', 'url']).describe('Kind of reference: a PR, a Jira key, a commit, or a URL.'),
+    value: z.string().min(1).describe('The PR number, ticket key, commit hash, or URL.'),
+    repo: z.string().optional().describe('Repository (owner/name) of the PR or commit.'),
   });
 
   server.registerTool(
     'add_entry',
     {
       title: 'Add journal entry',
-      description: 'Add a journal entry. Pass `project` explicitly whenever you know it, and pass `cwd` so that gournal can record the repo and branch. The server process\'s own working directory is not a reliable signal for which project the calling agent is actually in. Fields come from the explicit arguments first, then from `cwd`, then from the first client root, and last from the server\'s own cwd (only when `project` is omitted). The summary must be one line of at most 120 characters. Put longer text in `details`.',
+      description: 'Add a journal entry. Pass `project` explicitly whenever you know it, and pass `cwd` so that gournal can record the repo and branch. The server process\'s own working directory is not a reliable signal for which project the calling agent is actually in. Fields come from the explicit arguments first, then from `cwd`, then from the first client root, and last from the server\'s own cwd (only when `project` is omitted).',
       outputSchema: EntryResultSchema,
       inputSchema: {
         summary: z.string().optional().describe('One line, max 120 characters. Put longer text in `details`.'),
@@ -203,7 +203,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'update_entry',
     {
       title: 'Update journal entry',
-      description: 'Change fields of an existing entry. Fields that you omit stay as they are. `id` is the full id or the last 8 characters.',
+      description: 'Change fields of an existing entry. Fields that you omit stay as they are.',
       outputSchema: EntryResultSchema,
       inputSchema: {
         id: z.string().min(1).describe('Full id or the last 8 characters of the entry.'),
@@ -257,7 +257,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'resolve_entry',
     {
       title: 'Resolve blocker or next entry',
-      description: 'Mark an open blocker or next entry as resolved. Optionally pass `by`, the id of the entry that resolved it.',
+      description: 'Mark an open blocker or next entry as resolved.',
       outputSchema: EntryResultSchema,
       inputSchema: {
         id: z.string().min(1).describe('Full id or the last 8 characters of the open blocker or next entry.'),
@@ -290,7 +290,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'find_entries',
     {
       title: 'Find journal entries',
-      description: 'Search journal entries. Every filter is optional, and filters combine. `text` matches every word. Newest entries come first by default.',
+      description: 'Search journal entries. Every filter is optional, and filters combine.',
       outputSchema: EntryListSchema,
       inputSchema: {
         project: z.string().optional().describe('Only entries of this project.'),
@@ -317,7 +317,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'list_entries',
     {
       title: 'List journal entries',
-      description: 'List journal entries, newest first. You can filter by project, tags, and an ISO date range (inclusive). The text result is JSON. The `limit` field keeps the result small.',
+      description: 'List journal entries, newest first. The text result is JSON. Pass a low `limit` so that the result does not flood your context.',
       outputSchema: EntryListSchema,
       inputSchema: {
         project: z.string().optional().describe('Only entries of this project.'),
@@ -337,8 +337,8 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'get_standup',
     {
       title: 'Get standup report',
-      description: 'Get a standup report. It covers today by default, or yesterday, the week, the month, or a from/to range. Done entries come from the period. Open blockers and next items carry forward from before the period. You can filter by project, repo, and tags.',
-      outputSchema: StandupSchema.extend({ syncWarning: z.string().nullable() }),
+      description: 'Get a standup report. It covers today unless you choose a period. Done entries come from the period. Open blockers and next items carry forward from before the period.',
+      outputSchema: StandupSchema.extend({ syncWarning: z.string().nullable().describe('A warning from the automatic GitHub sync, or null. The same warning is the last line of the text result.') }),
       inputSchema: periodInput,
     },
     guarded(async (args: PeriodArgs, journal) => {
@@ -352,8 +352,8 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'get_work_log',
     {
       title: 'Get chronological work log',
-      description: 'Get a work log, grouped by day. It covers today by default, or yesterday, the week, the month, or a from/to range. You can filter by project, repo, and tags.',
-      outputSchema: WorkLogSchema.extend({ syncWarning: z.string().nullable() }),
+      description: 'Get a work log, grouped by day. It covers today unless you choose a period.',
+      outputSchema: WorkLogSchema.extend({ syncWarning: z.string().nullable().describe('A warning from the automatic GitHub sync, or null. The same warning is the last line of the text result.') }),
       inputSchema: periodInput,
     },
     guarded(async (args: PeriodArgs, journal) => {
@@ -367,7 +367,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'list_tags',
     {
       title: 'List distinct tags',
-      description: 'List every tag in use, with the number of entries for each tag. You can filter by project. Call this before you add tags, to reuse existing ones.',
+      description: 'List every tag in use, with the number of entries for each tag. Call this before you add tags, to reuse existing ones.',
       outputSchema: TagCountsSchema,
       inputSchema: {
         project: z.string().optional().describe('Count tags of this project only.'),
@@ -397,14 +397,14 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'export_entries',
     {
       title: 'Export journal entries',
-      description: 'Export journal entries as Markdown or CSV, oldest first. You can filter by project, tags, and a date range. The tool returns the newest `limit` entries. When more entries exist, a second text block carries a notice.',
+      description: 'Export journal entries as Markdown or CSV, oldest first. When more entries exist than `limit`, a second text block carries a notice.',
       inputSchema: {
         format: z.enum(['md', 'csv']).default('md').describe('Output format: md (Markdown) or csv.'),
         project: z.string().optional().describe('Only entries of this project.'),
         tags: tagsInput,
         from: z.string().optional().describe('Only entries from this date (inclusive): a local day or an ISO timestamp.'),
         to: z.string().optional().describe('Only entries up to this date (inclusive): a local day or an ISO timestamp.'),
-        limit: z.number().int().min(1).max(2000).default(EXPORT_DEFAULT_LIMIT).describe('Most entries to return. The maximum is 2000. The newest entries are kept.'),
+        limit: z.number().int().min(1).max(2000).default(EXPORT_DEFAULT_LIMIT).describe('Most entries to return (maximum 2000). The newest entries are kept.'),
       },
     },
     guarded(({ format, project, tags, from, to, limit }: { format: 'md' | 'csv'; project?: string; tags?: string[]; from?: string; to?: string; limit: number }, { repo }) => {
@@ -423,7 +423,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'sync_activity',
     {
       title: 'Sync GitHub activity',
-      description: 'Fetch the user\'s GitHub activity (PRs, commits, reviews) through the gh CLI, and link it to journal entries. The gh CLI must be signed in. `since` is a local day or an ISO timestamp. The default is the last sync.',
+      description: 'Fetch the user\'s GitHub activity (PRs, commits, reviews) through the gh CLI, and link it to journal entries. The gh CLI must be signed in.',
       outputSchema: SyncReportSchema,
       inputSchema: { since: z.string().optional().describe('Fetch activity from this date: a local day (YYYY-MM-DD) or an ISO timestamp. Default: the last sync.') },
     },

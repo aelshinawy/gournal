@@ -342,7 +342,7 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('find <text>')
-    .description('Search your entries for words. Every word must match. The newest entries come first.')
+    .description('Search your entries for words. Every word must match. The oldest entries come first.')
     .option('-p, --project <project>', 'Show only entries of this project.')
     .option('-t, --tags <tags>', 'Show only entries with all of these tags. Separate tags with commas.')
     .option('-k, --kind <kinds>', 'Show only these kinds: done, blocker, next. Separate kinds with commas.')
@@ -350,7 +350,7 @@ export function buildProgram(io: CliIo): Command {
     .option('--repo <owner/name>', 'Show only entries of this repository.')
     .option('--from <date>', 'Show entries from this date (inclusive). Use a local day or an ISO timestamp.')
     .option('--to <date>', 'Show entries up to this date (inclusive). Use a local day or an ISO timestamp.')
-    .option('-n, --limit <n>', 'Show at most this many entries.')
+    .option('-n, --limit <n>', 'Show at most this many entries, oldest first.')
     .action(async (text: string, options: FindCliOptions) => {
       const query = buildQuery(options, text);
       await withJournal(({ repo }) => {
