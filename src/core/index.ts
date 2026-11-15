@@ -4,3 +4,6 @@ export * from './summary';
 export * from './refs';
 export * from './tags';
 export * from './config';
+export * from './query';
+export * from './periods';
+export * from './group';

@@ -14,7 +14,7 @@ import inquirer from 'inquirer';
 import fs from 'fs-extra';
 import path from 'path';
 import { VERSION } from '../version';
-import { parseBound } from '../../util/date-bounds.util';
+import { parseBound } from '../../core';
 import { clearConfirmQuestion } from './prompts';
 import { openJournal } from '../../storage/journal';
 import type { Journal } from '../../storage/journal';
@@ -292,8 +292,8 @@ export function buildProgram(io: CliIo): Command {
     .option('--from <date>', 'ISO date lower bound (inclusive)')
     .option('--to <date>', 'ISO date upper bound (inclusive)')
     .action(async (query: string, options: { project?: string; tags?: string; from?: string; to?: string }) => {
-      const fromBound = options.from ? parseBound(options.from, 'from') : undefined;
-      const toBound = options.to ? parseBound(options.to, 'to') : undefined;
+      const fromBound = options.from ? new Date(parseBound(options.from, 'from')).toISOString() : undefined;
+      const toBound = options.to ? new Date(parseBound(options.to, 'to')).toISOString() : undefined;
       await withJournal(({ repo }) => {
         const entries = repo.list({ project: options.project, tags: splitList(options.tags), from: fromBound, to: toBound });
         const needle = query.toLowerCase();

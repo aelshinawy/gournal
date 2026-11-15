@@ -7,7 +7,7 @@ import { generateCsvExport, generateMarkdownExport } from './export';
 import { generateWorkLog } from './log';
 import { countBy } from './stats';
 import { VERSION } from './adapters/version';
-import { parseBound } from './util/date-bounds.util';
+import { parseBound } from './core';
 import { checkSummary, closeTags, normalizeTags, type Entry, type EntryPatch } from './core';
 import type { EntryRepository } from './core/repository';
 import type { Config } from './core';
@@ -243,8 +243,8 @@ export function createServer(journal?: JournalLike): McpServer {
     guarded(({ project, from, to, limit }: { project?: string; from?: string; to?: string; limit: number }, { repo }) => {
       const entries = repo.list({
         project,
-        from: from ? parseBound(from, 'from') : undefined,
-        to: to ? parseBound(to, 'to') : undefined,
+        from: from ? new Date(parseBound(from, 'from')).toISOString() : undefined,
+        to: to ? new Date(parseBound(to, 'to')).toISOString() : undefined,
       });
       const newest: Entry[] = entries.reverse().slice(0, limit);
       return textResult(JSON.stringify(newest, null, 2));
