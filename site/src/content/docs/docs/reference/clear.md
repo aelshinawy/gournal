@@ -11,9 +11,7 @@ Use this only when you want to start again with an empty journal. The command as
 This command removes every entry from your reports and searches. The entries stay in the database until you restore them one by one. Export your journal first. Read the [backups guide](/gournal/docs/guides/data-safety-and-backups/).
 :::
 
-## CLI
-
-### gournal clear
+## CLI: gournal clear
 
 Remove all journal entries after you confirm. This command needs a terminal.
 

@@ -7,9 +7,7 @@ description: Run this once on each machine where you use Claude Code.
 
 Run this once on each machine where you use Claude Code. Then Claude Code can log your work to the journal.
 
-## CLI
-
-### gournal setup claude
+## CLI: gournal setup claude
 
 Register the gournal MCP server and install the gournal skill for Claude Code. You can also add a Stop hook.
 
@@ -17,7 +15,7 @@ Register the gournal MCP server and install the gournal skill for Claude Code. Y
 gournal setup claude [options]
 ```
 
-#### Options
+### Options
 
 | Option | Description |
 |--------|-------------|

@@ -7,13 +7,11 @@ description: Use this to browse recent entries when you have no search word.
 
 Use this to browse recent entries when you have no search word. An agent can use it to see what the journal holds before it adds more.
 
-## MCP tool
-
-### list_entries
+## MCP tool: list_entries
 
 List journal entries, newest first. The text result is JSON. Pass a low `limit` so that the result does not flood your context.
 
-#### Input
+### Input
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -23,7 +21,7 @@ List journal entries, newest first. The text result is JSON. Pass a low `limit` 
 | `to` | `string` | no | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
 | `limit` | `integer` | no | Most entries to return. The newest come first. The maximum is 500. Default: `50`. |
 
-#### Output
+### Output
 
 This tool returns structured output. The shape is the [Entry list](/gournal/docs/reference/output-shapes/#entry-list).
 

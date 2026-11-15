@@ -7,9 +7,7 @@ description: Use this when a blocker is cleared or a planned step is done.
 
 Use this when a blocker is cleared or a planned step is done. The entry then stops showing as open in reports.
 
-## CLI
-
-### gournal resolve
+## CLI: gournal resolve
 
 Mark an open blocker or next entry as resolved.
 
@@ -17,26 +15,24 @@ Mark an open blocker or next entry as resolved.
 gournal resolve <id>
 ```
 
-#### Arguments
+### Arguments
 
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `<id>` | yes | The full id or the last 8 characters of the entry. |
 
-## MCP tool
-
-### resolve_entry
+## MCP tool: resolve_entry
 
 Mark an open blocker or next entry as resolved.
 
-#### Input
+### Input
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | yes | Full id or the last 8 characters of the open blocker or next entry. |
 | `by` | `string` | no | Id of the entry that resolved it. |
 
-#### Output
+### Output
 
 This tool returns structured output. The shape is the [Entry result](/gournal/docs/reference/output-shapes/#entry-result).
 

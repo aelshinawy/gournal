@@ -7,9 +7,7 @@ description: Use this to find an old entry when you remember a word from it.
 
 Use this to find an old entry when you remember a word from it. Add filters to narrow a large journal.
 
-## CLI
-
-### gournal find
+## CLI: gournal find
 
 Search your entries for words. Every word must match. The oldest entries come first.
 
@@ -17,13 +15,13 @@ Search your entries for words. Every word must match. The oldest entries come fi
 gournal find <text> [options]
 ```
 
-#### Arguments
+### Arguments
 
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `<text>` | yes | Words to search for. Every word must match. |
 
-#### Options
+### Options
 
 | Option | Description |
 |--------|-------------|
@@ -36,13 +34,11 @@ gournal find <text> [options]
 | `--to <date>` | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
 | `-n, --limit <n>` | Most entries to return. The oldest come first. |
 
-## MCP tool
-
-### find_entries
+## MCP tool: find_entries
 
 Search journal entries. Every filter is optional, and filters combine.
 
-#### Input
+### Input
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -59,7 +55,7 @@ Search journal entries. Every filter is optional, and filters combine.
 | `order` | `"asc" \| "desc"` | no | desc puts the newest entries first. asc puts the oldest first. Default: `"desc"`. |
 | `includeDeleted` | `boolean` | no | Also return entries that you removed. |
 
-#### Output
+### Output
 
 This tool returns structured output. The shape is the [Entry list](/gournal/docs/reference/output-shapes/#entry-list).
 

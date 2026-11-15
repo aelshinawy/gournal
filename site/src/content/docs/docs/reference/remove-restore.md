@@ -35,19 +35,17 @@ gournal restore <id>
 |----------|----------|-------------|
 | `<id>` | yes | The full id or the last 8 characters of the removed entry. |
 
-## MCP tool
-
-### delete_entry
+## MCP tool: delete_entry
 
 Remove an entry. The entry stays in the database, so you can restore it with the CLI command `gournal restore <id>`.
 
-#### Input
+### Input
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | yes | Full id or the last 8 characters of the entry. |
 
-#### Output
+### Output
 
 This tool returns structured output. The shape is the [Entry result](/gournal/docs/reference/output-shapes/#entry-result).
 

@@ -7,9 +7,7 @@ description: Use this before you add tags, so that you reuse the names that exis
 
 Use this before you add tags, so that you reuse the names that exist. It keeps your tags consistent.
 
-## CLI
-
-### gournal tags
+## CLI: gournal tags
 
 List every tag that you use, with the number of entries for each tag.
 
@@ -17,19 +15,17 @@ List every tag that you use, with the number of entries for each tag.
 gournal tags
 ```
 
-## MCP tool
-
-### list_tags
+## MCP tool: list_tags
 
 List every tag in use, with the number of entries for each tag. Call this before you add tags, to reuse existing ones.
 
-#### Input
+### Input
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `project` | `string` | no | Count tags of this project only. |
 
-#### Output
+### Output
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|

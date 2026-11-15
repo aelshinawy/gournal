@@ -7,9 +7,7 @@ description: Use this to see where your effort goes and how steady your logging 
 
 Use this to see where your effort goes and how steady your logging is.
 
-## CLI
-
-### gournal stats
+## CLI: gournal stats
 
 Show how many entries you have for each project and tag, and your current daily streak.
 
@@ -17,7 +15,7 @@ Show how many entries you have for each project and tag, and your current daily 
 gournal stats [options]
 ```
 
-#### Options
+### Options
 
 | Option | Description |
 |--------|-------------|

@@ -7,9 +7,7 @@ description: Use this to check the exact project names in your journal.
 
 Use this to check the exact project names in your journal. Reuse a name to keep related entries together.
 
-## CLI
-
-### gournal projects
+## CLI: gournal projects
 
 List every project that you log to, with the number of entries for each project.
 
@@ -17,17 +15,15 @@ List every project that you log to, with the number of entries for each project.
 gournal projects
 ```
 
-## MCP tool
-
-### list_projects
+## MCP tool: list_projects
 
 List every project in the journal, with the number of entries for each project.
 
-#### Input
+### Input
 
 This tool takes no input.
 
-#### Output
+### Output
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|

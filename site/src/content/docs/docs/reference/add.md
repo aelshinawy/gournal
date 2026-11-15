@@ -7,9 +7,7 @@ description: Use this to record finished work, a blocker, or a planned next step
 
 Use this to record finished work, a blocker, or a planned next step. Log each distinct piece of work as its own entry.
 
-## CLI
-
-### gournal add
+## CLI: gournal add
 
 Add a journal entry. Gournal records the project, repo, and branch of the current directory. A summary over 120 characters, or with a line break, is cut at the first sentence. The full text goes to details, and a note prints.
 
@@ -17,13 +15,13 @@ Add a journal entry. Gournal records the project, repo, and branch of the curren
 gournal add <summary> [options]
 ```
 
-#### Arguments
+### Arguments
 
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `<summary>` | yes | One line that says what happened. |
 
-#### Options
+### Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -32,13 +30,11 @@ gournal add <summary> [options]
 | `-k, --kind <kind>` | Set the entry kind: done (default), blocker, or next. | `done` |
 | `--resolves <ids>` | Close the open blocker or next entries with these ids. Separate ids with commas. One unknown id stops the add, and gournal stores nothing. |  |
 
-## MCP tool
-
-### add_entry
+## MCP tool: add_entry
 
 Add a journal entry. Pass `project` explicitly whenever you know it, and pass `cwd` so that gournal can record the repo and branch. The server process's own working directory is not a reliable signal for which project the calling agent is actually in. Fields come from the explicit arguments first, then from `cwd`, then from the first client root, and last from the server's own cwd (only when `project` is omitted).
 
-#### Input
+### Input
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -58,7 +54,7 @@ Add a journal entry. Pass `project` explicitly whenever you know it, and pass `c
 | `refs.repo` | `string` | no | Repository (owner/name) of the PR or commit. |
 | `resolves` | `string[]` | no | Ids of open blocker or next entries that this entry closes. Use the full id or the last 8 characters. The server drops an unknown id, and the result carries a note. |
 
-#### Output
+### Output
 
 This tool returns structured output. The shape is the [Entry result](/gournal/docs/reference/output-shapes/#entry-result).
 

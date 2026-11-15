@@ -7,9 +7,7 @@ description: Use this to review what you did over a day or a week.
 
 Use this to review what you did over a day or a week. It helps when you write a weekly summary.
 
-## CLI
-
-### gournal log
+## CLI: gournal log
 
 Show your entries in time order, grouped by day. The log covers today unless you choose a period. The --from and --to options override --yesterday, --week, and --month.
 
@@ -17,7 +15,7 @@ Show your entries in time order, grouped by day. The log covers today unless you
 gournal log [options]
 ```
 
-#### Options
+### Options
 
 | Option | Description |
 |--------|-------------|
@@ -30,13 +28,11 @@ gournal log [options]
 | `--repo <owner/name>` | Only entries of this repository (owner/name). |
 | `-t, --tags <tags>` | Only entries that have all of these tags. Separate tags with commas. |
 
-## MCP tool
-
-### get_work_log
+## MCP tool: get_work_log
 
 Get a work log, grouped by day. It covers today unless you choose a period. The from and to options override yesterday, week, and month.
 
-#### Input
+### Input
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -49,7 +45,7 @@ Get a work log, grouped by day. It covers today unless you choose a period. The 
 | `repo` | `string` | no | Only entries of this repository (owner/name). |
 | `tags` | `string[]` | no | Only entries that have all of these tags. |
 
-#### Output
+### Output
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|

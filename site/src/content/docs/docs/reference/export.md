@@ -7,9 +7,7 @@ description: Use this to make a readable report or a backup copy.
 
 Use this to make a readable report or a backup copy. The bundle format also moves your journal to another machine.
 
-## CLI
-
-### gournal export
+## CLI: gournal export
 
 Write journal entries as Markdown or CSV, or write a full bundle for backup and import. The project, tag, and date options apply to md and csv only. Output goes to the terminal unless you pass --output.
 
@@ -17,7 +15,7 @@ Write journal entries as Markdown or CSV, or write a full bundle for backup and 
 gournal export [options]
 ```
 
-#### Options
+### Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -28,13 +26,11 @@ gournal export [options]
 | `--to <date>` | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |  |
 | `-o, --output <file>` | Write the output to this file instead of the terminal. |  |
 
-## MCP tool
-
-### export_entries
+## MCP tool: export_entries
 
 Export journal entries as Markdown or CSV, oldest first. When more entries exist than `limit`, a second text block carries a notice.
 
-#### Input
+### Input
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -45,7 +41,7 @@ Export journal entries as Markdown or CSV, oldest first. When more entries exist
 | `to` | `string` | no | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
 | `limit` | `integer` | no | Most entries to return. The maximum is 2000. The newest entries are kept. Default: `200`. |
 
-#### Output
+### Output
 
 This tool returns text content. It has no structured output.
 

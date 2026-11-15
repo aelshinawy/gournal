@@ -7,9 +7,7 @@ description: AI agents use this server to read and write your journal.
 
 AI agents use this server to read and write your journal. An MCP client starts it, so you rarely run it yourself.
 
-## CLI
-
-### gournal mcp
+## CLI: gournal mcp
 
 Start the gournal MCP server on stdio. It offers entries, standup reports, work logs, and export as tools.
 

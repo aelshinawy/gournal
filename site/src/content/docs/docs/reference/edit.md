@@ -7,13 +7,11 @@ description: Use this to fix an entry after you add it, for example a wrong summ
 
 Use this to fix an entry after you add it, for example a wrong summary, tag, or reference. The CLI has no edit command, so only MCP clients can do this.
 
-## MCP tool
-
-### update_entry
+## MCP tool: update_entry
 
 Change fields of an existing entry. Fields that you omit stay as they are.
 
-#### Input
+### Input
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -28,7 +26,7 @@ Change fields of an existing entry. Fields that you omit stay as they are.
 | `refs.value` | `string` | yes | The PR number, ticket key, commit hash, or URL. |
 | `refs.repo` | `string` | no | Repository (owner/name) of the PR or commit. |
 
-#### Output
+### Output
 
 This tool returns structured output. The shape is the [Entry result](/gournal/docs/reference/output-shapes/#entry-result).
 

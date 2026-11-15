@@ -35,15 +35,37 @@ function exampleBlock(items: Array<{ name: string; example: string }>): string {
   return withExample.map((i) => `#### ${i.name}\n\n${demoteHeadings(i.example, 5)}`).join('\n\n');
 }
 
-function cliBlock(s: CliSection): string {
-  const parts = [`### ${s.title}`, s.description, `\`\`\`text\n${s.usage}\n\`\`\``];
-  if (s.args) parts.push(`#### Arguments\n\n${s.args}`);
-  if (s.options) parts.push(`#### Options\n\n${s.options}`);
+/**
+ * One command. A page with one command has no per-command heading, so its sub-headings sit at `###`.
+ * With several commands, each has a `###` heading and its sub-headings sit at `####`.
+ */
+function cliBlock(s: CliSection, single: boolean): string {
+  const sub = single ? '###' : '####';
+  const parts = single ? [] : [`### ${s.title}`];
+  parts.push(s.description, `\`\`\`text\n${s.usage}\n\`\`\``);
+  if (s.args) parts.push(`${sub} Arguments\n\n${s.args}`);
+  if (s.options) parts.push(`${sub} Options\n\n${s.options}`);
   return parts.join('\n\n');
 }
 
-function toolBlock(s: ToolSection): string {
-  return [`### ${s.name}`, s.description, `#### Input\n\n${s.input}`, `#### Output\n\n${s.output}`].join('\n\n');
+function toolBlock(s: ToolSection, single: boolean): string {
+  const sub = single ? '###' : '####';
+  const parts = single ? [] : [`### ${s.name}`];
+  parts.push(s.description, `${sub} Input\n\n${s.input}`, `${sub} Output\n\n${s.output}`);
+  return parts.join('\n\n');
+}
+
+/** The id Starlight gives a heading: lowercase, punctuation dropped except `_` and `-`, spaces to hyphens. */
+export function headingId(text: string): string {
+  return text.trim().toLowerCase().replace(/[^a-z0-9_\s-]/g, '').replace(/ /g, '-');
+}
+
+/** The anchor of a CLI command, or of an MCP tool, on its capability page. */
+export function surfaceAnchor(cap: Capability, name: string, cli: boolean): string {
+  const count = cli ? cap.cli.length : cap.mcp.length;
+  const text = cli ? `gournal ${name}` : name;
+  if (count === 1) return headingId(cli ? `CLI: ${text}` : `MCP tool: ${text}`);
+  return headingId(text);
 }
 
 export function capabilityPage(cap: Capability, cli: CliSection[], mcp: ToolSection[]): GeneratedPage {
@@ -53,8 +75,10 @@ export function capabilityPage(cap: Capability, cli: CliSection[], mcp: ToolSect
     cap.summary,
   ];
   if (cap.caution) blocks.push(`:::caution\n${cap.caution}\n:::`);
-  if (cli.length > 0) blocks.push(`## CLI\n\n${cli.map(cliBlock).join('\n\n')}`);
-  if (mcp.length > 0) blocks.push(`## MCP tool\n\n${mcp.map(toolBlock).join('\n\n')}`);
+  if (cli.length === 1) blocks.push(`## CLI: ${cli[0].title}\n\n${cliBlock(cli[0], true)}`);
+  else if (cli.length > 1) blocks.push(`## CLI\n\n${cli.map((s) => cliBlock(s, false)).join('\n\n')}`);
+  if (mcp.length === 1) blocks.push(`## MCP tool: ${mcp[0].name}\n\n${toolBlock(mcp[0], true)}`);
+  else if (mcp.length > 1) blocks.push(`## MCP tool\n\n${mcp.map((s) => toolBlock(s, false)).join('\n\n')}`);
 
   const cliExamples = exampleBlock(cli.map((s) => ({ name: s.title, example: s.example })));
   const mcpExamples = exampleBlock(mcp.map((s) => ({ name: s.name, example: s.example })));
@@ -75,7 +99,7 @@ const BASE_INTRO: Record<string, string> = {
 function toolLink(tool: string): string {
   const cap = CAPABILITIES.find((c) => c.mcp.includes(tool));
   if (!cap) throw new Error(`MCP tool ${tool} has no capability.`);
-  return `[${code(tool)}](${DOCS_ROOT}/reference/${cap.slug}/#${tool})`;
+  return `[${code(tool)}](${referenceLink(cap, `#${surfaceAnchor(cap, tool, false)}`)})`;
 }
 
 /** The shared output shapes: the base shapes Entry and Activity, then the shapes that tools share. */
@@ -103,12 +127,12 @@ export function outputShapesPage(shared: SharedShape[]): GeneratedPage {
 
 const referenceLink = (cap: Capability, anchor = ''): string => `${DOCS_ROOT}/reference/${cap.slug}/${anchor}`;
 
-/** Links for the names of one kind. A leaf CLI name has spaces, and its heading anchor joins words with hyphens. */
+/** Links for the names of one kind. The anchor follows the heading of the name on its page. */
 function nameLinks(cap: Capability, names: string[], cli: boolean): string {
   if (names.length === 0) return 'None';
   return names.map((n) => {
     const text = cli ? `gournal ${n}` : n;
-    return `[${code(text)}](${referenceLink(cap, `#${cli ? text.replace(/ /g, '-') : n}`)})`;
+    return `[${code(text)}](${referenceLink(cap, `#${surfaceAnchor(cap, n, cli)}`)})`;
   }).join(', ');
 }
 

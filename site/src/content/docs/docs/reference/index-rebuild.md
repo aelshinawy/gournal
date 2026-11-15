@@ -7,9 +7,7 @@ description: Use this when search results look wrong or miss entries that you kn
 
 Use this when search results look wrong or miss entries that you know exist. Your entries stay as they are.
 
-## CLI
-
-### gournal index rebuild
+## CLI: gournal index rebuild
 
 Drop and recreate the full-text search index. It takes today's backup first, if none exists yet. Run it only when every gournal process uses a Node build with FTS5.
 

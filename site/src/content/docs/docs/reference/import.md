@@ -11,9 +11,7 @@ Use this to restore a journal from a backup, or to move your journal to a new ma
 An import can add to or change the entries that you have. Make a backup first. Read the [backups guide](/gournal/docs/guides/data-safety-and-backups/).
 :::
 
-## CLI
-
-### gournal import
+## CLI: gournal import
 
 Load entries from a bundle file. Make the bundle with gournal export --format bundle.
 
@@ -21,7 +19,7 @@ Load entries from a bundle file. Make the bundle with gournal export --format bu
 gournal import <file>
 ```
 
-#### Arguments
+### Arguments
 
 | Argument | Required | Description |
 |----------|----------|-------------|

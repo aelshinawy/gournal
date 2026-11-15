@@ -7,9 +7,7 @@ description: Use this to fetch your pull requests, commits, and reviews from Git
 
 Use this to fetch your pull requests, commits, and reviews from GitHub. Standup reports then count the activity that no done entry links to.
 
-## CLI
-
-### gournal sync
+## CLI: gournal sync
 
 Fetch your GitHub activity (PRs, commits, reviews) through the gh CLI. Gournal links the activity to your entries.
 
@@ -17,25 +15,23 @@ Fetch your GitHub activity (PRs, commits, reviews) through the gh CLI. Gournal l
 gournal sync [options]
 ```
 
-#### Options
+### Options
 
 | Option | Description |
 |--------|-------------|
 | `--since <date>` | Fetch activity from this date. Use a local day or an ISO timestamp. Without this option, gournal starts at the stored sync cursor. With no cursor, it starts github.initialSyncDays days before now. |
 
-## MCP tool
-
-### sync_activity
+## MCP tool: sync_activity
 
 Fetch the user's GitHub activity (PRs, commits, reviews) through the gh CLI, and link it to journal entries. The gh CLI must be signed in.
 
-#### Input
+### Input
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `since` | `string` | no | Fetch activity from this date: a local day (YYYY-MM-DD) or an ISO timestamp. Without this option, gournal fetches from the last sync. |
 
-#### Output
+### Output
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|

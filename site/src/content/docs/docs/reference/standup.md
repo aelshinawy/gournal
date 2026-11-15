@@ -7,9 +7,7 @@ description: Use this before a standup meeting to see what you finished and what
 
 Use this before a standup meeting to see what you finished and what still blocks you. You can choose today, yesterday, or a longer period.
 
-## CLI
-
-### gournal standup
+## CLI: gournal standup
 
 Show a standup report for today, or for the period that you choose. The report lists done entries, open blockers, open next items, and a Stale line. An Also line counts the GitHub activity that no done entry links to. The --from and --to options override --yesterday, --week, and --month.
 
@@ -17,7 +15,7 @@ Show a standup report for today, or for the period that you choose. The report l
 gournal standup [options]
 ```
 
-#### Options
+### Options
 
 | Option | Description |
 |--------|-------------|
@@ -31,13 +29,11 @@ gournal standup [options]
 | `-t, --tags <tags>` | Only entries that have all of these tags. Separate tags with commas. |
 | `--activity` | List every GitHub activity item that is not linked to a done entry in this report. Without this option, the report shows counts and one line for each merged or reviewed PR. |
 
-## MCP tool
-
-### get_standup
+## MCP tool: get_standup
 
 Get a standup report. It covers today unless you choose a period. Done entries come from the period. Open blockers and next items carry forward from before the period. The from and to options override yesterday, week, and month.
 
-#### Input
+### Input
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -50,7 +46,7 @@ Get a standup report. It covers today unless you choose a period. Done entries c
 | `repo` | `string` | no | Only entries of this repository (owner/name). |
 | `tags` | `string[]` | no | Only entries that have all of these tags. |
 
-#### Output
+### Output
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
