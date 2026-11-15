@@ -56,6 +56,7 @@ test('server sends the instructions', () => {
     'kind is done (default), blocker (something stops you), or next (a planned next step).',
     'To close a blocker or next item, pass its id in resolves on the done entry, or call resolve_entry.',
     'Reuse existing tags (list_tags). Ticket keys and PR numbers go in refs, not tags.',
+    'Call sync_activity to fetch the user\'s GitHub activity. Report tools already sync when the data is stale.',
   ].join('\n'));
 });
 
