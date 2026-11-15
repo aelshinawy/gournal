@@ -80,5 +80,6 @@ describe('Storage Operations', () => {
     await expect(updateEntries(e => e, file)).rejects.toBeInstanceOf(CorruptJournalError);
     expect(fs.existsSync(path.join(dir, 'backups'))).toBe(false);
     expect(fs.readFileSync(file, 'utf8')).toBe('garbage');
+    expect(fs.existsSync(`${file}.lock`)).toBe(false);
   });
 });

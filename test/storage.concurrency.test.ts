@@ -44,5 +44,6 @@ describe('concurrent writers', () => {
     const entries = await readEntries(file);
     expect(entries).toHaveLength(200);
     expect(new Set(entries.map(e => e.message)).size).toBe(200);
+    expect(fs.existsSync(`${file}.lock`)).toBe(false);
   }, 60_000);
 });
