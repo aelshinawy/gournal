@@ -102,13 +102,22 @@ The structured result has the same shape as the `add_entry` result. The `deleted
     "createdAt": "2026-11-15T18:38:29.311Z",
     "updatedAt": "2026-11-15T18:39:12.024Z",
     "deletedAt": "2026-11-15T18:39:12.024Z",
+    "deviceId": "01M7G81PASZ2E8T209BWDT235N",
     "summary": "Draft the release notes for 2.4",
+    "details": null,
     "kind": "done",
+    "status": null,
+    "resolvedAt": null,
+    "resolvedByEntryId": null,
     "project": "billing-api",
+    "repo": null,
+    "branch": "main",
+    "source": "cli",
+    "agent": null,
     "tags": [
       "docs"
     ],
-    "refs": "..."
+    "refs": []
   },
   "notes": []
 }

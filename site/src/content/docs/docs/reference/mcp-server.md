@@ -21,7 +21,7 @@ gournal mcp
 
 ### CLI
 
-An MCP client starts this command for you, so you do not run it in a terminal. The server speaks over stdin and stdout, and it prints nothing else. Add it to the client configuration instead.
+An MCP client starts this command for you, so you do not run it in a terminal. The server speaks over stdin and stdout. It writes only MCP protocol messages to stdout. Notes go to stderr. Add it to the client configuration instead.
 
 ```json
 {
