@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
+import { ftsTest } from '../fts5';
 import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository, AmbiguousIdError } from '../../src/storage/sqlite-repository';
 import type { EntryRepository } from '../../src/core/repository';
@@ -110,7 +111,7 @@ test('latestForDevice skips deleted entries and other devices', () => {
     .run('ZZZZZZZZZZZZZZZZZZZZZZZZZZ', Date.now() + 10_000, Date.now() + 10_000, 'other-device', 'foreign');
   expect(repo.latestForDevice()?.id).toBe(a.id);
 });
-test('FTS index follows updates', () => {
+ftsTest('FTS index follows updates', () => {
   const e = repo.add({ summary: 'alpha', ...base });
   repo.update(e.id, { summary: 'beta' });
   expect(db.prepare("SELECT count(*) c FROM entries_fts WHERE entries_fts MATCH 'beta'").get()).toEqual({ c: 1 });

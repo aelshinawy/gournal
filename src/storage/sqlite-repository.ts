@@ -77,7 +77,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
     const exact = db.prepare('SELECT id FROM entries WHERE id = ?').get(input) as { id: string } | undefined;
     if (exact) return exact.id;
     if (input.length < MIN_SUFFIX) return null;
-    const rows = db.prepare('SELECT id FROM entries WHERE upper(substr(id, -length(?1))) = upper(?1) LIMIT 2').all(input) as { id: string }[];
+    const rows = db.prepare('SELECT id FROM entries WHERE upper(substr(id, -length(?))) = upper(?) LIMIT 2').all(input, input) as { id: string }[];
     if (rows.length > 1) throw new AmbiguousIdError(input);
     return rows.length === 1 ? rows[0].id : null;
   }

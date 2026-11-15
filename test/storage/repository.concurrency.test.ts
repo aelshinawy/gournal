@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import { spawn } from 'child_process';
 import { openDb } from '../../src/storage/db';
+import { hasFts5 } from '../fts5';
 
 const fixture = path.join(__dirname, '..', 'fixtures', 'repo-writer.ts');
 
@@ -32,7 +33,7 @@ describe('concurrent repository writers', () => {
       const rows = db.prepare('SELECT summary FROM entries').all() as { summary: string }[];
       expect(rows).toHaveLength(200);
       expect(new Set(rows.map((r) => r.summary)).size).toBe(200);
-      expect(db.prepare('SELECT count(*) c FROM entries_fts WHERE entries_fts MATCH ?').get('entry')).toEqual({ c: 200 });
+      if (hasFts5) expect(db.prepare('SELECT count(*) c FROM entries_fts WHERE entries_fts MATCH ?').get('entry')).toEqual({ c: 200 });
       expect(db.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' });
     } finally {
       db.close();

@@ -2,6 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { openDb, CorruptDatabaseError } from '../../src/storage/db';
+import { hasFts5, ftsTest } from '../fts5';
 
 let dir: string; let file: string;
 beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-db-')); file = path.join(dir, 'gournal.db'); });
@@ -15,7 +16,8 @@ const search = (db: any, q: string) =>
 test('openDb creates every table and records the schema version', () => {
   const db = openDb(file);
   const names = db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table')").all().map((r: any) => r.name);
-  expect(names).toEqual(expect.arrayContaining(['entries', 'entry_tags', 'entry_refs', 'activity', 'links', 'legacy_map', 'sync_state', 'schema_version', 'entries_fts']));
+  expect(names).toEqual(expect.arrayContaining(['entries', 'entry_tags', 'entry_refs', 'activity', 'links', 'legacy_map', 'sync_state', 'schema_version']));
+  if (hasFts5) expect(names).toContain('entries_fts');
   expect(db.prepare('SELECT MAX(version) AS version FROM schema_version').get()).toEqual({ version: 2 });
   db.close();
 });
@@ -61,7 +63,7 @@ test('with no backups the message says none', () => {
   expect(err.latestBackup).toBeNull();
   expect(err.message).toContain('Latest backup: none.');
 });
-test('FTS stays in sync on insert, update of summary and details, and delete', () => {
+ftsTest('FTS stays in sync on insert, update of summary and details, and delete', () => {
   const db = openDb(file);
   ins(db, 'A', 'alpha rocket', 'launch pad');
   ins(db, 'B', 'beta rocket');
