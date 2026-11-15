@@ -1,18 +1,23 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLinksValidator from 'starlight-links-validator';
+import { satteri } from '@astrojs/markdown-satteri';
+import { ecFocusable } from './plugins/ec-focusable.mjs';
+import { rehypeTableRegion } from './plugins/rehype-table-region.mjs';
 import referenceSidebar from './src/generated/reference-sidebar.json' with { type: 'json' };
 
 export default defineConfig({
   site: 'https://aelshinawy.github.io',
   base: '/gournal/',
-  markdown: { smartypants: false },
+  markdown: { smartypants: false, processor: satteri({ hastPlugins: [rehypeTableRegion()] }) },
   integrations: [
     starlight({
       title: 'gournal',
       customCss: ['./src/styles/tokens.css', './src/styles/fonts.css', './src/styles/docs.css'],
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/aelshinawy/gournal' }],
       expressiveCode: {
+        plugins: [ecFocusable()],
+        defaultProps: { frame: 'none' },
         styleOverrides: {
           codeFontFamily: 'var(--g-font-mono)',
           codeFontSize: '0.875rem',
@@ -21,14 +26,6 @@ export default defineConfig({
           borderRadius: '8px'
         }
       },
-      head: [
-        {
-          // Code blocks that scroll need keyboard focus, so keyboard users can read the cut-off text.
-          tag: 'script',
-          content:
-            "addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('.expressive-code pre').forEach((p)=>{if(p.scrollWidth>p.clientWidth){p.tabIndex=0;}});});"
-        }
-      ],
       plugins: [starlightLinksValidator()],
       sidebar: [
         {

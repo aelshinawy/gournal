@@ -135,19 +135,23 @@ starlight-toc a[aria-current='true'] {
   overflow-wrap: anywhere;
 }
 
-/* Tables scroll in their own box. */
-.sl-markdown-content table {
-  display: block;
+/* Tables scroll in their own focusable box (.g-table, added by rehype-table-region). */
+.sl-markdown-content .g-table {
   max-width: 100%;
   overflow-x: auto;
+  border: 1px solid var(--g-rule);
+  border-radius: var(--g-radius);
+  -webkit-overflow-scrolling: touch;
+}
+
+.sl-markdown-content .g-table table {
+  margin: 0;
+  width: 100%;
   font-family: var(--g-font-ui);
   font-size: var(--g-text-sm);
   font-variant-numeric: tabular-nums;
-  border: 1px solid var(--g-rule);
-  border-radius: var(--g-radius);
   border-collapse: separate;
   border-spacing: 0;
-  -webkit-overflow-scrolling: touch;
 }
 
 .sl-markdown-content :is(th, td) {
@@ -217,8 +221,15 @@ starlight-toc a[aria-current='true'] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+  /* Remove movement only. Color and opacity transitions stay. */
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  :where(a, button, summary, details, svg, div, span, section, nav, aside, header, figure, li, ul, label, input),
+  :where(a, button, summary, div, span, li)::before,
+  :where(a, button, summary, div, span, li)::after {
+    animation: none !important;
+    transition-property: color, background-color, border-color, outline-color, opacity, fill, stroke !important;
   }
 }

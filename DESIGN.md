@@ -13,7 +13,7 @@ colors:
   ink: "#1d1a15"
   ink-soft: "#473f33"
   ink-muted: "#675e4e"
-  ink-faint: "#706753"
+  ink-faint: "#655c49"
   rule: "#ddd3be"
   rule-strong: "#c4b79b"
   focus-blue: "#1d5fa8"
@@ -162,7 +162,7 @@ A restrained palette: tinted paper and ink neutrals plus one rust accent. Dark t
 - **Ink** (ink / night-ink): headings and strong text.
 - **Soft Ink** (ink-soft / night-ink-soft): body text.
 - **Muted Ink** (ink-muted / night-ink-muted): captions, hints, timestamps, the dim lines of terminal output. It holds 5.9:1 in light and 7.0:1 in dark.
-- **Faint Ink** (ink-faint): borders and icons only.
+- **Faint Ink** (ink-faint, dark #9a917c): borders and icons only.
 - **Rule** and **Strong Rule** (rule, rule-strong): hairlines, section dividers, plate and box borders.
 - **Focus Blue** (focus-blue / night-focus-blue): the focus ring only. It is the one non-warm color, so focus is never mistaken for the accent.
 - **Terminal Plate** (terminal-plate, terminal-ink): the background and text of the VHS recording and its frame. They match the VHS theme in scripts/demo/standup.tape.
