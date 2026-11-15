@@ -1,8 +1,11 @@
 {
   "name": "gournal",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "bin": {
     "gournal": "./dist/cli.js"
+  },
+  "engines": {
+    "node": ">=22.13"
   },
   "files": [
     "dist"

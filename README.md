@@ -22,13 +22,15 @@ Gournal is a CLI tool that helps developers:
 - **Undo**: `gournal undo` removes the most recently added entry
 - **Lookup**: `gournal tags` / `gournal projects` list distinct values with counts
 - **Project Filtering**: Scope standup/export/find output to a single project with `--project`
-- **Export**: `gournal export` writes entries to Markdown or CSV
+- **Export**: `gournal export` writes entries to Markdown, CSV, or a full bundle
+- **Kinds**: mark an entry as `done`, `blocker`, or `next`, and close open items with `resolve`
+- **SQLite storage**: entries live in one database with automatic daily backups
 - **MCP Server**: `gournal mcp` exposes your journal to AI agents like Claude Code
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js v18+
+- Node.js 22.13+
 - Git (for project detection)
 
 ### Installation
@@ -55,8 +57,14 @@ gournal standup --week --project gournal
 gournal log --week
 gournal log --month --tags bug,testing
 
-# Undo the last entry
+# Longer text, entry kind, and resolving open items
+gournal add "Auth test still flaky" --details "Fails 1 in 10 on CI" --kind blocker
+gournal add "Fixed the flaky auth test" --resolves 1A2B3C4D
+
+# Undo the last entry, restore a removed one, close an open one
 gournal undo
+gournal restore 1A2B3C4D
+gournal resolve 1A2B3C4D
 
 # Stats and lookups
 gournal stats
@@ -69,14 +77,78 @@ gournal find "auth" --from 2026-07-01 --to 2026-07-15
 # Export entries
 gournal export --format md
 gournal export --format csv --project gournal --output entries.csv
+
+# Full bundle: all fields, for backup or moving to another machine
+gournal export --format bundle --output bundle.json
+gournal import bundle.json
 ```
 
+### `add` options
+- `-t, --tags <tags>`: comma-separated tags.
+- `-d, --details <text>`: longer text for the entry. The summary must be one line of at most 120 characters. The CLI moves the rest of a longer summary to details.
+- `-k, --kind <kind>`: `done` (default), `blocker`, or `next`.
+- `--resolves <ids>`: comma-separated ids of open `blocker` or `next` entries that this entry closes. An id is the full id or the last 8 characters.
+
+### Other commands
+- `gournal restore <id>`: restore a removed entry (`undo` and `clear` remove entries softly).
+- `gournal resolve <id>`: mark an open `blocker` or `next` entry as resolved.
+- `gournal export --format bundle [-o <file>]`: write every entry with all fields as JSON.
+- `gournal import <file>`: import a bundle. It adds new entries, updates changed ones, and skips unchanged ones.
+- `gournal migrate`: import `entries.json` into the database. Entries that are already present are skipped.
+- `gournal migrate --plan <file> [--dry-run --diff <file>]`: apply a reviewed migration plan. See "Migration plans".
+
+### Configuration
+Gournal keeps its settings in `~/.gournal/config.json`. It creates the file on first run. All keys are optional.
+
+- `deviceId`: a stable id for this machine. Gournal generates it. Do not change it.
+- `projectAliases`: map an old project name to the name to use, for example `{ "old-name": "new-name" }`.
+- `tagAliases`: map an old tag to the tag to use, for example `{ "bugfix": "bug" }`.
+- `ticketPrefixes`: list of ticket prefixes, for example `["SBDC", "PLAT"]`. A tag that looks like a ticket (for example `sbdc-12`) becomes a Jira ref only when its prefix is in this list. A `pr-N` tag always becomes a PR ref.
+
+Alias chains are rejected. If `a` maps to `b`, then `b` must not be a key in the same map. Gournal refuses to start and names the file when the config is not valid. It does not change the file.
+
+### Environment
+- `GOURNAL_HOME`: the folder for all gournal data. The default is `~/.gournal`.
+
+### Migration plans
+A migration plan rewrites entries that came from `entries.json`. You review the plan before you apply it. Use `--dry-run --diff <file>` to write the changes to a markdown file and change nothing.
+
+```bash
+gournal migrate --plan plan.json --dry-run --diff plan-diff.md
+gournal migrate --plan plan.json
+```
+
+The plan file is JSON:
+```json
+{
+  "format": "gournal-migration-plan",
+  "version": 1,
+  "items": [
+    {
+      "index": 0,
+      "timestamp": "2026-07-16T02:24:26.205Z",
+      "messageHash": "<sha256 of the original message>",
+      "summary": "New one-line summary",
+      "details": "Optional longer text",
+      "kind": "done",
+      "tags": ["optional", "tags"],
+      "project": "optional-project"
+    }
+  ]
+}
+```
+- `index`, `timestamp`, and `messageHash` find the original item in `entries.json`. If one does not match, gournal writes nothing.
+- `summary` is required. It must be one line of at most 120 characters.
+- `details`, `kind`, `tags`, and `project` are optional. A missing field stays as it is.
+- The plan must not lose text. Set `details` to `null` only when the summary holds the full original message.
+
 ### Data safety
-- Entries live in `~/.gournal/entries.json`.
-- Gournal makes a daily backup in `~/.gournal/backups/`. It keeps the newest 7.
-- If you see "Journal file ... is not valid", copy the named backup over `entries.json`.
-- If you see "Journal is busy", remove the named lock folder. Do this only if no gournal process is running.
-- After an upgrade from 0.5.x, restart your MCP clients. Old servers keep running and write without the lock.
+- Entries live in the SQLite database `~/.gournal/gournal.db`.
+- Gournal makes a daily backup in `~/.gournal/backups/` as `gournal-YYYY-MM-DD.db`. It keeps the newest 7.
+- To recover, stop all gournal processes. Then copy a backup over `gournal.db`.
+- `entries.json` from older versions is read-only. Gournal never writes to it. Gournal imports it into the database automatically, and `gournal migrate` imports it on request.
+- After an upgrade from 0.6.x or older, restart your MCP clients. Old servers keep running and write to `entries.json`, not to the database. Run `gournal migrate` to import those late entries.
+- Removed entries stay in the database. `restore` brings them back.
 - `clear` asks for confirmation. The default answer is no.
 
 ## 🤖 MCP Server
@@ -84,6 +156,10 @@ gournal export --format csv --project gournal --output entries.csv
 `gournal mcp` starts an [MCP](https://modelcontextprotocol.io) server (stdio transport) that exposes your journal to AI agents like Claude Code. It reuses the same storage/report/export logic as the CLI, so agents see exactly what you'd see.
 
 Tools exposed:
+- `add_entry` — add an entry with `summary` (one line, max 120 characters), `details`, `kind`, `project`, `tags`, `refs`, and `resolves`
+- `update_entry` — change fields of an entry by id (full id or last 8 characters)
+- `delete_entry` — soft delete an entry (`gournal restore` brings it back)
+- `resolve_entry` — mark an open blocker or next entry as resolved
 - `list_entries` — list entries newest-first, filterable by `project`, `from`, `to`, capped by `limit` (default 50, max 500)
 - `get_standup` — generate a standup report (`yesterday` / `week` / `month`, filterable by `project`)
 - `export_entries` — export entries to `md` or `csv`
