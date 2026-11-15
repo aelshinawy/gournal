@@ -72,7 +72,6 @@ test('subcommands join with a hyphen and group parents get no page', async () =>
   const paths = (await generateReference({ examplesDir })).map((p) => p.path);
   expect(paths).toContain('setup-claude.md');
   expect(paths).toContain('index-rebuild.md');
-  expect(paths).not.toContain('index.md');
   expect(paths).not.toContain('setup.md');
   expect(await get('index-rebuild.md')).toContain('gournal index rebuild\n```');
 });
@@ -343,5 +342,99 @@ describe('capability pages', () => {
     expect(sec.example).toContain('#### Top');
     expect(sec.example).toContain('##### Sub');
     expect(sec.example).toContain('# not a heading');
+  });
+});
+
+import { capabilityPage } from '../site/scripts/reference/capability-page';
+import { referenceSidebar } from '../site/scripts/reference/generate';
+import { firstSentence } from '../site/scripts/reference/markdown';
+import { leafCommands } from '../site/scripts/reference/cli';
+
+const plain = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+describe('capability pages, carry-over fixes', () => {
+  const section = (title: string, example: string) => ({
+    title, description: 'd', usage: 'u', args: '', options: '', example,
+  });
+
+  test('example headings sit below a per-command heading when a page has several commands', () => {
+    const cap = CAPABILITIES.find((c) => c.slug === 'remove-restore')!;
+    const page = capabilityPage(cap, [
+      section('gournal undo', '#### Result\n\ntext'),
+      section('gournal restore', '#### Result\n\ntext'),
+    ], []);
+    expect(page.content).toContain('#### gournal undo\n\n##### Result');
+    expect(page.content).not.toMatch(/^#### Result$/m);
+  });
+
+  test('example headings stay at level 4 when a page has one command', () => {
+    const cap = CAPABILITIES.find((c) => c.slug === 'add')!;
+    const page = capabilityPage(cap, [section('gournal add', '#### Result\n\ntext')], []);
+    expect(page.content).toMatch(/^#### Result$/m);
+  });
+
+  test('no summary repeats the first sentence of its own command or tool descriptions', async () => {
+    const leaves = leafCommands(inertProgram());
+    const tools = await listTools();
+    for (const cap of CAPABILITIES) {
+      const descriptions = [
+        ...cap.cli.map((n) => leaves.find((l) => l.names.join(' ') === n)!.cmd.description()),
+        ...cap.mcp.map((n) => tools.find((t) => t.name === n)!.description ?? ''),
+      ];
+      for (const d of descriptions) {
+        const first = plain(firstSentence(d));
+        const summary = plain(cap.summary);
+        expect(first).not.toBe('');
+        expect(summary === first || summary.startsWith(first)).toBe(false);
+      }
+    }
+  });
+
+  test('a capability that links the backups guide in its caution does not repeat it in related', () => {
+    for (const cap of CAPABILITIES) {
+      if (cap.caution?.includes('/guides/data-safety-and-backups/')) {
+        expect(cap.related).not.toContain('guides/data-safety-and-backups');
+      }
+    }
+  });
+
+  test('writeReference works when the reference folder does not exist yet', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-ref-empty-'));
+    try {
+      await expect(writeReference(tmp)).resolves.toBeDefined();
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('reference sidebar and overview', () => {
+  const sidebarFile = path.join(siteRoot, 'src/generated/reference-sidebar.json');
+
+  test('sidebar JSON lists every capability once and in group order', () => {
+    const sidebar = referenceSidebar();
+    expect(sidebar.map((g) => g.label)).toEqual(GROUPS.map((g) => g.label));
+    expect(sidebar.every((g) => g.collapsed)).toBe(true);
+    const expected = GROUPS.flatMap((g) => CAPABILITIES.filter((c) => c.group === g.id).map((c) => `docs/reference/${c.slug}`));
+    expect(sidebar.flatMap((g) => g.items)).toEqual(expected);
+    expect(new Set(expected).size).toBe(CAPABILITIES.length);
+  });
+
+  test('the committed sidebar JSON is current', () => {
+    const stale = 'Reference is stale. Run: npm run docs:gen';
+    if (!fs.existsSync(sidebarFile)) throw new Error(stale);
+    expect(fs.readFileSync(sidebarFile, 'utf8')).toBe(`${JSON.stringify(referenceSidebar(), null, 2)}\n`);
+  });
+
+  test('the overview has one table per group and names the update_entry gap', async () => {
+    const index = await get('index.md');
+    expect(index).toContain('title: Reference overview\n');
+    for (const g of GROUPS) expect(index).toContain(`## ${g.label}\n`);
+    expect(index.match(/^\| Task \| CLI \| MCP tool \|$/gm)).toHaveLength(GROUPS.length);
+    expect(index).toContain('[Add an entry](/gournal/docs/reference/add/)');
+    expect(index).toContain('[`gournal add`](/gournal/docs/reference/add/#gournal-add)');
+    expect(index).toContain('[`update_entry`](/gournal/docs/reference/edit/#update_entry)');
+    expect(index).toMatch(/no edit command/);
+    expect(index).toContain('`update_entry`');
   });
 });

@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLinksValidator from 'starlight-links-validator';
+import referenceSidebar from './src/generated/reference-sidebar.json' with { type: 'json' };
 
 export default defineConfig({
   site: 'https://aelshinawy.github.io',
@@ -54,7 +55,11 @@ export default defineConfig({
         {
           label: 'Reference',
           items: [
-            { autogenerate: { directory: 'docs/reference' } }
+            { slug: 'docs/reference', label: 'Overview' },
+            ...referenceSidebar,
+            'docs/reference/output-shapes',
+            'docs/reference/configuration',
+            'docs/reference/environment'
           ]
         },
         {

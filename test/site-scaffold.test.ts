@@ -40,9 +40,44 @@ test('every page in the spec sidebar has a file', () => {
   for (const slug of SINGLE_PAGES) {
     expect(fs.existsSync(path.join(docsRoot, `${slug}.md`))).toBe(true);
   }
-  const reference = fs.readdirSync(path.join(docsRoot, 'reference'));
-  for (const slug of ['add', 'standup', 'output-shapes']) {
-    expect(reference).toContain(`${slug}.md`);
+  const sidebar = JSON.parse(
+    fs.readFileSync(path.join(root, 'site/src/generated/reference-sidebar.json'), 'utf8')
+  ) as Array<{ items: string[] }>;
+  const slugs = [...sidebar.flatMap((g) => g.items), 'docs/reference/output-shapes', 'docs/reference'];
+  expect(sidebar.length).toBeGreaterThan(0);
+  for (const slug of slugs) {
+    const rel = slug.replace(/^docs\//, '');
+    const file = rel === 'reference' ? 'reference/index' : rel;
+    expect(fs.existsSync(path.join(docsRoot, `${file}.md`))).toBe(true);
+  }
+});
+
+test('README.md and site/src contain no link to reference/cli/ or reference/mcp/', () => {
+  const files = [path.join(root, 'README.md')];
+  const walk = (dir: string): void => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (/\.(md|mdx|astro|ts|json)$/.test(e.name)) files.push(p);
+    }
+  };
+  walk(path.join(root, 'site/src'));
+  const bad = files.filter((f) => /reference\/(cli|mcp)\//.test(fs.readFileSync(f, 'utf8')));
+  expect(bad).toEqual([]);
+});
+
+test('every /gournal/docs/ link in README.md resolves to a page in site/src/content/docs', () => {
+  const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+  const links = [...readme.matchAll(/\/gournal\/docs\/[^)\s"'#]*/g)].map((m) => m[0]);
+  expect(links.length).toBeGreaterThan(0);
+  for (const link of links) {
+    const rel = link.replace(/^\/gournal\//, '').replace(/\/$/, '');
+    const exists = ['.md', '.mdx', '/index.md', '/index.mdx'].some((ext) =>
+      fs.existsSync(path.join(root, 'site/src/content/docs', `${rel}${ext}`))
+    );
+    // The docs root has a redirect page instead of a content page.
+    const isDocsRoot = rel === 'docs' && fs.existsSync(path.join(root, 'site/src/pages/docs/index.astro'));
+    expect(exists || isDocsRoot).toBe(true);
   }
 });
 

@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { CAPABILITIES, type Capability } from './capabilities';
-import type { CliSection, GeneratedPage } from './cli';
+import { CAPABILITIES, GROUPS, type Capability } from './capabilities';
+import { demoteHeadings, type CliSection, type GeneratedPage } from './cli';
 import { baseShapes, fieldTable, shapeHeading, type SharedShape, type ToolSection } from './mcp';
-import { GENERATED_NOTE, code, firstSentence, frontmatter } from './markdown';
+import { GENERATED_NOTE, code, firstSentence, frontmatter, table } from './markdown';
 
 const DOCS_ROOT = '/gournal/docs';
 const GUIDES_DIR = path.resolve(__dirname, '../../src/content/docs/docs/guides');
@@ -25,11 +25,14 @@ function relatedLink(entry: string): string {
   return `- [${target.title}](${DOCS_ROOT}/reference/${target.slug}/)`;
 }
 
-/** Examples of one kind. With more than one example, each gets a heading with its command or tool name. */
+/**
+ * Examples of one kind. With more than one example, each gets a heading with its command or tool name.
+ * Their own headings then move below that heading.
+ */
 function exampleBlock(items: Array<{ name: string; example: string }>): string {
   const withExample = items.filter((i) => i.example !== '');
   if (items.length === 1) return withExample.map((i) => i.example).join('');
-  return withExample.map((i) => `#### ${i.name}\n\n${i.example}`).join('\n\n');
+  return withExample.map((i) => `#### ${i.name}\n\n${demoteHeadings(i.example, 5)}`).join('\n\n');
 }
 
 function cliBlock(s: CliSection): string {
@@ -96,4 +99,44 @@ export function outputShapesPage(shared: SharedShape[]): GeneratedPage {
   ].sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
   for (const s of sections) lines.push('', `## ${shapeHeading(s.slug)}`, '', s.intro, '', fieldTable(s.schema));
   return { path: 'output-shapes.md', content: `${lines.join('\n')}\n` };
+}
+
+const referenceLink = (cap: Capability, anchor = ''): string => `${DOCS_ROOT}/reference/${cap.slug}/${anchor}`;
+
+/** Links for the names of one kind. A leaf CLI name has spaces, and its heading anchor joins words with hyphens. */
+function nameLinks(cap: Capability, names: string[], cli: boolean): string {
+  if (names.length === 0) return 'None';
+  return names.map((n) => {
+    const text = cli ? `gournal ${n}` : n;
+    return `[${code(text)}](${referenceLink(cap, `#${cli ? text.replace(/ /g, '-') : n}`)})`;
+  }).join(', ');
+}
+
+/** The overview page: one table for each group, with a link for each task, command, and tool. */
+export function overviewPage(): GeneratedPage {
+  const lines: string[] = [
+    frontmatter('Reference overview', 'Every gournal task, with its CLI command and MCP tool.').trimEnd(),
+    `<!-- ${GENERATED_NOTE} -->`,
+    '',
+    'Each task has one page. The page shows the CLI command and the MCP tool for that task. Some tasks have only one of the two.',
+    '',
+    'The CLI has no edit command. The MCP `update_entry` tool fills that gap. Use it to change an entry that exists.',
+  ];
+  for (const g of GROUPS) {
+    const rows = CAPABILITIES.filter((c) => c.group === g.id).map((c) => [
+      `[${c.title}](${referenceLink(c)})`,
+      nameLinks(c, c.cli, true),
+      nameLinks(c, c.mcp, false),
+    ]);
+    lines.push('', `## ${g.label}`, '', table(['Task', 'CLI', 'MCP tool'], rows));
+  }
+  lines.push(
+    '',
+    '## More reference',
+    '',
+    `- [Output shapes](${DOCS_ROOT}/reference/output-shapes/)`,
+    `- [Configuration keys](${DOCS_ROOT}/reference/configuration/)`,
+    `- [Environment variables](${DOCS_ROOT}/reference/environment/)`,
+  );
+  return { path: 'index.md', content: `${lines.join('\n')}\n` };
 }

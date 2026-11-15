@@ -2,8 +2,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { buildProgram } from '../../../src/adapters/cli';
-import { CAPABILITIES, checkCoverage } from './capabilities';
-import { capabilityPage, outputShapesPage } from './capability-page';
+import { CAPABILITIES, GROUPS, checkCoverage } from './capabilities';
+import { capabilityPage, outputShapesPage, overviewPage } from './capability-page';
 import { cliSection, leafCommands, type GeneratedPage } from './cli';
 import { configPage, environmentPage } from './config';
 import { listTools, sharedShapes, toolSection } from './mcp';
@@ -11,6 +11,22 @@ import { listTools, sharedShapes, toolSection } from './mcp';
 export type { GeneratedPage };
 
 export const REFERENCE_DIR = 'src/content/docs/docs/reference';
+export const SIDEBAR_FILE = 'src/generated/reference-sidebar.json';
+
+export interface SidebarGroup { label: string; collapsed: boolean; items: string[] }
+
+/** The capability groups for the Reference sidebar, in group order. Astro config imports the JSON. */
+export function referenceSidebar(): SidebarGroup[] {
+  return GROUPS.map((g) => ({
+    label: g.label,
+    collapsed: true,
+    items: CAPABILITIES.filter((c) => c.group === g.id).map((c) => `docs/reference/${c.slug}`),
+  }));
+}
+
+export function sidebarJson(): string {
+  return `${JSON.stringify(referenceSidebar(), null, 2)}\n`;
+}
 
 /**
  * Paths the generator owns, relative to the reference folder. It deletes any other file in a
@@ -70,7 +86,7 @@ export async function generateReference(opts: { examplesDir: string }): Promise<
       return toolSection(tool, slugByTool.get(name), mcpExamples.get(name));
     }),
   ));
-  pages.push(outputShapesPage(shapes), configPage(), environmentPage());
+  pages.push(overviewPage(), outputShapesPage(shapes), configPage(), environmentPage());
   return pages.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
 
@@ -86,6 +102,7 @@ export function ownedFilesOnDisk(referenceDir: string): string[] {
 
 /** Remove empty folders below `dir`, so a removed section leaves no empty folder. */
 function removeEmptyDirs(dir: string): void {
+  if (!fs.existsSync(dir)) return;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const child = path.join(dir, entry.name);
@@ -112,6 +129,9 @@ export async function writeReference(siteRoot: string): Promise<{ written: strin
     fs.writeFileSync(target, p.content);
     written.push(p.path);
   }
+  const sidebarTarget = path.join(siteRoot, SIDEBAR_FILE);
+  fs.mkdirSync(path.dirname(sidebarTarget), { recursive: true });
+  fs.writeFileSync(sidebarTarget, sidebarJson());
   return { written, deleted };
 }
 

@@ -83,10 +83,10 @@ function optionsTable(cmd: Command): string {
 }
 
 /**
- * Demote the headings of an example so the shallowest one sits at level 4, below `### CLI`.
+ * Demote the headings of an example so the shallowest one sits at `top` (default 4, below `### CLI`).
  * Lines inside a code fence stay as they are.
  */
-export function demoteHeadings(text: string): string {
+export function demoteHeadings(text: string, top = 4): string {
   const lines = text.split('\n');
   const heading = /^(#{1,6})(\s.*)$/;
   let fenced = false;
@@ -96,7 +96,7 @@ export function demoteHeadings(text: string): string {
   });
   const levels = lines.filter((_, i) => isHeading[i]).map((l) => heading.exec(l)![1].length);
   if (levels.length === 0) return text;
-  const shift = Math.max(0, 4 - Math.min(...levels));
+  const shift = Math.max(0, top - Math.min(...levels));
   return lines.map((l, i) => {
     if (!isHeading[i]) return l;
     const m = heading.exec(l)!;
