@@ -226,6 +226,10 @@ Tools exposed:
 
 Every data tool also returns structured content that matches its `outputSchema`. The write tools return `{ entry, notes }`. `list_entries`, `list_tags`, and `list_projects` keep their JSON text. The report tools and `find_entries` return Markdown text. No MCP output contains ANSI codes. `export_entries` returns a document and has no `outputSchema`. When more entries exist than its `limit`, it adds a second text block with a notice.
 
+`export_entries` returns the newest 200 entries by default. Pass `limit` or `from` and `to` to get more.
+
+The MCP server reads `config.json` once per process. Restart your MCP clients after you edit project aliases.
+
 ### Project identity
 
 `add_entry` accepts a `cwd` parameter. Pass your working directory so that gournal can record the project, repo, and branch. Gournal fills each field in this order:

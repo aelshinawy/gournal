@@ -1,4 +1,4 @@
-import { differenceInDays, endOfDay, format, startOfDay, startOfMonth, startOfWeek, subDays } from 'date-fns';
+import { differenceInDays, format, startOfDay, startOfMonth, startOfWeek, subDays } from 'date-fns';
 import type { WeekDay } from './config';
 import { parseBound } from './query';
 

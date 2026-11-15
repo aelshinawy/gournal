@@ -295,7 +295,7 @@ export function buildProgram(io: CliIo): Command {
           try {
             backupDbIfNeeded(db, path.join(io.home, 'gournal.db'));
           } catch (err) {
-            process.stderr.write(`gournal: daily backup failed: ${(err as Error).message}\n`);
+            io.err(`gournal: daily backup failed: ${(err as Error).message}`);
           }
         }
         const r = importBundle(db, bundle);
@@ -306,7 +306,7 @@ export function buildProgram(io: CliIo): Command {
           try {
             importLegacy(db, repo, config, jsonPath);
           } catch (err) {
-            process.stderr.write(`gournal: legacy import failed; will retry (${(err as Error).message})\n`);
+            io.err(`gournal: legacy import failed; will retry (${(err as Error).message})`);
           }
         }
       }, { legacyImport: false });
@@ -388,7 +388,7 @@ export function buildProgram(io: CliIo): Command {
         try {
           backupDbIfNeeded(db, path.join(io.home, 'gournal.db'));
         } catch (err) {
-          process.stderr.write(`gournal: daily backup failed: ${(err as Error).message}\n`);
+          io.err(`gournal: daily backup failed: ${(err as Error).message}`);
         }
         const { indexed } = rebuildSearchIndex(db);
         io.out(chalk.green(`Search index rebuilt: ${indexed} entries.`));
