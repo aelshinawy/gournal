@@ -231,3 +231,15 @@ test('transaction rolls back every nested write on error and stays usable', () =
   repo.add({ summary: 'after', ...base });
   expect(repo.list()).toHaveLength(1);
 });
+
+test('add and update reject a summary with a newline', () => {
+  expect(() => repo.add({ summary: 'one\ntwo', ...base })).toThrow('summary must be one line');
+  const e = repo.add({ summary: 'ok', ...base });
+  expect(() => repo.update(e.id, { summary: 'one\ntwo' })).toThrow('summary must be one line');
+  expect(repo.get(e.id)!.summary).toBe('ok');
+});
+test('add dedupes resolves by the resolved id, not the raw string', () => {
+  const b = repo.add({ summary: 'blk', kind: 'blocker', ...base });
+  expect(() => repo.add({ summary: 'fix', ...base, resolves: [b.id, b.id.slice(-8)] })).not.toThrow();
+  expect(repo.get(b.id)?.status).toBe('resolved');
+});

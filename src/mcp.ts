@@ -127,33 +127,37 @@ export function createServer(journal?: JournalLike): McpServer {
           if (close.length) hints.push(`New tag "${tag}". Close existing tags: ${close.join(', ')}`);
         }
       }
+      const project = args.project ?? getProjectName();
       // A bad resolves id never stops the entry. Drop it and report it.
-      const validResolves: string[] = [];
+      // The check and the add share one transaction, so a target cannot change in between.
       const dropped: string[] = [];
-      for (const id of args.resolves ?? []) {
-        try {
-          const target = repo.get(id);
-          if (!target) throw new Error(`No entry with id "${id}"`);
-          if ((target.kind !== 'blocker' && target.kind !== 'next') || target.status !== 'open') {
-            throw new Error('only an open blocker or next can be resolved');
+      const entry = repo.transaction(() => {
+        const validResolves = new Set<string>();
+        for (const id of args.resolves ?? []) {
+          try {
+            const target = repo.get(id);
+            if (!target) throw new Error(`No entry with id "${id}"`);
+            if ((target.kind !== 'blocker' && target.kind !== 'next') || target.status !== 'open') {
+              throw new Error('only an open blocker or next can be resolved');
+            }
+            validResolves.add(target.id);
+          } catch (err) {
+            dropped.push(`Could not resolve ${id}: ${err instanceof Error ? err.message : String(err)}`);
           }
-          validResolves.push(id);
-        } catch (err) {
-          dropped.push(`Could not resolve ${id}: ${err instanceof Error ? err.message : String(err)}`);
         }
-      }
-      const entry = repo.add({
-        summary: check.summary,
-        details: check.details,
-        kind: args.kind,
-        project: args.project ?? getProjectName(),
-        repo: args.repo,
-        branch: args.branch,
-        agent: args.agent,
-        source: 'mcp',
-        tags: args.tags,
-        refs: args.refs,
-        resolves: validResolves,
+        return repo.add({
+          summary: check.summary,
+          details: check.details,
+          kind: args.kind,
+          project,
+          repo: args.repo,
+          branch: args.branch,
+          agent: args.agent,
+          source: 'mcp',
+          tags: args.tags,
+          refs: args.refs,
+          resolves: [...validResolves],
+        });
       });
       const lines = [`Entry ${shortId(entry.id)} added to ${entry.project}: ${entry.summary}`, ...hints, ...dropped];
       if (check.summary !== text) lines.push('Summary was too long and was split; full text is in details.');

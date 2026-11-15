@@ -25,3 +25,18 @@ test('allowSplit splits instead of rejecting and prepends to existing details', 
   const r = checkSummary('A. ' + 'b'.repeat(200), 'extra', { allowSplit: true });
   expect(r).toEqual({ ok: true, summary: 'A.', details: 'A. ' + 'b'.repeat(200) + '\n\nextra' });
 });
+
+test('a summary with a newline is over the limit when splitting is off', () => {
+  expect(checkSummary('Line one\nLine two', null, { allowSplit: false })).toEqual({
+    ok: false, error: 'summary must be one line, max 120. Put the rest in details.' });
+  expect(checkSummary('Line one\r\nLine two', null, { allowSplit: false }).ok).toBe(false);
+});
+test('a summary with a newline splits at the first line when splitting is on', () => {
+  expect(checkSummary('Line one\nLine two', null, { allowSplit: true })).toEqual({
+    ok: true, summary: 'Line one', details: 'Line one\nLine two' });
+  expect(checkSummary('Line one\nLine two', 'extra', { allowSplit: true })).toEqual({
+    ok: true, summary: 'Line one', details: 'Line one\nLine two\n\nextra' });
+});
+test('a newline only at the end is not a second line', () => {
+  expect(checkSummary('Line one\n', null, { allowSplit: false })).toEqual({ ok: true, summary: 'Line one', details: null });
+});

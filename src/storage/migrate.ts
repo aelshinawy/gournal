@@ -3,6 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { checkSummary, extractRefs, mergeRefs, normalizeTags, splitSummary } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref } from '../core';
 import type { EntryRepository } from '../core/repository';
+import { snapshotDb } from './backup';
 import type { Config } from './config';
 import { CorruptJournalError, readLegacyEntriesSync } from './legacy-json';
 import type { LegacyEntry } from './legacy-json';
@@ -224,7 +225,13 @@ export function applyPlan(
   jsonPath: string,
   plan: MigrationPlan,
   opts: { dryRun: boolean }
-): { changes: PlanChange[] } {
+): { changes: PlanChange[]; snapshot?: string } {
+  // A real run first keeps a copy of the database, so a bad plan can be undone.
+  let snapshot: string | undefined;
+  if (!opts.dryRun) {
+    const main = (db.prepare('PRAGMA database_list').all() as { name: string; file: string }[]).find((r) => r.name === 'main');
+    if (main?.file) snapshot = snapshotDb(db, main.file);
+  }
   importLegacy(db, repo, config, jsonPath);
   const resolved = validatePlan(db, jsonPath, plan);
   const byEntry = new Map(resolved.map((r) => [r.entryId, r]));
@@ -285,7 +292,7 @@ export function applyPlan(
       return list;
     });
   }
-  return { changes: planned.map((p) => p.change) };
+  return { changes: planned.map((p) => p.change), ...(snapshot ? { snapshot } : {}) };
 }
 
 /** Markdown for a dry run: one section per change. */

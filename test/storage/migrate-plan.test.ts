@@ -243,3 +243,26 @@ describe('plans never lose the original text', () => {
     });
   });
 });
+
+describe('pre-plan snapshot', () => {
+  const snaps = () => fs.existsSync(path.join(home, 'backups'))
+    ? fs.readdirSync(path.join(home, 'backups')).filter((n) => /^gournal-pre-plan-\d{8}-\d{6}(-\d+)?\.db$/.test(n)) : [];
+  test('a real run writes a snapshot first and returns its path', () => {
+    const r = apply(plan(item(A, 0, { summary: 'Shipped ranking' })));
+    expect(snaps()).toHaveLength(1);
+    expect(r.snapshot).toBe(path.join(fs.realpathSync(home), 'backups', snaps()[0]));
+    const copy = new DatabaseSync(r.snapshot!);
+    try { expect((copy.prepare('SELECT summary FROM entries ORDER BY created_at').all() as { summary: string }[])[0].summary).toBe('Shipped SBDC-1748 (PR #327).'); }
+    finally { copy.close(); }
+  });
+  test('a dry run writes no snapshot', () => {
+    const r = apply(plan(item(A, 0)), true);
+    expect(snaps()).toEqual([]);
+    expect(r.snapshot).toBeUndefined();
+  });
+  test('two runs in one second keep both snapshots', () => {
+    apply(plan(item(A, 0, { summary: 'One' })));
+    apply(plan(item(A, 0, { summary: 'Two' })));
+    expect(snaps()).toHaveLength(2);
+  });
+});

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
+import { BACKUP_PATTERN } from './backup';
 import { migrateSchema } from './schema';
 
 export { migrateSchema, SCHEMA_VERSION } from './schema';
@@ -20,7 +21,7 @@ function latestBackup(dbPath: string): string | null {
   const dir = path.join(path.dirname(dbPath), 'backups');
   try {
     const files = fs.readdirSync(dir)
-      .filter((f) => fs.statSync(path.join(dir, f)).isFile())
+      .filter((f) => BACKUP_PATTERN.test(f) && fs.statSync(path.join(dir, f)).isFile())
       .sort();
     return files.length ? path.join(dir, files[files.length - 1]) : null;
   } catch {

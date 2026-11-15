@@ -45,13 +45,13 @@ test('refuses a file that is not a database', () => {
 test('refuses a text file and reports the latest backup', () => {
   fs.writeFileSync(file, 'this is definitely not a sqlite database, but it is long enough '.repeat(100));
   fs.mkdirSync(path.join(dir, 'backups'));
-  fs.writeFileSync(path.join(dir, 'backups', 'a.db'), 'x');
-  fs.writeFileSync(path.join(dir, 'backups', 'b.db'), 'x');
+  fs.writeFileSync(path.join(dir, 'backups', 'gournal-2026-11-14.db'), 'x');
+  fs.writeFileSync(path.join(dir, 'backups', 'gournal-2026-11-15.db'), 'x');
   let err: any;
   try { openDb(file); } catch (e) { err = e; }
   expect(err).toBeInstanceOf(CorruptDatabaseError);
   expect(err.path).toBe(file);
-  expect(err.latestBackup).toBe(path.join(dir, 'backups', 'b.db'));
+  expect(err.latestBackup).toBe(path.join(dir, 'backups', 'gournal-2026-11-15.db'));
   expect(err.message).toBe(`Database ${file} is not valid. Latest backup: ${err.latestBackup}. Gournal did not change the file.`);
 });
 test('with no backups the message says none', () => {
@@ -122,4 +122,17 @@ test('a database already at the current version opens without a write lock', () 
   second.close();
   holder.exec('ROLLBACK');
   holder.close();
+});
+
+test('the latest backup ignores names that are not daily backups', () => {
+  fs.writeFileSync(file, Buffer.alloc(4096));
+  const b = path.join(dir, 'backups');
+  fs.mkdirSync(b);
+  fs.writeFileSync(path.join(b, 'gournal-2026-11-14.db'), 'x');
+  fs.writeFileSync(path.join(b, 'gournal-2026-11-15.db'), 'x');
+  fs.writeFileSync(path.join(b, 'gournal-2026-11-16.db.123.abc.tmp'), 'x');
+  fs.writeFileSync(path.join(b, 'gournal-pre-plan-20261117-101010.db'), 'x');
+  let err: any;
+  try { openDb(file); } catch (e) { err = e; }
+  expect(err.latestBackup).toBe(path.join(b, 'gournal-2026-11-15.db'));
 });

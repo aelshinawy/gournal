@@ -39,9 +39,13 @@ export function checkSummary(
 ): SummaryCheck {
   const trimmed = summary.trim();
   const length = summaryLength(trimmed);
-  if (length <= MAX_SUMMARY) return { ok: true, summary: trimmed, details: details ?? null };
+  // A second line counts as over the limit: a summary is one line.
+  const multiline = trimmed.includes('\n');
+  if (length <= MAX_SUMMARY && !multiline) return { ok: true, summary: trimmed, details: details ?? null };
   if (!opts.allowSplit) {
-    return { ok: false, error: `summary is ${length} chars, max ${MAX_SUMMARY}. Put one line in summary and the rest in details.` };
+    return { ok: false, error: multiline
+      ? `summary must be one line, max ${MAX_SUMMARY}. Put the rest in details.`
+      : `summary is ${length} chars, max ${MAX_SUMMARY}. Put one line in summary and the rest in details.` };
   }
   const split = splitSummary(trimmed);
   const full = details ? `${split.details ?? split.summary}\n\n${details}` : split.details;

@@ -3,12 +3,36 @@ import path from 'path';
 import crypto from 'crypto';
 import type { DatabaseSync } from 'node:sqlite';
 
-const BACKUP_PATTERN = /^gournal-\d{4}-\d{2}-\d{2}\.db$/;
+export const BACKUP_PATTERN = /^gournal-\d{4}-\d{2}-\d{2}\.db$/;
 const BACKUP_KEEP = 7;
 
 function localDay(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/**
+ * Write a forced copy to backups/gournal-pre-plan-yyyyMMdd-HHmmss.db. The daily prune
+ * pattern does not match this name, so a snapshot is never pruned. Returns the path.
+ */
+export function snapshotDb(db: DatabaseSync, dbPath: string, now: Date = new Date()): string {
+  const dir = path.join(path.dirname(dbPath), 'backups');
+  fs.mkdirSync(dir, { recursive: true });
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  let dest = path.join(dir, `gournal-pre-plan-${stamp}.db`);
+  // Two runs in one second keep both files.
+  for (let n = 2; fs.existsSync(dest); n++) dest = path.join(dir, `gournal-pre-plan-${stamp}-${n}.db`);
+  const tmp = `${dest}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  try {
+    db.prepare('VACUUM INTO ?').run(tmp);
+    fs.renameSync(tmp, dest);
+  } catch (err) {
+    fs.rmSync(tmp, { force: true });
+    throw err;
+  }
+  return dest;
 }
 
 /**

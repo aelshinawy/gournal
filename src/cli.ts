@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import './suppress-warnings';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { getProjectName } from './git';
@@ -299,11 +300,10 @@ program
   .option('--plan <file>', 'Reviewed migration plan (JSON)')
   .option('--dry-run', 'Compute the changes and write nothing')
   .option('--diff <file>', 'Write the dry-run diff (markdown) to this file')
-  .action((options: { plan?: string; dryRun?: boolean; diff?: string }) => {
-    const fail = (msg: string) => { console.error(msg); process.exitCode = 1; };
-    if (options.diff && !options.dryRun) return fail('--diff only applies with --dry-run');
-    if (options.dryRun && !options.plan) return fail('--dry-run needs --plan <file>');
-    if (options.dryRun && !options.diff) return fail('--dry-run needs --diff <file>');
+  .action(async (options: { plan?: string; dryRun?: boolean; diff?: string }) => {
+    if (options.diff && !options.dryRun) throw new Error('--diff only applies with --dry-run');
+    if (options.dryRun && !options.plan) throw new Error('--dry-run needs --plan <file>');
+    if (options.dryRun && !options.diff) throw new Error('--dry-run needs --diff <file>');
     const jsonPath = path.join(gournalHome(), 'entries.json');
     const journal = openJournal();
     try {
@@ -316,10 +316,10 @@ program
       try {
         plan = JSON.parse(fs.readFileSync(options.plan, 'utf8')) as MigrationPlan;
       } catch (err) {
-        if (err instanceof SyntaxError) return fail(`Plan file ${options.plan} is not valid JSON: ${err.message}`);
+        if (err instanceof SyntaxError) throw new Error(`Plan file ${options.plan} is not valid JSON: ${err.message}`);
         throw err;
       }
-      const { changes } = applyPlan(journal.db, journal.repo, journal.config, jsonPath, plan, { dryRun: !!options.dryRun });
+      const { changes, snapshot } = applyPlan(journal.db, journal.repo, journal.config, jsonPath, plan, { dryRun: !!options.dryRun });
       if (options.dryRun) {
         const target = options.diff as string;
         const tmp = path.join(path.dirname(path.resolve(target)), `.${path.basename(target)}.${process.pid}.tmp`);
@@ -331,6 +331,7 @@ program
         }
         console.log(`Dry run: ${changes.length} entries would change. Diff written to ${target}.`);
       } else {
+        if (snapshot) console.log(`Snapshot: ${snapshot}`);
         console.log(`Updated ${changes.length} entries.`);
       }
     } finally {

@@ -50,3 +50,14 @@ test('backup copy returns correct FTS results (rowids survive)', () => {
   expect(hits).toEqual([{ id: 'E1' }]);
   copy.close();
 });
+
+test('the daily prune never removes a pre-plan snapshot', () => {
+  const bdir = path.join(dir, 'backups');
+  fs.mkdirSync(bdir);
+  const snap = path.join(bdir, 'gournal-pre-plan-20260101-000000.db');
+  fs.writeFileSync(snap, 'x');
+  for (let d = 1; d <= 9; d++) fs.writeFileSync(path.join(bdir, `gournal-2026-11-0${d}.db`), 'x');
+  backupDbIfNeeded(db, file, new Date(2026, 10, 15));
+  expect(fs.existsSync(snap)).toBe(true);
+  expect(fs.readdirSync(bdir).filter((n) => /^gournal-\d{4}-/.test(n))).toHaveLength(7);
+});

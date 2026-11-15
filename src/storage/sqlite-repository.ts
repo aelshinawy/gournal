@@ -20,6 +20,7 @@ let backupWarned = false;
 function checkSummary(summary: string): void {
   if (summary.trim().length === 0) throw new Error('summary is empty');
   if (summaryLength(summary) > MAX_SUMMARY) throw new Error(`summary is over ${MAX_SUMMARY} characters`);
+  if (summary.includes('\n')) throw new Error('summary must be one line');
 }
 
 const isActionable = (kind: string | null): boolean => kind === 'blocker' || kind === 'next';
@@ -119,7 +120,8 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
             input.branch ?? null, input.source, input.agent ?? null);
         replaceTags(id, tags);
         replaceRefs(id, refs);
-        for (const target of new Set(input.resolves ?? [])) resolveInTx(target, id, now);
+        // Dedupe by the resolved id: a full id and its suffix are one target.
+        for (const target of new Set((input.resolves ?? []).map(requireId))) resolveInTx(target, id, now);
         return load(id);
       });
     },

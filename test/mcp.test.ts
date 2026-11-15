@@ -314,3 +314,29 @@ test('without a passed journal the server opens GOURNAL_HOME lazily', async () =
     if (prev === undefined) delete process.env.GOURNAL_HOME; else process.env.GOURNAL_HOME = prev;
   }
 });
+
+test('the same target as a full id and as a suffix resolves once and the add succeeds', async () => {
+  const blocker = seed('stuck', { kind: 'blocker', createdAt: '2026-07-13T10:00:00.000Z' });
+  const r = await call('add_entry', { summary: 'fixed', project: 'p', resolves: [blocker.id, blocker.id.slice(-8)] });
+  expect(r.isError).toBeFalsy();
+  expect(text(r)).not.toContain('Could not resolve');
+  const done = journal.repo.list().find((e) => e.summary === 'fixed')!;
+  expect(journal.repo.get(blocker.id)).toMatchObject({ status: 'resolved', resolvedByEntryId: done.id });
+});
+
+test('a target that turns non-open before the write is dropped and the add still succeeds', async () => {
+  const blocker = seed('stuck', { kind: 'blocker', createdAt: '2026-07-13T10:00:00.000Z' });
+  const orig = journal.repo.transaction.bind(journal.repo);
+  // Another process resolves the blocker right as the write transaction starts.
+  journal.repo.transaction = ((fn: () => unknown) => orig(() => { journal.repo.resolve(blocker.id); return fn(); })) as typeof journal.repo.transaction;
+  const r = await call('add_entry', { summary: 'fixed', project: 'p', resolves: [blocker.id.slice(-8)] });
+  expect(r.isError).toBeFalsy();
+  expect(text(r)).toContain(`Could not resolve ${blocker.id.slice(-8)}: only an open blocker or next can be resolved`);
+  expect(journal.repo.list().some((e) => e.summary === 'fixed')).toBe(true);
+});
+
+test('a multi-line summary is rejected with the one-line message', async () => {
+  const r = await call('add_entry', { summary: 'Line one\nLine two', project: 'p' });
+  expect(r.isError).toBe(true);
+  expect(text(r)).toBe('summary must be one line, max 120. Put the rest in details.');
+});

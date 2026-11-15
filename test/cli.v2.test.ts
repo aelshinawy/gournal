@@ -24,6 +24,13 @@ describe('gournal CLI on the SQLite journal', () => {
   afterEach(() => fs.rmSync(home, { recursive: true, force: true }));
   const run = (...args: string[]) => runIn(home, args);
 
+  test('no SQLite experimental warning reaches stderr', () => {
+    const r = run('stats');
+    expect(r.status).toBe(0);
+    expect(r.stderr).not.toContain('ExperimentalWarning');
+    expect(r.stderr).not.toContain('SQLite is an experimental');
+  });
+
   test('add -k blocker, then resolve', () => {
     const add = run('add', 'Stuck on CI', '-k', 'blocker');
     expect(add.status).toBe(0);

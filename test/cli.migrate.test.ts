@@ -83,6 +83,26 @@ describe('gournal migrate', () => {
     const r = run('migrate', '--plan', writePlan('Reviewed summary'));
     expect(r.status).toBe(0);
     expect(r.stdout).toContain('Updated 1 entries.');
+    expect(r.stdout).toMatch(new RegExp(`Snapshot: ${fs.realpathSync(home).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/backups/gournal-pre-plan-\\d{8}-\\d{6}(-\\d+)?\\.db`));
     expect(summaries()).toEqual(['Reviewed summary']);
+  });
+
+  test('a plan that would lose text fails through the single printer and writes nothing', () => {
+    const p = path.join(home, 'lose.json');
+    fs.writeFileSync(p, JSON.stringify({
+      format: 'gournal-migration-plan', version: 1,
+      items: [{ index: 0, timestamp: entry.timestamp, messageHash: crypto.createHash('sha256').update(entry.message).digest('hex'), summary: 'Short', details: 'unrelated' }],
+    }));
+    const r = run('migrate', '--plan', p);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('Plan item 0 would lose text: summary plus details must contain the original message');
+    expect(r.stdout).toBe('');
+    expect(summaries()).toEqual(['Shipped it.']);
+  });
+
+  test('a plan summary with a newline is rejected', () => {
+    const r = run('migrate', '--plan', writePlan('Line one\nLine two'));
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('Plan item 0 summary must be one line, max 120. Put the rest in details.');
   });
 });
