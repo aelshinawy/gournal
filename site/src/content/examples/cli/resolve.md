@@ -7,18 +7,29 @@ Standup: Today (2026-11-15)
 
   Done
   billing-api
-  20:38  Fix one-cent rounding error in invoice totals
+  22:05  Fix rounding error in invoice totals
+  22:19  Add keyboard focus styles to the invoice date picker
+  22:33  Document the invoice export endpoint
 
   Blockers
-    Nov 15  T30MA11H  Staging deploy fails on the invoice migration  [billing-api]
+    Nov 15  ZY40X9DE  Cannot reproduce the failing webhook retry in staging  [billing-api]
 
-$ gournal resolve T30MA11H
-✓ Resolved: Staging deploy fails on the invoice migration
+  Next
+    Nov 15  48HE4S3P  Add a regression test for tax rounding  [billing-api]
+
+$ gournal resolve ZY40X9DE
+✓ Resolved: Cannot reproduce the failing webhook retry in staging
 
 $ gournal standup -p billing-api
 
 Standup: Today (2026-11-15)
 
+  Done
   billing-api
-  20:38  Fix one-cent rounding error in invoice totals
+  22:05  Fix rounding error in invoice totals
+  22:19  Add keyboard focus styles to the invoice date picker
+  22:33  Document the invoice export endpoint
+
+  Next
+    Nov 15  48HE4S3P  Add a regression test for tax rounding  [billing-api]
 ```

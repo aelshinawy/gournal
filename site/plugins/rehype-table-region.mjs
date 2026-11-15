@@ -2,12 +2,15 @@
 // so keyboard users can scroll wide tables.
 // Astro 7 renders Markdown with Satteri, so this is a Satteri hast plugin (same hast tree as rehype).
 // It sees Markdown content only. Expressive Code blocks are not tables, so they are never wrapped.
+import { fileURLToPath } from 'node:url';
+
 const HEADINGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
 
 export function rehypeTableRegion() {
   return () => {
     let heading = '';
     const seen = new Map();
+    let overview;
     return {
       name: 'gournal-table-region',
       element: {
@@ -21,8 +24,12 @@ export function rehypeTableRegion() {
           const base = name ? `${name} table` : 'Table';
           const n = (seen.get(base) ?? 0) + 1;
           seen.set(base, n);
-          // The reference overview tables share one header. Mark them so CSS can give them equal proportions.
-          const overview = ctx.textContent(node).replace(/\s+/g, '').startsWith('TaskCLIMCPtool');
+          // Every table on the reference overview page shares one layout. Mark them by page path so CSS can give them equal proportions.
+          if (overview === undefined) {
+            const url = ctx.fileURL;
+            const file = url ? fileURLToPath(url).replace(/\\/g, '/') : '';
+            overview = file.endsWith('/docs/reference/index.md');
+          }
           ctx.wrapNode(node, {
             type: 'element',
             tagName: 'div',

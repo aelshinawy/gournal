@@ -12,7 +12,7 @@ Set Shell "bash"
 Set FontFamily "JetBrainsMono Nerd Font"
 Set FontSize 24
 Set LineHeight 1.2
-Set Width 920
+Set Width 1200
 Set Height 1000
 Set Padding 32
 Set Margin 0

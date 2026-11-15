@@ -7,15 +7,18 @@ Standup: Today (2026-11-15)
 
   Done
   billing-api
-  16:04  Fix rounding error in invoice totals
+  22:05  Fix rounding error in invoice totals
+  22:19  Add keyboard focus styles to the invoice date picker
+  22:33  Document the invoice export endpoint
 
-  web-app
-  16:04  Move the settings page to the new form components
-  16:04  Add keyboard focus styles to the date picker
+  worker
+  22:47  Move the settings page to the new form components
+  23:01  Document the retry policy for webhooks
+  23:15  Review the queue backoff change
 
   Blockers
-    Nov 15  0MC5VPCQ  Cannot reproduce the failing webhook retry in staging  [billing-api]
+    Nov 15  ZY40X9DE  Cannot reproduce the failing webhook retry in staging  [billing-api]
 
   Next
-    Nov 15  V91XZBEK  Add a regression test for tax rounding  [billing-api]
+    Nov 15  48HE4S3P  Add a regression test for tax rounding  [billing-api]
 ```

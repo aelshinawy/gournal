@@ -12,7 +12,6 @@ on:
       - 'test/site-*.test.ts'
       - 'test/docs-reference.test.ts'
       - 'test/help-text-drift.test.ts'
-      - 'site/plugins/**'
   push:
     branches: [main]
     paths:
@@ -25,7 +24,6 @@ on:
       - 'test/site-*.test.ts'
       - 'test/docs-reference.test.ts'
       - 'test/help-text-drift.test.ts'
-      - 'site/plugins/**'
   workflow_dispatch:
 
 permissions:

@@ -7,9 +7,7 @@ description: Run this once after you upgrade from version 0.x.
 
 Run this once after you upgrade from version 0.x. It brings your old data into the new database.
 
-## CLI
-
-### gournal migrate
+## CLI: gournal migrate
 
 Import the old entries.json file into the database, or apply a reviewed migration plan.
 
@@ -17,7 +15,7 @@ Import the old entries.json file into the database, or apply a reviewed migratio
 gournal migrate [options]
 ```
 
-#### Options
+### Options
 
 | Option | Description |
 |--------|-------------|

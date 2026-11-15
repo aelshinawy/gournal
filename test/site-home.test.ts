@@ -65,6 +65,20 @@ describeBuilt('built homepage', () => {
     expect(video.indexOf('standup.webm')).toBeLessThan(video.indexOf('standup.mp4'));
     expect(html).toContain('Standup: Today');
   });
+  test('the demo comes after the hero actions in document order', () => {
+    const hero = /<section class="g-hero"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+    const order = ['<h1', 'g-hero__lede', 'g-install"', 'g-hero__req', 'g-actions', 'g-demo"'].map((m) => hero.indexOf(m));
+    for (const i of order) expect(i).toBeGreaterThan(-1);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  test('the hero has no ledger margin column', () => {
+    const hero = /<section class="g-hero"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+    expect(hero).toContain('g-hero__intro');
+    expect(hero).not.toContain('g-ledger');
+    expect(hero).not.toContain('g-hero__margin');
+    expect(hero).not.toContain('g-hero__specimen');
+  });
   test('the head has the title, canonical link, social tags, and sitemap link', () => {
     expect(html).toContain('<title>gournal: a command-line work journal</title>');
     expect(html).toContain('<link rel="canonical" href="https://aelshinawy.github.io/gournal/"');
@@ -77,6 +91,7 @@ describeBuilt('built homepage', () => {
     expect(desc.length).toBeGreaterThan(0);
     expect(desc.length).toBeLessThanOrEqual(160);
     expect(html).toContain(`<meta property="og:description" content="${desc}"`);
+    expect(desc).toBe('Gournal is a local-first command-line work journal. It keeps all data in SQLite on your machine, needs no account, and stores no tokens.');
   });
 
   test('the demo video has an accessible label', () => {
@@ -94,5 +109,42 @@ describeBuilt('built homepage', () => {
     const astroDir = path.join(root, 'site/dist/_astro');
     const css = fs.readdirSync(astroDir).filter((f) => f.endsWith('.css')).map((f) => fs.readFileSync(path.join(astroDir, f), 'utf8')).join('\n');
     expect(css).toContain(href);
+  });
+});
+
+describeBuilt('share image and social cards', () => {
+  const OG_URL = 'https://aelshinawy.github.io/gournal/og.png';
+  const OG_ALT = 'A gournal standup in the terminal: done work by project, blockers, next items, and linked GitHub activity.';
+  const docsPage = path.join(root, 'site/dist/docs/start-here/introduction/index.html');
+  const pages: Record<string, string> = {
+    homepage: fs.readFileSync(builtHome, 'utf8'),
+    'docs page': fs.existsSync(docsPage) ? fs.readFileSync(docsPage, 'utf8') : ''
+  };
+
+  for (const [name, html] of Object.entries(pages)) {
+    test(`the ${name} has one absolute og:image and a large twitter card`, () => {
+      expect(html).not.toBe('');
+      const og = [...html.matchAll(/<meta\s+property="og:image"\s+content="([^"]*)"/g)].map((m) => m[1]);
+      expect(og).toEqual([OG_URL]);
+      expect(html).toMatch(/<meta\s+name="twitter:card"\s+content="summary_large_image"/);
+      expect([...html.matchAll(/name="twitter:card"/g)].length).toBe(1);
+      const tw = [...html.matchAll(/<meta\s+name="twitter:image"\s+content="([^"]*)"/g)].map((m) => m[1]);
+      expect(tw).toEqual([OG_URL]);
+      const one = (prop: string): string[] => [...html.matchAll(new RegExp(`<meta\\s+property="${prop}"\\s+content="([^"]*)"`, 'g'))].map((m) => m[1]);
+      expect(one('og:image:width')).toEqual(['1200']);
+      expect(one('og:image:height')).toEqual(['630']);
+      expect(one('og:image:alt')).toEqual([OG_ALT]);
+    });
+  }
+
+  test('the homepage has og:locale', () => {
+    expect(pages.homepage).toMatch(/<meta\s+property="og:locale"\s+content="en"/);
+  });
+
+  test('og.png ships at 1200 x 630', () => {
+    const buf = fs.readFileSync(path.join(root, 'site/dist/og.png'));
+    expect(buf.subarray(1, 4).toString('ascii')).toBe('PNG');
+    expect(buf.readUInt32BE(16)).toBe(1200);
+    expect(buf.readUInt32BE(20)).toBe(630);
   });
 });

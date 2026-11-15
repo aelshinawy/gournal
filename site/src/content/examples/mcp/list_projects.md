@@ -11,11 +11,11 @@ The structured result:
   "projects": [
     {
       "project": "billing-api",
-      "count": 4
+      "count": 5
     },
     {
-      "project": "web-app",
-      "count": 2
+      "project": "worker",
+      "count": 3
     }
   ]
 }

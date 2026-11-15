@@ -2,14 +2,14 @@ Resolve an open next item. Pass the short id.
 
 ```json
 {
-  "id": "3X0XK8AQ"
+  "id": "48HE4S3P"
 }
 ```
 
 The text result:
 
 ```text
-Entry 3X0XK8AQ resolved: Add a regression test for tax rounding
+Entry 48HE4S3P resolved: Add a regression test for tax rounding
 ```
 
 The structured result:
@@ -17,25 +17,24 @@ The structured result:
 ```json
 {
   "entry": {
-    "id": "01M7G81PPMZGP2E3X73X0XK8AQ",
-    "createdAt": "2026-11-15T18:38:23.444Z",
-    "updatedAt": "2026-11-15T18:39:12.023Z",
+    "id": "01M7GJMZJHR4G9D9E848HE4S3P",
+    "createdAt": "2026-11-15T21:43:40.881Z",
+    "updatedAt": "2026-11-15T21:55:47.622Z",
     "deletedAt": null,
-    "deviceId": "01M7G81PASZ2E8T209BWDT235N",
+    "deviceId": "01M7GKAYPB65ZWS81V3FBKVF3W",
     "summary": "Add a regression test for tax rounding",
     "details": null,
     "kind": "next",
     "status": "resolved",
-    "resolvedAt": "2026-11-15T18:39:12.023Z",
+    "resolvedAt": "2026-11-15T21:55:47.622Z",
     "resolvedByEntryId": null,
     "project": "billing-api",
-    "repo": null,
-    "branch": "main",
-    "source": "cli",
+    "repo": "acme/billing-api",
+    "branch": "fix/invoice-rounding",
+    "source": "mcp",
     "agent": null,
     "tags": [
-      "testing",
-      "invoices"
+      "review"
     ],
     "refs": []
   },

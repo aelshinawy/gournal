@@ -15,8 +15,9 @@ function findPre(node) {
 // Expressive Code gives the hook no heading context, only the source path and the block index.
 // So read the Markdown source and list the nearest preceding heading for each fenced block.
 export function headingsPerBlock(source) {
-  const lines = source.replace(/^---\n[\s\S]*?\n---\n/, '').split('\n');
-  const title = source.match(/^title:\s*['"]?(.+?)['"]?\s*$/m)?.[1] ?? '';
+  const front = source.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+  const lines = (front ? source.slice(front[0].length) : source).split(/\r?\n/);
+  const title = front?.[1].match(/^title:\s*['"]?(.+?)['"]?\s*$/m)?.[1] ?? '';
   const out = [];
   let heading = title;
   let fence = null;
@@ -48,6 +49,12 @@ export function ecFocusable() {
         const pre = findPre(renderData.blockAst);
         if (!pre) return;
         const file = codeBlock.parentDocument?.sourceFilePath;
+        const groupIndex = codeBlock.parentDocument?.positionInDocument?.groupIndex;
+        // A new render of a document starts at block 0. Drop its state so dev re-renders get the same names.
+        if (groupIndex === 0) {
+          headings.delete(file);
+          names.delete(file);
+        }
         let heading = '';
         if (file) {
           if (!headings.has(file)) {
@@ -57,13 +64,14 @@ export function ecFocusable() {
               headings.set(file, []);
             }
           }
-          heading = headings.get(file)[codeBlock.parentDocument.positionInDocument?.groupIndex ?? -1] ?? '';
+          heading = headings.get(file)[groupIndex ?? -1] ?? '';
         }
         const language = codeBlock.language && codeBlock.language !== 'plaintext' ? codeBlock.language : 'text';
         const base = heading ? `${heading}, ${language} code` : `${language} code`;
-        const key = `${file ?? ''}|${base}`;
-        const n = (names.get(key) ?? 0) + 1;
-        names.set(key, n);
+        const docNames = names.get(file) ?? new Map();
+        names.set(file, docNames);
+        const n = (docNames.get(base) ?? 0) + 1;
+        docNames.set(base, n);
         pre.properties = pre.properties ?? {};
         pre.properties.tabindex = '0';
         pre.properties.role = 'region';

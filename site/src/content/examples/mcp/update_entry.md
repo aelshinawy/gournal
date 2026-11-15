@@ -1,18 +1,17 @@
-Fix the summary of an entry, replace its tags, and add a pull request reference. Fields that you omit stay as they are. The `details` text below stays the same.
+Fix the summary of an entry, replace its tags, and add a pull request reference. Fields that you omit stay as they are.
 
 ```json
 {
-  "id": "E8NCXFNC",
-  "summary": "Fix one-cent rounding error in invoice totals",
+  "id": "D12ZERTC",
+  "summary": "Document the invoice export endpoint and its limits",
   "tags": [
-    "bugfix",
-    "invoices",
-    "billing"
+    "docs",
+    "review"
   ],
   "refs": [
     {
       "type": "pr",
-      "value": "412",
+      "value": "415",
       "repo": "acme/billing-api"
     }
   ]
@@ -22,7 +21,7 @@ Fix the summary of an entry, replace its tags, and add a pull request reference.
 The text result:
 
 ```text
-Entry E8NCXFNC updated: Fix one-cent rounding error in invoice totals
+Entry D12ZERTC updated: Document the invoice export endpoint and its limits
 ```
 
 The structured result:
@@ -30,31 +29,30 @@ The structured result:
 ```json
 {
   "entry": {
-    "id": "01M7G81PBKX4K9HC1XE8NCXFNC",
-    "createdAt": "2026-11-15T18:38:23.091Z",
-    "updatedAt": "2026-11-15T18:39:12.022Z",
+    "id": "01M7GEMT0G42PWG95KD12ZERTC",
+    "createdAt": "2026-11-15T20:33:40.880Z",
+    "updatedAt": "2026-11-15T21:55:47.781Z",
     "deletedAt": null,
-    "deviceId": "01M7G81PASZ2E8T209BWDT235N",
-    "summary": "Fix one-cent rounding error in invoice totals",
-    "details": "Totals were off by one cent when a discount applied after tax.",
+    "deviceId": "01M7GKAYPB65ZWS81V3FBKVF3W",
+    "summary": "Document the invoice export endpoint and its limits",
+    "details": null,
     "kind": "done",
     "status": null,
     "resolvedAt": null,
     "resolvedByEntryId": null,
     "project": "billing-api",
-    "repo": null,
-    "branch": "main",
-    "source": "cli",
+    "repo": "acme/billing-api",
+    "branch": "fix/invoice-rounding",
+    "source": "mcp",
     "agent": null,
     "tags": [
-      "bugfix",
-      "invoices",
-      "billing"
+      "docs",
+      "review"
     ],
     "refs": [
       {
         "type": "pr",
-        "value": "412",
+        "value": "415",
         "repo": "acme/billing-api"
       }
     ]

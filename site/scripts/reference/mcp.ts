@@ -123,12 +123,9 @@ function typeText(schema: JSONSchema, root: JSONSchema): string {
   return (seen.length > nonNull.length ? [...nonNull, 'null'] : nonNull).join(' | ');
 }
 
-function describe(schema: JSONSchema, root: JSONSchema): string {
+function defaultCell(schema: JSONSchema, root: JSONSchema): string {
   const s = resolveRef(schema, root);
-  const base = s.description ?? '';
-  if (s.default === undefined) return base;
-  const def = `Default: ${code(JSON.stringify(s.default))}.`;
-  return base ? `${base} ${def}` : def;
+  return s.default === undefined ? '' : code(JSON.stringify(s.default));
 }
 
 /** The first object variant, or the item schema of an array of objects, whose fields get child rows. */
@@ -188,7 +185,7 @@ function rowsFor(props: Record<string, JSONSchema>, required: string[], prefix: 
   // so the output is byte-stable on every Node version.
   for (const [name, prop] of Object.entries(props)) {
     const field = `${prefix}${name}`;
-    out.push([code(field), typeCell(prop, root), required.includes(name) ? 'yes' : 'no', describe(prop, root)]);
+    out.push([code(field), typeCell(prop, root), required.includes(name) ? 'yes' : 'no', resolveRef(prop, root).description ?? '', defaultCell(prop, root)]);
     descend(prop, field, root, out);
   }
 }
@@ -199,20 +196,18 @@ function descend(prop: JSONSchema, field: string, root: JSONSchema, out: string[
   if (child.props) rowsFor(child.props, child.required, `${field}.`, root, out);
   else if (child.extra) {
     const key = `${field}.<key>`;
-    out.push([code(key), typeCell(child.extra, root), 'yes', describe(child.extra, root)]);
+    out.push([code(key), typeCell(child.extra, root), 'yes', resolveRef(child.extra, root).description ?? '', defaultCell(child.extra, root)]);
     descend(child.extra, key, root, out);
   }
 }
 
-/** Rows of [field, type, required, description] for the fields of an object schema. Nested fields use `a.b`. */
+/** Rows of [field, type, required, description, default] for the fields of an object schema. Nested fields use `a.b`. */
 export function schemaRows(schema: JSONSchema): string[][] {
   const out: string[][] = [];
   const child = childSchema(schema, schema);
   if (child.props) rowsFor(child.props, child.required, '', schema, out);
   return out;
 }
-
-const FIELD_HEADERS = ['Field', 'Type', 'Required', 'Description'];
 
 // ---- pages ----
 
@@ -231,7 +226,10 @@ export function shapeHeading(slug: string): string {
 }
 
 export function fieldTable(schema: JSONSchema): string {
-  return table(FIELD_HEADERS, schemaRows(schema));
+  const rows = schemaRows(schema);
+  // The Default column goes last, like the CLI options table. It is dropped when every cell is empty.
+  const keep = rows.every((r) => r[4] === '') ? 4 : 5;
+  return table(['Field', 'Type', 'Required', 'Description', 'Default'].slice(0, keep), rows.map((r) => r.slice(0, keep)));
 }
 
 /** The rendered Markdown parts of one MCP tool. */

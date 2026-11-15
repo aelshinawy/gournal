@@ -51,8 +51,30 @@ describe('built pages', () => {
         if (!ok) bad.push(path.relative(dist, f));
       }
     }
-    expect(tables).toBeGreaterThan(0);
+    // Exact count: add a table to a page and update this number.
+    expect(tables).toBe(43);
     expect(bad).toEqual([]);
+  });
+
+  run('every table on the built reference overview has g-table--overview', () => {
+    const file = path.join(dist, 'docs/reference/index.html');
+    expect(fs.existsSync(file)).toBe(true);
+    const html = fs.readFileSync(file, 'utf8');
+    const tables = [...html.matchAll(/<table\b/g)];
+    expect(tables.length).toBe(5);
+    for (const m of tables) {
+      const before = html.slice(0, m.index);
+      const wrapper = before.slice(before.lastIndexOf('<div class="g-table'));
+      expect(wrapper).toMatch(/^<div class="[^"]*g-table--overview/);
+    }
+  });
+
+  run('content tables fill their wrapper (display: table, width 100%)', () => {
+    const css = fs.readFileSync(path.join(__dirname, '../site/src/styles/docs.css'), 'utf8');
+    const rule = css.match(/\.sl-markdown-content \.g-table table\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toMatch(/display:\s*table\s*;/);
+    expect(rule![1]).toMatch(/width:\s*100%/);
   });
 
   run('every code pre has tabindex 0', () => {
@@ -117,6 +139,48 @@ describe('dark theme blocks', () => {
     const media = parseBlock(css, /:root:not\(\[data-theme\]\) \{([\s\S]*?)^  \}/m);
     expect(Object.keys(media).length).toBeGreaterThan(5);
     expect(media).toEqual(explicit);
+    const light = parseBlock(css, /^:root \{([\s\S]*?)^\}/m);
+    expect(Object.keys(explicit).sort()).toEqual(Object.keys(light).sort());
+  });
+});
+
+describe('reduced motion coverage', () => {
+  const css = fs.readFileSync(path.join(root, 'site/src/styles/docs.css'), 'utf8');
+  const start = css.indexOf('@media (prefers-reduced-motion: reduce)');
+  let depth = 0;
+  let end = css.length;
+  for (let i = css.indexOf('{', start); i < css.length; i++) {
+    if (css[i] === '{') depth++;
+    if (css[i] === '}' && --depth === 0) {
+      end = i;
+      break;
+    }
+  }
+  const block = css.slice(start, end);
+
+  // These Starlight elements can move: the sidebar caret (svg), the details summary marker,
+  // the code copy button and its tooltip (button, div), and links. The block lists their tags.
+  test('the reduced motion block covers the tags that move', () => {
+    for (const tag of ['a', 'button', 'summary', 'details', 'svg', 'div', 'span']) {
+      expect(block).toMatch(new RegExp(`[(,\\s]${tag}[,)]`));
+    }
+    expect(block).toMatch(/animation:\s*none\s*!important/);
+    expect(block).toMatch(/scroll-behavior:\s*auto/);
+  });
+
+  const built = fs.existsSync(path.join(dist, '_astro'));
+  const run = built ? test : test.skip;
+  // Starlight's search dialog, its tabs, and its mobile menu have no transition or animation of their own.
+  // If a future Starlight adds one, this test fails and the element joins the reduced motion block.
+  run('dialog, site-search, starlight-tabs, and the mobile menu have no motion rules', () => {
+    const files = fs.readdirSync(path.join(dist, '_astro')).filter((f) => f.endsWith('.css'));
+    const rules = files.flatMap((f) => fs.readFileSync(path.join(dist, '_astro', f), 'utf8').match(/[^{}]+\{[^{}]*\}/g) ?? []);
+    const moving = rules.filter((r) => /(^|[^-])(transition|animation)\s*[:-]/.test(r.slice(r.indexOf('{'))) && !/no-preference/.test(r));
+    expect(moving.length).toBeGreaterThan(0);
+    expect(moving.some((r) => r.includes('.caret'))).toBe(true);
+    const names = ['dialog', 'site-search', 'starlight-tabs', 'starlight-menu-button', 'mobile-starlight-toc'];
+    const hits = moving.filter((r) => names.some((n) => new RegExp(`(^|[\\s,>+~])${n}([\\s,.:#\\[>+~{]|$)`).test(r.slice(0, r.indexOf('{')))));
+    expect(hits).toEqual([]);
   });
 });
 

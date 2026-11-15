@@ -486,6 +486,13 @@ test('write tools return structured entry and notes', async () => {
   expect(r.structuredContent.entry.status).toBe('resolved');
 });
 
+test('delete_entry text result says removed and keeps the restore hint', async () => {
+  const e = seed('Draft the release notes');
+  const id = e.id.slice(-8);
+  const r = await call('delete_entry', { id });
+  expect(text(r)).toBe(`Entry ${id} removed: Draft the release notes\nrestore with gournal restore ${id}`);
+});
+
 test('error results have no structured content', async () => {
   const r = await call('add_entry', { project: 'p' });
   expect(r.isError).toBe(true);
