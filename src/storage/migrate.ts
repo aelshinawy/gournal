@@ -245,7 +245,7 @@ export function applyPlan(
 
   const planAll = (): { change: PlanChange; patch: EntryPatch }[] => {
     const planned: { change: PlanChange; patch: EntryPatch }[] = [];
-    for (const row of repo.list({ includeDeleted: true })) {
+    for (const row of repo.find({ includeDeleted: true })) {
       const r = byEntry.get(row.id);
       if (!r && row.source !== 'migration') continue;
       const wantTags = r?.item.tags ?? row.tags;

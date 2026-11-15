@@ -196,6 +196,21 @@ function readSearchIndexState(db: DatabaseSync): SearchIndexState {
   };
 }
 
+const fts5Support = new WeakMap<DatabaseSync, boolean>();
+
+/**
+ * True when full-text search can answer queries on this connection: this build has FTS5, the
+ * entries_fts table exists, and all three triggers exist (so the index is current).
+ * It caches the FTS5 probe per connection and reads sqlite_master on every call.
+ */
+export function searchIndexLive(db: DatabaseSync): boolean {
+  let supported = fts5Support.get(db);
+  if (supported === undefined) { supported = hasFts5(db); fts5Support.set(db, supported); }
+  if (!supported) return false;
+  const state = readSearchIndexState(db);
+  return state.table && FTS_TRIGGERS.every((t) => state.triggers.includes(t));
+}
+
 let noticePrinted = false;
 export function resetSearchIndexNotice(): void { noticePrinted = false; }
 

@@ -38,7 +38,7 @@ test('round-trips all entries including deleted', () => {
   const { d: db2, r: repo2 } = open('b.db');
   try {
     expect(importBundle(db2, JSON.parse(JSON.stringify(bundle)))).toEqual({ inserted: 2, updated: 0, skipped: 0, deduplicated: 0 });
-    expect(repo2.list({ includeDeleted: true })).toEqual(repo.list({ includeDeleted: true }));
+    expect(repo2.find({ includeDeleted: true })).toEqual(repo.find({ includeDeleted: true }));
   } finally { db2.close(); }
 });
 
@@ -70,7 +70,7 @@ test('rejects a non-bundle', () => {
 
 test('a failed import writes nothing', () => {
   repo.add({ summary: 'existing', ...base });
-  const before = repo.list({ includeDeleted: true });
+  const before = repo.find({ includeDeleted: true });
   const src = open('c.db');
   try {
     src.r.add({ summary: 'fresh valid', ...base });
@@ -79,14 +79,14 @@ test('a failed import writes nothing', () => {
     expect(() => importBundle(db, { format: 'gournal-bundle', schemaVersion: 1, exportedAt: 'x', deviceId: 'd', entries: [good, bad] }))
       .toThrow('Bundle entry 1 is invalid: kind');
   } finally { src.d.close(); }
-  expect(repo.list({ includeDeleted: true })).toEqual(before);
+  expect(repo.find({ includeDeleted: true })).toEqual(before);
   expectFts(db, 'fresh', []);
   expectFts(db, 'existing', [before[0].id]);
 });
 
 test('a database error mid-import rolls back earlier inserts', () => {
   repo.add({ summary: 'existing', ...base });
-  const before = repo.list({ includeDeleted: true });
+  const before = repo.find({ includeDeleted: true });
   db.exec("CREATE TRIGGER boom BEFORE INSERT ON entries WHEN new.summary = 'boom' BEGIN SELECT RAISE(ABORT, 'boom'); END");
   const src = open('c.db');
   try {
@@ -95,7 +95,7 @@ test('a database error mid-import rolls back earlier inserts', () => {
     const boom = { ...good, id: '01ARZ3NDEKTSV4RRFFQ69G5FAV', summary: 'boom' };
     expect(() => importBundle(db, { format: 'gournal-bundle', schemaVersion: 1, entries: [good, boom] })).toThrow('boom');
   } finally { src.d.close(); }
-  expect(repo.list({ includeDeleted: true })).toEqual(before);
+  expect(repo.find({ includeDeleted: true })).toEqual(before);
   expectFts(db, 'fresh', []);
   expect(db.prepare('SELECT COUNT(*) AS n FROM entry_tags').get()).toEqual({ n: 0 });
 });
@@ -146,7 +146,7 @@ test('preserves device id, timestamps and values exactly', () => {
     refs: [{ type: 'jira', value: 'abc-1' }, { type: 'pr', value: '3', repo: 'o/r' }],
   };
   importBundle(db, { format: 'gournal-bundle', schemaVersion: 1, entries: [e] });
-  expect(repo.list({ includeDeleted: true })).toEqual([e]);
+  expect(repo.find({ includeDeleted: true })).toEqual([e]);
 });
 
 test.each([
@@ -166,7 +166,7 @@ test.each([
   const entry = patch === null ? null : { ...good, ...patch };
   expect(() => importBundle(db, { format: 'gournal-bundle', schemaVersion: 1, entries: [entry] }))
     .toThrow(`Bundle entry 0 is invalid: ${field}`);
-  expect(repo.list({ includeDeleted: true })).toEqual([]);
+  expect(repo.find({ includeDeleted: true })).toEqual([]);
 });
 
 describe('legacy map in bundles', () => {
@@ -207,7 +207,7 @@ describe('legacy map in bundles', () => {
       expect(repo.get(mine.id)!.deletedAt).not.toBeNull();
       expect(mapRows(db)).toEqual([{ legacy_index: 0, entry_id: theirs.id }]);
       // The loser is kept, never erased.
-      expect(repo.list({ includeDeleted: true })).toHaveLength(2);
+      expect(repo.find({ includeDeleted: true })).toHaveLength(2);
     } finally { db2.close(); }
   });
 

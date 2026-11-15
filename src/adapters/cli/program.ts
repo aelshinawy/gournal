@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { getProjectName } from '../../git';
 import { generateStandupReport } from '../../report';
 import { generateWorkLog } from '../../log';
-import { generateStats, countBy } from '../../stats';
+import { generateStats } from '../../stats';
 import { generateCsvExport, generateMarkdownExport } from '../../export';
 import { startMcpServer } from '../../mcp';
 import { checkSummary } from '../../core';
@@ -14,7 +14,6 @@ import inquirer from 'inquirer';
 import fs from 'fs-extra';
 import path from 'path';
 import { VERSION } from '../version';
-import { parseBound } from '../../core';
 import { clearConfirmQuestion } from './prompts';
 import { openJournal } from '../../storage/journal';
 import type { Journal } from '../../storage/journal';
@@ -155,7 +154,7 @@ export function buildProgram(io: CliIo): Command {
     .option('-t, --tags <tags>', 'Comma-separated tags')
     .action(async (options) => {
       await withJournal(({ repo }) => {
-        const entries = repo.list({ project: options.project, tags: splitList(options.tags) }).map(e => toLegacy(e));
+        const entries = repo.find({ project: options.project, tags: splitList(options.tags) }).map(e => toLegacy(e));
         io.out(generateStandupReport(entries, options));
       });
     });
@@ -170,7 +169,7 @@ export function buildProgram(io: CliIo): Command {
     .option('-t, --tags <tags>', 'Comma-separated tags')
     .action(async (options) => {
       await withJournal(({ repo }) => {
-        const entries = repo.list({ project: options.project, tags: splitList(options.tags) }).map(e => ({ ...toLegacy(e), id: e.id }));
+        const entries = repo.find({ project: options.project, tags: splitList(options.tags) }).map(e => ({ ...toLegacy(e), id: e.id }));
         io.out(generateWorkLog(entries, options));
       });
     });
@@ -181,7 +180,7 @@ export function buildProgram(io: CliIo): Command {
     .option('-p, --project <project>', 'Filter by project name')
     .action(async (options) => {
       await withJournal(({ repo }) => {
-        const entries = repo.list({ project: options.project }).map(e => toLegacy(e));
+        const entries = repo.find({ project: options.project }).map(e => toLegacy(e));
         io.out(generateStats(entries));
       });
     });
@@ -191,7 +190,7 @@ export function buildProgram(io: CliIo): Command {
     .description('List distinct tags with entry counts')
     .action(async () => {
       await withJournal(({ repo }) => {
-        const counts = countBy(repo.list().flatMap(e => e.tags));
+        const counts = repo.tagCounts().map(c => [c.tag, c.count] as const);
         if (counts.length === 0) {
           io.out(chalk.yellow('No tags found.'));
           return;
@@ -205,7 +204,7 @@ export function buildProgram(io: CliIo): Command {
     .description('List distinct projects with entry counts')
     .action(async () => {
       await withJournal(({ repo }) => {
-        const counts = countBy(repo.list().map(e => e.project));
+        const counts = repo.projectCounts().map(c => [c.project, c.count] as const);
         if (counts.length === 0) {
           io.out(chalk.yellow('No projects found.'));
           return;
@@ -235,7 +234,7 @@ export function buildProgram(io: CliIo): Command {
           output = JSON.stringify(bundle, null, 2);
           count = bundle.entries.length;
         } else {
-          const entries = repo.list({ project: options.project, tags: splitList(options.tags) }).map(e => toLegacy(e, { withDetails: true }));
+          const entries = repo.find({ project: options.project, tags: splitList(options.tags) }).map(e => toLegacy(e, { withDetails: true }));
           output = exportFormat === 'csv' ? generateCsvExport(entries) : generateMarkdownExport(entries);
           count = entries.length;
         }
@@ -292,12 +291,8 @@ export function buildProgram(io: CliIo): Command {
     .option('--from <date>', 'ISO date lower bound (inclusive)')
     .option('--to <date>', 'ISO date upper bound (inclusive)')
     .action(async (query: string, options: { project?: string; tags?: string; from?: string; to?: string }) => {
-      const fromBound = options.from ? new Date(parseBound(options.from, 'from')).toISOString() : undefined;
-      const toBound = options.to ? new Date(parseBound(options.to, 'to')).toISOString() : undefined;
       await withJournal(({ repo }) => {
-        const entries = repo.list({ project: options.project, tags: splitList(options.tags), from: fromBound, to: toBound });
-        const needle = query.toLowerCase();
-        const results = entries.filter(e => `${e.summary}\n${e.details ?? ''}`.toLowerCase().includes(needle));
+        const results = repo.find({ project: options.project, tags: splitList(options.tags), from: options.from, to: options.to, text: query });
 
         io.out(chalk.bold(`Found ${results.length} entries:\n`));
         results.forEach(entry => {

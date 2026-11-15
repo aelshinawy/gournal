@@ -23,7 +23,7 @@ const sha = () => crypto.createHash('sha256').update(fs.readFileSync(jsonPath())
 test('opens with no entries.json', () => {
   const j = openJournal(home);
   try {
-    expect(j.repo.list()).toEqual([]);
+    expect(j.repo.find()).toEqual([]);
     expect(j.config.deviceId).toBeTruthy();
     expect(fs.existsSync(path.join(home, 'gournal.db'))).toBe(true);
   } finally { j.close(); }
@@ -32,10 +32,10 @@ test('opens with no entries.json', () => {
 test('imports entries.json on first open and late writes on the next open', () => {
   fs.writeFileSync(jsonPath(), JSON.stringify(legacy(3)));
   let j = openJournal(home);
-  try { expect(j.repo.list()).toHaveLength(3); } finally { j.close(); }
+  try { expect(j.repo.find()).toHaveLength(3); } finally { j.close(); }
   fs.writeFileSync(jsonPath(), JSON.stringify(legacy(5)));
   j = openJournal(home);
-  try { expect(j.repo.list()).toHaveLength(5); } finally { j.close(); }
+  try { expect(j.repo.find()).toHaveLength(5); } finally { j.close(); }
 });
 
 test('uses GOURNAL_HOME when no home is passed', () => {
@@ -44,7 +44,7 @@ test('uses GOURNAL_HOME when no home is passed', () => {
   try {
     fs.writeFileSync(jsonPath(), JSON.stringify(legacy(2)));
     const j = openJournal();
-    try { expect(j.repo.list()).toHaveLength(2); } finally { j.close(); }
+    try { expect(j.repo.find()).toHaveLength(2); } finally { j.close(); }
   } finally {
     if (prev === undefined) delete process.env.GOURNAL_HOME; else process.env.GOURNAL_HOME = prev;
   }
@@ -60,7 +60,7 @@ test('entries.json is never modified by openJournal', () => {
   const corrupt = sha();
   const j = openJournal(home);
   try {
-    expect(j.repo.list()).toHaveLength(4);
+    expect(j.repo.find()).toHaveLength(4);
     expect(j.repo.add({ summary: 's', project: 'p', source: 'cli' }).id).toBeTruthy();
   } finally { j.close(); }
   expect(sha()).toBe(corrupt);
@@ -83,7 +83,7 @@ test('concurrent first start imports once', async () => {
   await Promise.all(Array.from({ length: 6 }, () => runOpener()));
   const j = openJournal(home);
   try {
-    expect(j.repo.list()).toHaveLength(50);
+    expect(j.repo.find()).toHaveLength(50);
     expect((j.db.prepare('SELECT count(*) c FROM legacy_map').get() as { c: number }).c).toBe(50);
   } finally { j.close(); }
   const raw = new DatabaseSync(path.join(home, 'gournal.db'));
@@ -102,18 +102,18 @@ test('a failing legacy import never blocks the journal and is retried on the nex
   let j = openJournal(home);
   try {
     expect(stderr.mock.calls.map((c) => String(c[0])).join('')).toContain('gournal: legacy import failed; will retry (');
-    expect(j.repo.list()).toHaveLength(0);
+    expect(j.repo.find()).toHaveLength(0);
     expect(j.repo.add({ summary: 'still works', project: 'p', source: 'cli' }).id).toBeTruthy();
   } finally { j.close(); }
   const fix = new DatabaseSync(path.join(home, 'gournal.db'));
   fix.exec('DROP TRIGGER fail_map');
   fix.close();
   j = openJournal(home);
-  try { expect(j.repo.list()).toHaveLength(4); } finally { j.close(); }
+  try { expect(j.repo.find()).toHaveLength(4); } finally { j.close(); }
 });
 
 test('legacyImport false opens without importing entries.json', () => {
   fs.writeFileSync(jsonPath(), JSON.stringify(legacy(3)));
   const j = openJournal(home, { legacyImport: false });
-  try { expect(j.repo.list()).toEqual([]); } finally { j.close(); }
+  try { expect(j.repo.find()).toEqual([]); } finally { j.close(); }
 });

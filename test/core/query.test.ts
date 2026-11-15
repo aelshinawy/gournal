@@ -43,3 +43,8 @@ test('from and to resolve to epoch ms', () => {
   expect(r.fromMs).toBe(new Date(2026, 10, 1).getTime());
   expect(r.toMs).toBe(new Date(2026, 10, 3, 23, 59, 59, 999).getTime());
 });
+
+test('an empty kind list means no kind filter', () => {
+  expect(resolveQuery({ kind: [] }, {}).kind).toBeUndefined();
+  expect(resolveQuery({ kind: ['next'] }, {}).kind).toEqual(['next']);
+});

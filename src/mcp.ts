@@ -5,7 +5,6 @@ import { getProjectName } from './git';
 import { generateStandupReport } from './report';
 import { generateCsvExport, generateMarkdownExport } from './export';
 import { generateWorkLog } from './log';
-import { countBy } from './stats';
 import { VERSION } from './adapters/version';
 import { parseBound } from './core';
 import { checkSummary, closeTags, normalizeTags, type Entry, type EntryPatch } from './core';
@@ -241,12 +240,7 @@ export function createServer(journal?: JournalLike): McpServer {
       },
     },
     guarded(({ project, from, to, limit }: { project?: string; from?: string; to?: string; limit: number }, { repo }) => {
-      const entries = repo.list({
-        project,
-        from: from ? new Date(parseBound(from, 'from')).toISOString() : undefined,
-        to: to ? new Date(parseBound(to, 'to')).toISOString() : undefined,
-      });
-      const newest: Entry[] = entries.reverse().slice(0, limit);
+      const newest: Entry[] = repo.find({ project, from, to, order: 'desc', limit });
       return textResult(JSON.stringify(newest, null, 2));
     })
   );
@@ -264,7 +258,7 @@ export function createServer(journal?: JournalLike): McpServer {
       },
     },
     guarded(({ yesterday, week, month, project }: { yesterday?: boolean; week?: boolean; month?: boolean; project?: string }, { repo }) => {
-      const entries = repo.list({ project }).map(e => toLegacy(e));
+      const entries = repo.find({ project }).map(e => toLegacy(e));
       const options: ReportOptions = { yesterday, week, month };
       return textResult(generateStandupReport(entries, options));
     })
@@ -284,7 +278,7 @@ export function createServer(journal?: JournalLike): McpServer {
       },
     },
     guarded(({ yesterday, week, month, project, tags }: { yesterday?: boolean; week?: boolean; month?: boolean; project?: string; tags?: string[] }, { repo }) => {
-      const entries = repo.list({ project, tags }).map(e => toLegacy(e));
+      const entries = repo.find({ project, tags }).map(e => toLegacy(e));
       const options: ReportOptions = { yesterday, week, month };
       return textResult(generateWorkLog(entries, options));
     })
@@ -300,8 +294,7 @@ export function createServer(journal?: JournalLike): McpServer {
       },
     },
     guarded(({ project }: { project?: string }, { repo }) => {
-      const counts = countBy(repo.list({ project }).flatMap(e => e.tags));
-      return textResult(JSON.stringify(counts.map(([tag, count]) => ({ tag, count })), null, 2));
+      return textResult(JSON.stringify(repo.tagCounts({ project }), null, 2));
     })
   );
 
@@ -313,8 +306,7 @@ export function createServer(journal?: JournalLike): McpServer {
       inputSchema: {},
     },
     guarded((_args: Record<string, never>, { repo }) => {
-      const counts = countBy(repo.list().map(e => e.project));
-      return textResult(JSON.stringify(counts.map(([project, count]) => ({ project, count })), null, 2));
+      return textResult(JSON.stringify(repo.projectCounts(), null, 2));
     })
   );
 
@@ -329,7 +321,7 @@ export function createServer(journal?: JournalLike): McpServer {
       },
     },
     guarded(({ format, project }: { format: 'md' | 'csv'; project?: string }, { repo }) => {
-      const entries = repo.list({ project }).map(e => toLegacy(e, { withDetails: true }));
+      const entries = repo.find({ project }).map(e => toLegacy(e, { withDetails: true }));
       return textResult(format === 'csv' ? generateCsvExport(entries) : generateMarkdownExport(entries));
     })
   );

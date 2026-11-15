@@ -7,6 +7,7 @@ import { ftsTest } from '../fts5';
 import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository, AmbiguousIdError } from '../../src/storage/sqlite-repository';
 import type { EntryRepository } from '../../src/core/repository';
+import { InvalidQueryError } from '../../src/core';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository;
 beforeEach(() => {
@@ -48,21 +49,21 @@ test('add with a bad resolves id writes nothing', () => {
   const done = repo.add({ summary: 'done one', ...base });
   const b = repo.add({ summary: 'blocked', kind: 'blocker', ...base });
   expect(() => repo.add({ summary: 'x', ...base, resolves: [b.id, done.id] })).toThrow('only an open blocker or next');
-  expect(repo.list()).toHaveLength(2);
+  expect(repo.find()).toHaveLength(2);
   expect(repo.get(b.id)?.status).toBe('open');
 });
 test('softDelete hides and restore returns', () => {
   const e = repo.add({ summary: 's', ...base });
   repo.softDelete(e.id);
-  expect(repo.list()).toEqual([]);
-  expect(repo.list({ includeDeleted: true })[0].deletedAt).not.toBeNull();
+  expect(repo.find()).toEqual([]);
+  expect(repo.find({ includeDeleted: true })[0].deletedAt).not.toBeNull();
   expect(repo.restore(e.id).deletedAt).toBeNull();
 });
 test('softDeleteAll hides every entry and returns the count', () => {
   repo.add({ summary: 'a', ...base });
   repo.add({ summary: 'b', ...base });
   expect(repo.softDeleteAll()).toBe(2);
-  expect(repo.list()).toEqual([]);
+  expect(repo.find()).toEqual([]);
   expect(repo.softDeleteAll()).toBe(0);
 });
 test('update changes fields and updated_at', () => {
@@ -95,12 +96,12 @@ test('list filters by project, tags, and bounds, oldest first', () => {
   const a = repo.add({ summary: 'a', project: 'a', source: 'cli', tags: ['x'], createdAt: '2026-07-03T10:00:00.000Z' });
   const b = repo.add({ summary: 'b', project: 'a', source: 'cli', tags: [], createdAt: '2026-07-01T10:00:00.000Z' });
   const c = repo.add({ summary: 'c', project: 'b', source: 'cli', tags: ['x'], createdAt: '2026-07-02T10:00:00.000Z' });
-  expect(repo.list().map((e) => e.id)).toEqual([b.id, c.id, a.id]);
-  expect(repo.list({ project: 'a' }).map((e) => e.id)).toEqual([b.id, a.id]);
-  expect(repo.list({ tags: ['x'] }).map((e) => e.id)).toEqual([c.id, a.id]);
-  expect(repo.list({ from: '2026-07-02T00:00:00.000Z' })).toHaveLength(2);
-  expect(repo.list({ to: '2026-07-01T23:59:59.999Z' }).map((e) => e.id)).toEqual([b.id]);
-  expect(repo.list({ limit: 1 }).map((e) => e.id)).toEqual([b.id]);
+  expect(repo.find().map((e) => e.id)).toEqual([b.id, c.id, a.id]);
+  expect(repo.find({ project: 'a' }).map((e) => e.id)).toEqual([b.id, a.id]);
+  expect(repo.find({ tags: ['x'] }).map((e) => e.id)).toEqual([c.id, a.id]);
+  expect(repo.find({ from: '2026-07-02T00:00:00.000Z' })).toHaveLength(2);
+  expect(repo.find({ to: '2026-07-01T23:59:59.999Z' }).map((e) => e.id)).toEqual([b.id]);
+  expect(repo.find({ limit: 1 }).map((e) => e.id)).toEqual([b.id]);
 });
 test('latestForDevice skips deleted entries and other devices', () => {
   const a = repo.add({ summary: 'a', ...base });
@@ -170,18 +171,18 @@ test('resolve(id, byEntryId) stores the resolver', () => {
 test('list tags use AND semantics', () => {
   repo.add({ summary: 'xy', ...base, tags: ['x', 'y'] });
   repo.add({ summary: 'x', ...base, tags: ['x'] });
-  expect(repo.list({ tags: ['x', 'y'] }).map((e) => e.summary)).toEqual(['xy']);
+  expect(repo.find({ tags: ['x', 'y'] }).map((e) => e.summary)).toEqual(['xy']);
 });
 test('list tags apply tag aliases like add', () => {
   config.tagAliases['fix'] = 'bug';
   repo.add({ summary: 'f', ...base, tags: ['fix'] });
-  expect(repo.list({ tags: ['fix'] })).toHaveLength(1);
-  expect(repo.list({ tags: ['bug'] })).toHaveLength(1);
+  expect(repo.find({ tags: ['fix'] })).toHaveLength(1);
+  expect(repo.find({ tags: ['bug'] })).toHaveLength(1);
 });
-test('list ignores a limit that is not a positive integer', () => {
+test('find rejects a limit that is not a positive integer', () => {
   repo.add({ summary: 'a', ...base });
   repo.add({ summary: 'b', ...base });
-  for (const limit of [0, -1, 1.5, NaN]) expect(repo.list({ limit })).toHaveLength(2);
+  for (const limit of [0, -1, 1.5, NaN]) expect(() => repo.find({ limit })).toThrow(InvalidQueryError);
 });
 test('update with tags only keeps refs, with refs only keeps tags', () => {
   const e = repo.add({ summary: 's', ...base, tags: ['a'], refs: [{ type: 'url', value: 'https://x.test' }] });
@@ -224,13 +225,13 @@ test('add and update reject an empty summary', () => {
 
 test('transaction commits nested writes together', () => {
   const ids = repo.transaction(() => [repo.add({ summary: 'a', ...base }).id, repo.add({ summary: 'b', ...base }).id]);
-  expect(repo.list().map((e) => e.id).sort()).toEqual([...ids].sort());
+  expect(repo.find().map((e) => e.id).sort()).toEqual([...ids].sort());
 });
 test('transaction rolls back every nested write on error and stays usable', () => {
   expect(() => repo.transaction(() => { repo.add({ summary: 'a', ...base }); throw new Error('boom'); })).toThrow('boom');
-  expect(repo.list()).toHaveLength(0);
+  expect(repo.find()).toHaveLength(0);
   repo.add({ summary: 'after', ...base });
-  expect(repo.list()).toHaveLength(1);
+  expect(repo.find()).toHaveLength(1);
 });
 
 test('add and update reject a summary with a newline', () => {

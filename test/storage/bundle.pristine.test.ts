@@ -36,8 +36,8 @@ function side(name: string): Side {
   sides.push(s);
   return s;
 }
-const byText = (s: Side, text: string) => s.repo.list({ includeDeleted: true }).filter((e) => e.summary.startsWith(text));
-const liveSummaries = (s: Side) => s.repo.list().map((e) => e.summary).sort();
+const byText = (s: Side, text: string) => s.repo.find({ includeDeleted: true }).filter((e) => e.summary.startsWith(text));
+const liveSummaries = (s: Side) => s.repo.find().map((e) => e.summary).sort();
 const ship = (s: Side) => JSON.parse(JSON.stringify(exportBundle(s.db, config)));
 
 test('an edited bundle copy beats a later raw re-import, and the raw copy is soft deleted', () => {
@@ -51,9 +51,9 @@ test('an edited bundle copy beats a later raw re-import, and the raw copy is sof
   expect(liveSummaries(mine)).toHaveLength(2);
   expect(liveSummaries(mine)).toContain('One (curated)');
   expect(liveSummaries(mine)).not.toContain('One');
-  expect(mine.repo.list().find((e) => e.summary === 'One (curated)')!.tags).toEqual(['curated']);
+  expect(mine.repo.find().find((e) => e.summary === 'One (curated)')!.tags).toEqual(['curated']);
   expect(byText(mine, 'One').filter((e) => e.deletedAt !== null)).toHaveLength(1);
-  expect(mine.repo.list({ includeDeleted: true })).toHaveLength(4);
+  expect(mine.repo.find({ includeDeleted: true })).toHaveLength(4);
 });
 
 test('a deleted bundle copy keeps the entry deleted when the local copy is a pristine re-import', () => {
@@ -155,9 +155,9 @@ test('a pre-v2 database migrates with NULL imported_at and counts as not pristin
   // The bundle side is pristine and later. The local NULL row is not pristine, so the bundle copy loses.
   wait();
   const theirs = side('b.db');
-  const localIds = mine.repo.list().map((e) => e.id).sort();
+  const localIds = mine.repo.find().map((e) => e.id).sort();
   importBundle(mine.db, ship(theirs));
-  expect(mine.repo.list().map((e) => e.id).sort()).toEqual(localIds);
+  expect(mine.repo.find().map((e) => e.id).sort()).toEqual(localIds);
 });
 
 // With the clock frozen, an edit lands in the same millisecond as the legacy import. The edit must

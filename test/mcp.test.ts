@@ -62,7 +62,7 @@ test('add_entry stores summary, details, kind, refs', async () => {
     tags: ['feature'], refs: [{ type: 'pr', value: '12' }], agent: 'claude',
   });
   expect(r.isError).toBeFalsy();
-  const [e] = journal.repo.list();
+  const [e] = journal.repo.find();
   expect(e).toMatchObject({ summary: 'Shipped the thing', details: 'More text', kind: 'next', project: 'gournal', tags: ['feature'], source: 'mcp', agent: 'claude' });
   expect(e.refs).toEqual([{ type: 'pr', value: '12' }]);
   expect(text(r).split('\n')[0]).toBe(`Entry ${e.id.slice(-8)} added to gournal: Shipped the thing`);
@@ -70,7 +70,7 @@ test('add_entry stores summary, details, kind, refs', async () => {
 
 test('message alias still works', async () => {
   await call('add_entry', { message: 'Old style', project: 'p' });
-  expect(journal.repo.list()[0].summary).toBe('Old style');
+  expect(journal.repo.find()[0].summary).toBe('Old style');
 });
 
 test('missing summary and message is a tool error', async () => {
@@ -88,14 +88,14 @@ test('empty summary is a tool error', async () => {
 test('add_entry falls back to git-detected project when omitted', async () => {
   mockedGetProjectName.mockReturnValue('detected-project');
   await call('add_entry', { summary: 'No project passed' });
-  expect(journal.repo.list()[0].project).toBe('detected-project');
+  expect(journal.repo.find()[0].project).toBe('detected-project');
 });
 
 test('long summary is rejected with the fix', async () => {
   const r = await call('add_entry', { summary: 'x'.repeat(200), project: 'p' });
   expect(r.isError).toBe(true);
   expect(text(r)).toContain('max 120');
-  expect(journal.repo.list()).toHaveLength(0);
+  expect(journal.repo.find()).toHaveLength(0);
 });
 
 test('retry of a rejected summary is split, not rejected', async () => {
@@ -104,7 +104,7 @@ test('retry of a rejected summary is split, not rejected', async () => {
   const r = await call('add_entry', { summary: long, project: 'p' });
   expect(r.isError).toBeFalsy();
   expect(text(r)).toContain('Summary was too long and was split; full text is in details.');
-  const [e] = journal.repo.list();
+  const [e] = journal.repo.find();
   expect(e.summary.length).toBeLessThanOrEqual(120);
   expect(e.details).toBe(long);
 });
@@ -126,7 +126,7 @@ test('long summary with details is split', async () => {
   const long = `${'word '.repeat(40)}end.`;
   const r = await call('add_entry', { summary: long, details: 'given', project: 'p' });
   expect(r.isError).toBeFalsy();
-  expect(journal.repo.list()[0].details).toBe(`${long}\n\ngiven`);
+  expect(journal.repo.find()[0].details).toBe(`${long}\n\ngiven`);
 });
 
 test('new tag gets close-tag hints', async () => {
@@ -143,7 +143,7 @@ test('a new tag with no close match prints no hint', async () => {
 
 test('resolves closes an open blocker', async () => {
   await call('add_entry', { summary: 'stuck', kind: 'blocker', project: 'p' });
-  const blocker = journal.repo.list()[0];
+  const blocker = journal.repo.find()[0];
   const r = await call('add_entry', { summary: 'fixed', project: 'p', resolves: [blocker.id.slice(-8)] });
   expect(r.isError).toBeFalsy();
   expect(journal.repo.get(blocker.id)!.status).toBe('resolved');
@@ -153,7 +153,7 @@ test('resolves with an unknown id still adds the entry and reports it', async ()
   const r = await call('add_entry', { summary: 'fixed', project: 'p', resolves: ['ZZZZZZZZ'] });
   expect(r.isError).toBeFalsy();
   expect(text(r)).toContain('Could not resolve ZZZZZZZZ: No entry with id');
-  expect(journal.repo.list()).toHaveLength(1);
+  expect(journal.repo.find()).toHaveLength(1);
 });
 
 test('resolves keeps valid ids and drops a non-open one', async () => {
@@ -184,14 +184,14 @@ test('update_entry, delete_entry, resolve_entry work by suffix', async () => {
 
 test('update_entry keeps details when only the summary changes', async () => {
   await call('add_entry', { summary: 'one', details: 'keep me', project: 'p' });
-  const [e] = journal.repo.list();
+  const [e] = journal.repo.find();
   await call('update_entry', { id: e.id.slice(-8), summary: 'two' });
   expect(journal.repo.get(e.id)!.details).toBe('keep me');
 });
 
 test('update_entry rejects a long summary without details', async () => {
   await call('add_entry', { summary: 'one', project: 'p' });
-  const [e] = journal.repo.list();
+  const [e] = journal.repo.find();
   const r = await call('update_entry', { id: e.id.slice(-8), summary: 'x'.repeat(200) });
   expect(r.isError).toBe(true);
   expect(text(r)).toContain('max 120');
@@ -225,7 +225,7 @@ test('unknown ids and bad resolves return tool errors', async () => {
     expect(text(r)).toContain('No entry with id');
   }
   await call('add_entry', { summary: 'done one', project: 'p' });
-  const r = await call('resolve_entry', { id: journal.repo.list()[0].id.slice(-8) });
+  const r = await call('resolve_entry', { id: journal.repo.find()[0].id.slice(-8) });
   expect(r.isError).toBe(true);
   expect(text(r)).toContain('only an open blocker or next');
 });
@@ -309,7 +309,7 @@ test('without a passed journal the server opens GOURNAL_HOME lazily', async () =
     const lazy = await connect();
     const r = (await lazy.callTool({ name: 'add_entry', arguments: { summary: 'lazy', project: 'p' } })) as any;
     expect(r.isError).toBeFalsy();
-    expect(journal.repo.list().map(e => e.summary)).toContain('lazy');
+    expect(journal.repo.find().map(e => e.summary)).toContain('lazy');
   } finally {
     if (prev === undefined) delete process.env.GOURNAL_HOME; else process.env.GOURNAL_HOME = prev;
   }
@@ -320,7 +320,7 @@ test('the same target as a full id and as a suffix resolves once and the add suc
   const r = await call('add_entry', { summary: 'fixed', project: 'p', resolves: [blocker.id, blocker.id.slice(-8)] });
   expect(r.isError).toBeFalsy();
   expect(text(r)).not.toContain('Could not resolve');
-  const done = journal.repo.list().find((e) => e.summary === 'fixed')!;
+  const done = journal.repo.find().find((e) => e.summary === 'fixed')!;
   expect(journal.repo.get(blocker.id)).toMatchObject({ status: 'resolved', resolvedByEntryId: done.id });
 });
 
@@ -332,7 +332,7 @@ test('a target that turns non-open before the write is dropped and the add still
   const r = await call('add_entry', { summary: 'fixed', project: 'p', resolves: [blocker.id.slice(-8)] });
   expect(r.isError).toBeFalsy();
   expect(text(r)).toContain(`Could not resolve ${blocker.id.slice(-8)}: only an open blocker or next can be resolved`);
-  expect(journal.repo.list().some((e) => e.summary === 'fixed')).toBe(true);
+  expect(journal.repo.find().some((e) => e.summary === 'fixed')).toBe(true);
 });
 
 test('a multi-line summary is rejected with the one-line message', async () => {

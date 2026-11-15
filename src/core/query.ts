@@ -81,7 +81,7 @@ export function resolveQuery(q: Query, aliases: Record<string, string>): Resolve
     repo: q.repo,
     tags: q.tags && q.tags.length > 0 ? q.tags : undefined,
     terms: terms.length > 0 ? terms : undefined,
-    kind: q.kind,
+    kind: q.kind && q.kind.length > 0 ? q.kind : undefined,
     status: q.status,
     source: q.source,
     fromMs: q.from ? parseBound(q.from, 'from') : undefined,
