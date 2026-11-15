@@ -71,3 +71,12 @@ export function standupJson(m: StandupModel): StandupJson {
 export function workLogJson(m: WorkLogModel): WorkLogJson {
   return { ...m, days: m.days.map((d) => ({ date: d.date, entries: d.entries.map(entryJson) })) };
 }
+
+export const SyncReportSchema = z.object({
+  status: z.enum(['ok', 'partial', 'skipped', 'failed']),
+  since: z.string(),
+  inserted: z.number(),
+  updated: z.number(),
+  linked: z.number(),
+  warning: z.string().nullable(),
+});

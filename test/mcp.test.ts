@@ -10,7 +10,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { pathToFileURL } from 'url';
 import { ListRootsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createServer, SERVER_INSTRUCTIONS, type ServerDeps } from '../src/adapters/mcp';
-import { resolveIdentity } from '../src/sources';
+import { GhError, resolveIdentity, type GhRunner } from '../src/sources';
 import type { NewEntryInput } from '../src/core';
 import { openJournal, type Journal } from '../src/storage/journal';
 
@@ -142,7 +142,7 @@ test('the default identity applies config aliases to a real repo', async () => {
   try {
     const g = (...a: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main', '-C', repoDir, ...a], { stdio: 'ignore' });
     g('init'); g('remote', 'add', 'origin', 'git@github.com:acme/collection-app.git'); g('commit', '--allow-empty', '-m', 'i');
-    const aliased = { repo: journal.repo, config: { ...journal.config, projectAliases: { 'acme/collection-app': 'Collection' } } };
+    const aliased = { repo: journal.repo, activity: journal.activity, config: { ...journal.config, projectAliases: { 'acme/collection-app': 'Collection' } } };
     const c = await connect(undefined, { journal: aliased, identity: undefined });
     await c.callTool({ name: 'add_entry', arguments: { summary: 'Real', cwd: repoDir } });
     expect(journal.repo.find()[0]).toMatchObject({ project: 'Collection', repo: 'acme/collection-app', branch: 'main' });
@@ -586,4 +586,59 @@ test('a bad from date is a tool error, not a protocol error', async () => {
   }
   const r = await call('get_standup', { from: 'soon' });
   expect(text(r)).toContain('Invalid date: soon');
+});
+
+describe('sync_activity', () => {
+  const ghFor = () => {
+    const calls: string[][] = [];
+    const gh = (async (args: string[]) => {
+      calls.push(args);
+      const j = args.join(' ');
+      if (j === 'api user') return JSON.stringify({ login: 'Dev' });
+      if (j.includes('search/issues')) return JSON.stringify({ total_count: 0, items: [] });
+      throw new Error(`no route ${j}`);
+    }) as GhRunner & { calls: string[][] };
+    gh.calls = calls;
+    return gh;
+  };
+
+  test('returns counts as structured content', async () => {
+    const gh = ghFor();
+    const c = await connect(journal, { gh });
+    const r = await c.callTool({ name: 'sync_activity', arguments: {} }) as any;
+    expect(r.isError).toBeFalsy();
+    expect(r.structuredContent).toMatchObject({ status: 'ok', inserted: 0, updated: 0, linked: 0, warning: null });
+    expect(typeof r.structuredContent.since).toBe('string');
+    expect(text(r)).toContain('Synced GitHub activity since');
+  });
+
+  test('a bad since is a tool error and a failed sync reports its warning', async () => {
+    const c = await connect(journal, { gh: ghFor() });
+    const bad = await c.callTool({ name: 'sync_activity', arguments: { since: 'nope' } }) as any;
+    expect(bad.isError).toBe(true);
+    expect(text(bad)).toContain('Invalid date "nope"');
+    const down = await connect(journal, { gh: (async () => { throw new GhError('auth', 'x'); }) as GhRunner });
+    const r = await down.callTool({ name: 'sync_activity', arguments: {} }) as any;
+    expect(r.structuredContent.status).toBe('failed');
+    expect(text(r)).toContain('gh is not signed in');
+  });
+
+  test('add_entry links to synced activity without the network', async () => {
+    journal.activity.upsert([{
+      type: 'pr_opened', occurredAt: new Date().toISOString(), repo: 'acme/widgets', branch: 'feat/x',
+      externalId: '5', title: 'Add x', url: null, pr: 5, payload: { pr: 5 },
+    }]);
+    const gh = ghFor();
+    const c = await connect(journal, { gh });
+    const r = await c.callTool({ name: 'add_entry', arguments: { summary: 'Did x', project: 'p', repo: 'acme/widgets', refs: [{ type: 'pr', value: '5' }] } }) as any;
+    const id = r.structuredContent.entry.id;
+    expect(journal.activity.linkedTo([id])[id]).toHaveLength(1);
+    expect(gh.calls).toHaveLength(0);
+  });
+});
+
+test('the server lists 12 tools', async () => {
+  const { tools } = await client.listTools();
+  expect(tools).toHaveLength(12);
+  expect(tools.find((t) => t.name === 'sync_activity')?.outputSchema).toBeDefined();
 });

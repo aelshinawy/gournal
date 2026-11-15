@@ -1,6 +1,7 @@
 import { Command, CommanderError } from 'commander';
 import chalk from 'chalk';
-import { resolveIdentity } from '../../sources';
+import { execGh, resolveIdentity, type GhRunner } from '../../sources';
+import { parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
 import { startMcpServer } from '../mcp';
 import { standupModel, workLogModel } from '../reports';
 import { buildStats, checkSummary, resolveQuery, shortId } from '../../core';
@@ -22,6 +23,8 @@ export interface CliIo {
   cwd: string;
   home: string;
   isTTY: boolean;
+  /** Test seam. The default runs the real gh. */
+  gh?: GhRunner;
 }
 
 const KINDS: Kind[] = ['done', 'blocker', 'next'];
@@ -99,7 +102,8 @@ export function buildProgram(io: CliIo): Command {
       }
       const check = checkSummary(summary, options.details, { allowSplit: true });
       if (!check.ok) throw new Error(check.error);
-      await withJournal(({ repo, config }) => {
+      await withJournal((journal) => {
+        const { repo, config } = journal;
         const id = resolveIdentity(io.cwd, config.projectAliases);
         const entry = repo.add({
           summary: check.summary,
@@ -112,6 +116,7 @@ export function buildProgram(io: CliIo): Command {
           tags: splitList(options.tags),
           resolves: splitList(options.resolves),
         });
+        relinkAfterWrite(journal, [entry.id]);
         io.out(chalk.green(`✓ Entry added! (${shortId(entry.id)})`));
         if (check.summary !== summary.trim()) {
           io.out(chalk.yellow('Note: summary was long, the rest went to details.'));
@@ -396,6 +401,19 @@ export function buildProgram(io: CliIo): Command {
     });
 
   program
+    .command('sync')
+    .description('Fetch your GitHub activity (PRs, commits, reviews) through the gh CLI')
+    .option('--since <date>', 'Start date (local day or ISO timestamp). Default: the last sync.')
+    .action(async (options: { since?: string }) => {
+      const since = options.since === undefined ? undefined : parseSince(options.since); // fail before the journal opens
+      const report = await withJournal((journal) =>
+        runSync(journal, io.gh ?? execGh(), { since, auto: false, now: new Date() }));
+      if (report.status === 'failed') throw new Error(report.warning ?? 'GitHub sync failed');
+      const line = syncSummaryLine(report);
+      io.out(report.status === 'partial' && report.warning ? `${line} ${report.warning}` : line);
+    });
+
+  program
     .command('mcp')
     .description('Start an MCP server exposing gournal entries, standup reports, and export as tools')
     .action(async () => {
@@ -412,6 +430,7 @@ export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<n
     cwd: io.cwd ?? process.cwd(),
     home: io.home ?? gournalHome(),
     isTTY: io.isTTY ?? process.stdin.isTTY === true,
+    gh: io.gh,
   };
   try {
     await buildProgram(full).parseAsync(argv);
