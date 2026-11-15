@@ -14,7 +14,8 @@
     "build": "tsc",
     "dev": "ts-node src/cli.ts",
     "test": "jest",
-    "lint": "depcruise src --config .dependency-cruiser.cjs"
+    "lint": "depcruise src --config .dependency-cruiser.cjs",
+    "check:dashes": "node scripts/check-dashes.mjs"
   },
   "keywords": [
     "journal",

@@ -3,3 +3,6 @@ node_modules/
 dist/
 .claude/
 .superpowers/
+site/node_modules/
+site/dist/
+site/.astro/

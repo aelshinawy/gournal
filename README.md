@@ -292,17 +292,17 @@ The plan file is JSON:
 `gournal mcp` starts an [MCP](https://modelcontextprotocol.io) server (stdio transport) that exposes your journal to AI agents like Claude Code. It reuses the same storage/report/export logic as the CLI, so agents see exactly what you'd see.
 
 Tools exposed:
-- `add_entry` — add an entry with `summary` (one line, max 120 characters), `details`, `kind`, `project`, `tags`, `refs`, and `resolves`
-- `update_entry` — change fields of an entry by id (full id or last 8 characters)
-- `delete_entry` — soft delete an entry (`gournal restore` brings it back)
-- `resolve_entry` — mark an open blocker or next entry as resolved
-- `list_entries` — list entries newest-first, filterable by `project`, `from`, `to`, capped by `limit` (default 50, max 500)
-- `find_entries` — search entries. Every filter is optional: `project`, `repo`, `tags`, `text` (every word must match), `kind`, `status`, `source`, `from`, `to`, `order`, and `limit` (default 50, max 500)
-- `get_standup` — generate a standup report (`yesterday` / `week` / `month`, filterable by `project`)
-- `export_entries` — export entries to `md` or `csv`
-- `get_work_log` — generate a chronological work log grouped by day (`yesterday` / `week` / `month`, filterable by `project`/`tags`)
-- `list_tags` — distinct tags with counts, filterable by `project`
-- `list_projects` — distinct projects with counts
+- `add_entry`: add an entry with `summary` (one line, max 120 characters), `details`, `kind`, `project`, `tags`, `refs`, and `resolves`
+- `update_entry`: change fields of an entry by id (full id or last 8 characters)
+- `delete_entry`: soft delete an entry (`gournal restore` brings it back)
+- `resolve_entry`: mark an open blocker or next entry as resolved
+- `list_entries`: list entries newest-first, filterable by `project`, `from`, `to`, capped by `limit` (default 50, max 500)
+- `find_entries`: search entries. Every filter is optional: `project`, `repo`, `tags`, `text` (every word must match), `kind`, `status`, `source`, `from`, `to`, `order`, and `limit` (default 50, max 500)
+- `get_standup`: generate a standup report (`yesterday` / `week` / `month`, filterable by `project`)
+- `export_entries`: export entries to `md` or `csv`
+- `get_work_log`: generate a chronological work log grouped by day (`yesterday` / `week` / `month`, filterable by `project`/`tags`)
+- `list_tags`: distinct tags with counts, filterable by `project`
+- `list_projects`: distinct projects with counts
 - `sync_activity`: fetch your GitHub activity through `gh` and link it to entries (`since` is optional)
 
 Every data tool also returns structured content that matches its `outputSchema`. The write tools return `{ entry, notes }`. `list_entries`, `list_tags`, and `list_projects` keep their JSON text. The report tools and `find_entries` return Markdown text. No MCP output contains ANSI codes. `export_entries` returns a document and has no `outputSchema`. When more entries exist than its `limit`, it adds a second text block with a notice.
