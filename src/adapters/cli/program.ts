@@ -15,7 +15,7 @@ import path from 'path';
 import os from 'os';
 import { VERSION } from '../version';
 import { clearConfirmQuestion } from './prompts';
-import { execFileRunner, setupClaude, type CommandRunner } from '../setup';
+import { execFileRunner, setupClaude, stopHook, type CommandRunner } from '../setup';
 import { openJournal, exportBundle, importBundle, backupDbIfNeeded, gournalHome, hasFts5, rebuildSearchIndex, importLegacy, applyPlan, renderPlanDiff } from '../../storage';
 import type { Journal, MigrationPlan } from '../../storage';
 
@@ -451,6 +451,24 @@ export function buildProgram(io: CliIo): Command {
         exec: io.exec ?? execFileRunner,
       }, { uninstall: options.uninstall === true, yes: options.yes === true, hook: options.hook === true });
       if (code !== 0) throw new CommanderError(code, 'gournal.setup', 'setup did not finish'); // setup already printed why
+    });
+
+  const hook = program.command('hook', { hidden: true }).description('Claude Code hook entry points');
+  hook
+    .command('stop')
+    .description('Stop hook: ask the agent to log edited work once per session')
+    .action(async () => {
+      // Never opens the database. Never fails: any error means no output and exit 0.
+      let stdin = '';
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
+        stdin = Buffer.concat(chunks).toString('utf8');
+      } catch {
+        return;
+      }
+      const result = await stopHook(stdin, io.home, new Date());
+      if (result !== null) io.out(result);
     });
 
   program
