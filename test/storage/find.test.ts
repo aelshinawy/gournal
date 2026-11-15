@@ -76,12 +76,17 @@ test('text matches details too', () => {
 });
 test('text with FTS syntax characters does not throw', () => {
   seed('Fixed "quoted" OR (grouped) a-b: c*');
-  for (const t of ['"quoted"', 'OR', '(grouped)', 'a-b:', 'c*', '"', 'it"s']) expect(() => repo.find({ text: t })).not.toThrow();
+  for (const t of ['"quoted"', 'OR', '(grouped)', 'a-b:', 'c*', '"', 'it"s', 'a\u0000b', '\u0000', 'hello\u0000']) expect(() => repo.find({ text: t })).not.toThrow();
   expect(repo.find({ text: '"quoted"' })).toHaveLength(1);
 });
-test('text of only punctuation matches nothing', () => {
-  seed('anything');
+ftsTest('text of only punctuation matches nothing with a live index', () => {
+  seed('has a " quote');
+  expect(repo.searchMode()).toBe('fts');
   expect(repo.find({ text: '"' })).toEqual([]);
+});
+test('a NUL inside a term still finds the cleaned term', () => {
+  seed('hello world');
+  if (repo.searchMode() === 'fts') expect(repo.find({ text: 'hel\u0000lo' })).toHaveLength(1);
 });
 ftsTest('text search falls back when the index is not live', () => {
   db.exec('DROP TRIGGER entries_fts_ai; DROP TRIGGER entries_fts_ad; DROP TRIGGER entries_fts_au');
@@ -117,5 +122,7 @@ test('match expression and like pattern helpers', () => {
   expect(ftsMatchExpression(['fts', 'it"s'])).toBe('"fts"* "it""s"*');
   expect(ftsMatchExpression(['"', 'ok'])).toBe('"ok"*');
   expect(ftsMatchExpression(['"'])).toBe('');
+  expect(ftsMatchExpression(['\u0000'])).toBe('');
+  expect(ftsMatchExpression(['a\u0000b'])).toBe('"ab"*');
   expect(likePattern('50%')).toBe('%50\\%%');
 });
