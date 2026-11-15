@@ -1,8 +1,9 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import type { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
+import { hasFts5, resetSearchIndexNotice } from '../../src/storage/schema';
 import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
 import { exportBundle, importBundle } from '../../src/storage/bundle';
@@ -21,6 +22,9 @@ beforeEach(() => {
 });
 afterEach(() => { restoreFlag(); fs.rmSync(dir, { recursive: true, force: true }); });
 
+const realFts5 = (d: DatabaseSync): boolean => {
+  try { d.exec('CREATE VIRTUAL TABLE temp.t5 USING fts5(a)'); return true; } catch { return false; }
+};
 const withoutFts = <T>(fn: () => T): T => {
   process.env[FLAG] = '1';
   try { return fn(); } finally { restoreFlag(); }
@@ -78,24 +82,45 @@ ftsTest('(b) a database created with FTS and opened without it loses its trigger
   });
 });
 
-ftsTest('(c) reopened with FTS, the triggers are back and rows written while FTS was off are searchable', () => {
+ftsTest('(c) an FTS opener does not recreate dropped triggers, and writes work in both modes', () => {
   const first = openDb(file);
-  createRepository(first, config, file).add({ summary: 'alpha', ...base });
+  const id = createRepository(first, config, file).add({ summary: 'alpha', ...base }).id;
   first.close();
-  const offId = withoutFts(() => {
-    const db = openDb(file);
-    try { return createRepository(db, config, file).add({ summary: 'zebracorn', ...base }).id; } finally { db.close(); }
-  });
+  withoutFts(() => openDb(file).close());
+
   const db = openDb(file);
   try {
-    expect(ftsTriggers(db)).toEqual(['entries_fts_ad', 'entries_fts_ai', 'entries_fts_au']);
-    expect(hits(db, 'zebracorn')).toEqual([offId]);
-    expect(hits(db, 'alpha')).toHaveLength(1);
-    // Triggers work again.
-    createRepository(db, config, file).update(offId, { summary: 'quokka' });
-    expect(hits(db, 'zebracorn')).toEqual([]);
-    expect(hits(db, 'quokka')).toEqual([offId]);
+    expect(ftsTriggers(db)).toEqual([]);
+    expect(ftsTable(db)).toBe(true);
+    createRepository(db, config, file).update(id, { summary: 'beta' });
+    createRepository(db, config, file).add({ summary: 'gamma', ...base });
   } finally { db.close(); }
+
+  withoutFts(() => {
+    const d = openDb(file);
+    try { createRepository(d, config, file).update(id, { summary: 'delta' }); } finally { d.close(); }
+  });
+});
+
+ftsTest('a no-FTS opener prints one notice per process when it drops the triggers', () => {
+  const write = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  try {
+    resetSearchIndexNotice();
+    for (const name of ['a.db', 'b.db']) {
+      const f = path.join(dir, name);
+      openDb(f).close();
+      withoutFts(() => openDb(f).close());
+    }
+    const notices = write.mock.calls.filter((c) => String(c[0]).includes('full-text index disabled'));
+    expect(notices).toHaveLength(1);
+    expect(String(notices[0][0])).toBe('gournal: full-text index disabled (this Node build has no FTS5)\n');
+  } finally { write.mockRestore(); }
+});
+
+test('GOURNAL_DISABLE_FTS5 is active only when it equals 1', () => {
+  process.env[FLAG] = '0';
+  const db = new DatabaseSync(':memory:');
+  try { expect(hasFts5(db)).toBe(realFts5(db)); } finally { db.close(); }
 });
 
 ftsTest('a database at schema v2 that already has entries_fts and triggers opens as a no-op', () => {
@@ -108,7 +133,7 @@ ftsTest('a database at schema v2 that already has entries_fts and triggers opens
     expect(ftsTriggers(db)).toEqual(['entries_fts_ad', 'entries_fts_ai', 'entries_fts_au']);
     expect(hits(db, 'alpha')).toHaveLength(1);
   } finally { db.close(); }
-  expect(fs.statSync(file).size).toBe(before.length);
+  expect(fs.readFileSync(file).equals(before)).toBe(true);
 });
 
 ftsTest('opening an up-to-date database with FTS takes no write lock', () => {
