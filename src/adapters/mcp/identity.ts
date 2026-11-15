@@ -1,5 +1,5 @@
 import path from 'path';
-import type { RepoIdentity } from '../core';
+import type { RepoIdentity } from '../../core';
 
 export interface IdentityDeps {
   identity: (cwd: string) => RepoIdentity;

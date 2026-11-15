@@ -11,3 +11,4 @@ export * from './identity';
 export * from './standup';
 export * from './worklog';
 export * from './stats';
+export type { EntryRepository } from './repository';

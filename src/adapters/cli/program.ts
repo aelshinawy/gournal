@@ -1,8 +1,9 @@
 import { Command, CommanderError } from 'commander';
 import chalk from 'chalk';
 import { resolveIdentity } from '../../sources';
-import { startMcpServer } from '../../mcp';
-import { buildStandup, buildStats, buildWorkLog, checkSummary, resolvePeriod, resolveQuery, shortId } from '../../core';
+import { startMcpServer } from '../mcp';
+import { standupModel, workLogModel } from '../reports';
+import { buildStats, checkSummary, resolveQuery, shortId } from '../../core';
 import type { Kind, Query, Status } from '../../core';
 import {
   entryLinesText, exportCsv, exportMarkdown, projectCountsText, standupText, statsText, tagCountsText, workLogText,
@@ -191,14 +192,9 @@ export function buildProgram(io: CliIo): Command {
     .option('--repo <owner/name>', 'Filter by repository')
     .option('-t, --tags <tags>', 'Comma-separated tags')
     .action(async (options: PeriodCliOptions) => {
-      // buildQuery validates --from and --to. The period (resolvePeriod) owns the bounds, so drop them from the base query.
-      const base: Query = { ...buildQuery(options), from: undefined, to: undefined };
+      buildQuery(options); // fail on a bad --from or --to before the journal opens
       await withJournal(({ repo, config }) => {
-        const now = new Date();
-        const period = resolvePeriod(options, now, config.weekStartsOn);
-        const done = repo.find({ ...base, kind: ['done'], from: period.start.toISOString(), to: period.end.toISOString() });
-        const open = repo.find({ ...base, kind: ['blocker', 'next'], status: 'open', to: period.end.toISOString() });
-        io.out(standupText(buildStandup({ period, done, open, now, staleAfterDays: config.staleAfterDays })));
+        io.out(standupText(standupModel(repo, config, { ...options, tags: splitList(options.tags) }, new Date())));
       });
     });
 
@@ -214,12 +210,9 @@ export function buildProgram(io: CliIo): Command {
     .option('--repo <owner/name>', 'Filter by repository')
     .option('-t, --tags <tags>', 'Comma-separated tags')
     .action(async (options: PeriodCliOptions) => {
-      // buildQuery validates --from and --to. The period (resolvePeriod) owns the bounds, so drop them from the base query.
-      const base: Query = { ...buildQuery(options), from: undefined, to: undefined };
+      buildQuery(options); // fail on a bad --from or --to before the journal opens
       await withJournal(({ repo, config }) => {
-        const period = resolvePeriod(options, new Date(), config.weekStartsOn);
-        const entries = repo.find({ ...base, from: period.start.toISOString(), to: period.end.toISOString() });
-        io.out(workLogText(buildWorkLog(period, entries)));
+        io.out(workLogText(workLogModel(repo, config, { ...options, tags: splitList(options.tags) }, new Date())));
       });
     });
 

@@ -2,12 +2,13 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
+import chalk from 'chalk';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 import { pathToFileURL } from 'url';
 import { ListRootsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { createServer, SERVER_INSTRUCTIONS, type ServerDeps } from '../src/mcp';
+import { createServer, SERVER_INSTRUCTIONS, type ServerDeps } from '../src/adapters/mcp';
 import { resolveIdentity } from '../src/sources';
 import type { NewEntryInput } from '../src/core';
 import { openJournal, type Journal } from '../src/storage/journal';
@@ -404,4 +405,172 @@ test('a multi-line summary is rejected with the one-line message', async () => {
   const r = await call('add_entry', { summary: 'Line one\nLine two', project: 'p' });
   expect(r.isError).toBe(true);
   expect(text(r)).toBe('summary must be one line, max 120. Put the rest in details.');
+});
+
+const daysAgo = (n: number): string => new Date(Date.now() - n * 86_400_000).toISOString();
+
+test('find_entries filters by kind and text and returns structured entries', async () => {
+  seed('Stuck on CI', { kind: 'blocker' }); seed('Shipped CI fix');
+  const r = await call('find_entries', { text: 'ci', kind: ['blocker'] });
+  expect(r.structuredContent.entries.map((e: any) => e.summary)).toEqual(['Stuck on CI']);
+  expect(r.structuredContent.count).toBe(1);
+  expect(text(r)).toContain('Stuck on CI (blocker, open)');
+});
+
+test('find_entries defaults to newest first and honours order, limit, status, source, and includeDeleted', async () => {
+  seed('one', { createdAt: '2026-07-13T10:00:00.000Z' });
+  seed('two', { createdAt: '2026-07-13T10:00:01.000Z', kind: 'blocker' });
+  const gone = seed('three', { createdAt: '2026-07-13T10:00:02.000Z', source: 'cli' });
+  journal.repo.softDelete(gone.id);
+  const names = (r: any) => r.structuredContent.entries.map((e: any) => e.summary);
+  expect(names(await call('find_entries'))).toEqual(['two', 'one']);
+  expect(names(await call('find_entries', { order: 'asc' }))).toEqual(['one', 'two']);
+  expect(names(await call('find_entries', { limit: 1 }))).toEqual(['two']);
+  expect(names(await call('find_entries', { status: 'open' }))).toEqual(['two']);
+  expect(names(await call('find_entries', { source: 'cli', includeDeleted: true }))).toEqual(['three']);
+  expect(names(await call('find_entries', { source: 'cli' }))).toEqual([]);
+});
+
+test('find_entries rejects a limit above 500', async () => {
+  const r = await call('find_entries', { limit: 501 });
+  expect(r.isError).toBe(true);
+});
+
+test('list_entries is newest first, keeps JSON text, and adds structured entries', async () => {
+  seed('a', { createdAt: '2026-07-13T10:00:00.000Z' });
+  seed('b', { createdAt: '2026-07-13T10:00:01.000Z' });
+  seed('c', { createdAt: '2026-07-13T10:00:02.000Z', tags: ['x'] });
+  const r = await call('list_entries', { limit: 2 });
+  expect(JSON.parse(text(r)).map((e: any) => e.summary)).toEqual(['c', 'b']);
+  expect(r.structuredContent.entries.map((e: any) => e.summary)).toEqual(['c', 'b']);
+  const tagged = await call('list_entries', { tags: ['x'] });
+  expect(JSON.parse(text(tagged)).map((e: any) => e.summary)).toEqual(['c']);
+});
+
+test('every data tool declares an outputSchema', async () => {
+  const { tools } = await client.listTools();
+  for (const n of ['find_entries', 'list_entries', 'get_standup', 'get_work_log', 'list_tags', 'list_projects', 'add_entry', 'update_entry', 'delete_entry', 'resolve_entry'])
+    expect(tools.find((t) => t.name === n)?.outputSchema).toBeDefined();
+  expect(tools.find((t) => t.name === 'export_entries')?.outputSchema).toBeUndefined();
+});
+
+test('write tools return structured entry and notes', async () => {
+  const a = await call('add_entry', { summary: 'first', project: 'p' });
+  expect(a.structuredContent.entry.summary).toBe('first');
+  expect(a.structuredContent.notes).toEqual([]);
+  const id = a.structuredContent.entry.id;
+  const b = await call('add_entry', { summary: 'second', project: 'p', resolves: ['ZZZZZZZZ'] });
+  expect(b.structuredContent.notes[0]).toContain('Could not resolve ZZZZZZZZ');
+  const u = await call('update_entry', { id: id.slice(-8), summary: 'first edited' });
+  expect(u.structuredContent.entry.summary).toBe('first edited');
+  const d = await call('delete_entry', { id: id.slice(-8) });
+  expect(d.structuredContent.entry.deletedAt).not.toBeNull();
+  seed('blk', { kind: 'blocker' });
+  const blk = journal.repo.find({ kind: ['blocker'] })[0];
+  const r = await call('resolve_entry', { id: blk.id.slice(-8) });
+  expect(r.structuredContent.entry.status).toBe('resolved');
+});
+
+test('error results have no structured content', async () => {
+  const r = await call('add_entry', { project: 'p' });
+  expect(r.isError).toBe(true);
+  expect(r.structuredContent).toBeUndefined();
+});
+
+test('get_standup returns sections in JSON and markdown', async () => {
+  seed('Old blocker', { kind: 'blocker', createdAt: daysAgo(2) });
+  seed('Did a thing');
+  const r = await call('get_standup');
+  expect(r.structuredContent.blockers).toHaveLength(1);
+  expect(r.structuredContent.done[0].entries[0].summary).toBe('Did a thing');
+  expect(text(r)).toContain('### Blockers');
+});
+
+test('get_standup carries an older open blocker forward even with from', async () => {
+  seed('Old blocker', { kind: 'blocker', createdAt: daysAgo(3) });
+  seed('Did a thing');
+  const today = new Date().toISOString().slice(0, 10);
+  const r = await call('get_standup', { from: today });
+  expect(r.structuredContent.blockers.map((e: any) => e.summary)).toEqual(['Old blocker']);
+  expect(r.structuredContent.done[0].entries.map((e: any) => e.summary)).toEqual(['Did a thing']);
+});
+
+test('get_standup accepts tags, from, and to', async () => {
+  seed('Tagged', { tags: ['bug'], createdAt: '2026-07-13T10:00:00.000Z' });
+  seed('Untagged', { createdAt: '2026-07-13T11:00:00.000Z' });
+  seed('Outside', { tags: ['bug'], createdAt: '2026-07-20T10:00:00.000Z' });
+  const r = await call('get_standup', { tags: ['bug'], from: '2026-07-13', to: '2026-07-14' });
+  expect(text(r)).toContain('Range (2026-07-13 - 2026-07-14)');
+  expect(text(r)).toContain('Tagged');
+  expect(text(r)).not.toContain('Untagged');
+  expect(text(r)).not.toContain('Outside');
+});
+
+test('get_work_log accepts from and to and returns structured days', async () => {
+  seed('In range', { createdAt: '2026-07-13T10:00:00.000Z' });
+  seed('Out of range', { createdAt: '2026-07-20T10:00:00.000Z' });
+  const r = await call('get_work_log', { from: '2026-07-13', to: '2026-07-14' });
+  expect(text(r)).toContain('In range');
+  expect(text(r)).not.toContain('Out of range');
+  expect(r.structuredContent.count).toBe(1);
+  expect(r.structuredContent.days[0].entries[0].summary).toBe('In range');
+});
+
+test('list_tags and list_projects return structured counts', async () => {
+  seed('a', { project: 'api', tags: ['bug'] });
+  expect((await call('list_tags')).structuredContent.tags).toEqual([{ tag: 'bug', count: 1 }]);
+  expect((await call('list_projects')).structuredContent.projects).toEqual([{ project: 'api', count: 1 }]);
+});
+
+test('export_entries caps at 200 by default, keeps the newest, and says so', async () => {
+  for (let i = 1; i <= 201; i++) seed(`Row ${String(i).padStart(3, '0')}`, { createdAt: new Date(Date.UTC(2026, 6, 13, 0, 0, i)).toISOString() });
+  const out = text(await call('export_entries', { format: 'csv' }));
+  const rows = out.split('\n');
+  expect(rows[0]).toContain('timestamp');
+  expect(out).not.toContain('Row 001');
+  expect(rows[1]).toContain('Row 002');
+  expect(out).toContain('Row 201');
+  expect(out.endsWith('\n(Showing the newest 200 entries. Pass limit or from/to for more.)')).toBe(true);
+});
+
+test('export_entries has no notice below the limit and accepts tags, from, to, and limit', async () => {
+  seed('A', { tags: ['t'], createdAt: '2026-07-13T10:00:00.000Z' });
+  seed('B', { createdAt: '2026-07-13T11:00:00.000Z' });
+  const out = text(await call('export_entries', { tags: ['t'], from: '2026-07-13', to: '2026-07-13' }));
+  expect(out).toContain('A');
+  expect(out).not.toContain('B');
+  expect(out).not.toContain('Showing the newest');
+  const capped = text(await call('export_entries', { limit: 1 }));
+  expect(capped).toContain('(Showing the newest 1 entries. Pass limit or from/to for more.)');
+  expect(capped).toContain('B');
+});
+
+describe('ANSI', () => {
+  const level = chalk.level;
+  afterEach(() => { chalk.level = level; });
+  test('no tool output contains ANSI with colour forced on', async () => {
+    chalk.level = 3;
+    seed('Old blocker', { kind: 'blocker', createdAt: daysAgo(30), tags: ['t'] });
+    seed('Done thing', { tags: ['t'] });
+    const calls: [string, Record<string, unknown>][] = [
+      ['add_entry', { summary: 'added', project: 'p' }],
+      ['find_entries', {}], ['list_entries', {}], ['get_standup', {}], ['get_work_log', {}],
+      ['list_tags', {}], ['list_projects', {}], ['export_entries', {}], ['export_entries', { format: 'csv' }],
+    ];
+    for (const [name, args] of calls) {
+      const r = await call(name, args);
+      expect(r.isError).toBeFalsy();
+      for (const block of r.content) expect(block.text).not.toContain('\x1b');
+      expect(JSON.stringify(r.structuredContent ?? null)).not.toContain('\x1b');
+    }
+  });
+});
+
+test('a bad from date is a tool error, not a protocol error', async () => {
+  for (const name of ['get_standup', 'get_work_log', 'export_entries', 'find_entries']) {
+    const r = await call(name, { from: 'soon' });
+    expect(r.isError).toBe(true);
+  }
+  const r = await call('get_standup', { from: 'soon' });
+  expect(text(r)).toContain('Invalid date: soon');
 });
