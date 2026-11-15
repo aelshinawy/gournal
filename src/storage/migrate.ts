@@ -12,15 +12,23 @@ const NO_PROJECT = 'uncategorized';
 
 const sha256 = (s: string): string => crypto.createHash('sha256').update(s).digest('hex');
 
-/** Fill defaults for a malformed item. The timestamp and message stay exactly as written when they are strings. */
-function sanitize(raw: unknown): LegacyEntry {
+/** A legacy item whose message was not a string. Its JSON text is kept in `message`. */
+type Sanitized = LegacyEntry & { nonStringMessage?: true };
+
+const MAX_MS = 2 ** 48 - 1;
+
+/** Fill defaults for a malformed item. Strings stay exactly as written. Nothing is dropped. */
+function sanitize(raw: unknown): Sanitized {
   const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
-  return {
+  const m = o.message;
+  const base = {
     timestamp: typeof o.timestamp === 'string' ? o.timestamp : '',
-    message: typeof o.message === 'string' ? o.message : '',
     project: typeof o.project === 'string' ? o.project : NO_PROJECT,
-    tags: Array.isArray(o.tags) ? o.tags.filter((t): t is string => typeof t === 'string') : [],
+    tags: Array.isArray(o.tags) ? o.tags.map((t) => (typeof t === 'string' ? t : String(t))) : [],
   };
+  if (typeof m === 'string') return { ...base, message: m };
+  if (m === undefined || m === null) return { ...base, message: '' };
+  return { ...base, message: JSON.stringify(m) ?? String(m), nonStringMessage: true };
 }
 
 /** Identity of each legacy item: (timestamp, sha256(message), occurrence among identical pairs in file order). */
@@ -36,14 +44,16 @@ export function legacyKey(entries: LegacyEntry[]): { index: number; timestamp: s
 }
 
 /** Mechanical conversion of one legacy item (spec 9.4.2). `index` is only used in the warning text. */
-export function mechanicalEntry(e: LegacyEntry, config: Config, index = 0): NewEntryInput {
+export function mechanicalEntry(e: Sanitized, config: Config, index = 0): NewEntryInput {
   const opts = { ticketPrefixes: config.ticketPrefixes };
   const blank = e.message.trim().length === 0;
-  const { summary, details } = blank ? { summary: NO_MESSAGE, details: null } : splitSummary(e.message);
+  const { summary, details } = e.nonStringMessage
+    ? { summary: NO_MESSAGE, details: e.message }
+    : blank ? { summary: NO_MESSAGE, details: null } : splitSummary(e.message);
   const { tags, refs: tagRefs } = normalizeTags(e.tags, config.tagAliases, opts);
   const ms = Date.parse(e.timestamp);
   let createdAt: string;
-  if (Number.isNaN(ms)) {
+  if (Number.isNaN(ms) || ms < 0 || ms > MAX_MS) {
     process.stderr.write(`gournal: legacy entry ${index} has an invalid timestamp; using import time\n`);
     createdAt = new Date().toISOString();
   } else {
@@ -56,7 +66,7 @@ export function mechanicalEntry(e: LegacyEntry, config: Config, index = 0): NewE
     source: 'migration',
     project: e.project,
     tags,
-    refs: mergeRefs(tagRefs, blank ? [] : extractRefs(e.message, opts)),
+    refs: mergeRefs(tagRefs, blank || e.nonStringMessage ? [] : extractRefs(e.message, opts)),
     createdAt,
   };
 }
@@ -71,30 +81,40 @@ export function importLegacy(
   config: Config,
   jsonPath: string
 ): { imported: number; alreadyPresent: number } {
-  let items: LegacyEntry[];
+  let items: Sanitized[];
   try {
     items = readLegacyEntriesSync(jsonPath).map(sanitize);
   } catch (err) {
-    const reason = err instanceof CorruptJournalError ? err.message : (err as Error).message;
-    process.stderr.write(`gournal: entries.json is not valid; legacy import skipped (${reason})\n`);
+    process.stderr.write(err instanceof CorruptJournalError
+      ? `gournal: entries.json is not valid; legacy import skipped (${err.message})\n`
+      : `gournal: entries.json could not be read; legacy import skipped (${(err as Error).message})\n`);
     return { imported: 0, alreadyPresent: 0 };
   }
   if (items.length === 0) return { imported: 0, alreadyPresent: 0 };
   const keys = legacyKey(items);
+  const mapKey = (t: string, h: string, o: number) => `${t}\u0000${h}\u0000${o}`;
+  const loadKnown = () => new Set(
+    (db.prepare('SELECT timestamp, message_hash, occurrence FROM legacy_map').all() as
+      { timestamp: string; message_hash: string; occurrence: number }[])
+      .map((r) => mapKey(r.timestamp, r.message_hash, r.occurrence))
+  );
+
+  // Fast path: nothing new means no write lock and no backup.
+  const first = loadKnown();
+  if (keys.every((k) => first.has(mapKey(k.timestamp, k.messageHash, k.occurrence)))) {
+    return { imported: 0, alreadyPresent: keys.length };
+  }
 
   const result = repo.transaction(() => {
-    const known = new Set(
-      (db.prepare('SELECT timestamp, message_hash, occurrence FROM legacy_map').all() as
-        { timestamp: string; message_hash: string; occurrence: number }[])
-        .map((r) => `${r.timestamp}\u0000${r.message_hash}\u0000${r.occurrence}`)
-    );
+    // Check again inside the lock: another process may have imported meanwhile.
+    const known = loadKnown();
     const insert = db.prepare(
       'INSERT INTO legacy_map (legacy_index, timestamp, message_hash, occurrence, entry_id) VALUES (?, ?, ?, ?, ?)'
     );
     let imported = 0;
     let alreadyPresent = 0;
     for (const k of keys) {
-      if (known.has(`${k.timestamp}\u0000${k.messageHash}\u0000${k.occurrence}`)) { alreadyPresent++; continue; }
+      if (known.has(mapKey(k.timestamp, k.messageHash, k.occurrence))) { alreadyPresent++; continue; }
       const entry = repo.add(mechanicalEntry(items[k.index], config, k.index));
       insert.run(k.index, k.timestamp, k.messageHash, k.occurrence, entry.id);
       imported++;

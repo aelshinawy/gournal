@@ -26,7 +26,14 @@ export function openJournal(home: string = gournalHome()): Journal {
   try {
     const repo = createRepository(db, config, dbPath);
     const jsonPath = path.join(home, 'entries.json');
-    if (fs.existsSync(jsonPath)) importLegacy(db, repo, config, jsonPath);
+    if (fs.existsSync(jsonPath)) {
+      try {
+        importLegacy(db, repo, config, jsonPath);
+      } catch (err) {
+        // The legacy import never blocks the journal. The next open retries it.
+        process.stderr.write(`gournal: legacy import failed; will retry (${(err as Error).message})\n`);
+      }
+    }
     return { repo, db, config, close: () => db.close() };
   } catch (err) {
     try { db.close(); } catch { /* ignore */ }

@@ -12,7 +12,8 @@ export interface ListQuery {
 export interface EntryRepository {
   /**
    * Run fn in one transaction. All writes inside commit together or not at all.
-   * A write inside fn joins the open transaction.
+   * A write inside fn joins the open transaction without a savepoint.
+   * After a failed write, the caller must not catch the error and continue inside fn.
    */
   transaction<T>(fn: () => T): T;
   add(input: NewEntryInput): Entry;

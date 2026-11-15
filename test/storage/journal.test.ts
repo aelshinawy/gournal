@@ -89,3 +89,25 @@ test('concurrent first start imports once', async () => {
   const raw = new DatabaseSync(path.join(home, 'gournal.db'));
   try { expect(raw.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' }); } finally { raw.close(); }
 }, 60_000);
+
+test('a failing legacy import never blocks the journal and is retried on the next open', () => {
+  fs.writeFileSync(jsonPath(), JSON.stringify(legacy(3)));
+  // Open once without entries.json so the schema exists, then add the trigger.
+  fs.renameSync(jsonPath(), jsonPath() + '.hold');
+  openJournal(home).close();
+  fs.renameSync(jsonPath() + '.hold', jsonPath());
+  const trig = new DatabaseSync(path.join(home, 'gournal.db'));
+  trig.exec("CREATE TRIGGER fail_map BEFORE INSERT ON legacy_map BEGIN SELECT RAISE(ABORT, 'injected'); END");
+  trig.close();
+  let j = openJournal(home);
+  try {
+    expect(stderr.mock.calls.map((c) => String(c[0])).join('')).toContain('gournal: legacy import failed; will retry (');
+    expect(j.repo.list()).toHaveLength(0);
+    expect(j.repo.add({ summary: 'still works', project: 'p', source: 'cli' }).id).toBeTruthy();
+  } finally { j.close(); }
+  const fix = new DatabaseSync(path.join(home, 'gournal.db'));
+  fix.exec('DROP TRIGGER fail_map');
+  fix.close();
+  j = openJournal(home);
+  try { expect(j.repo.list()).toHaveLength(4); } finally { j.close(); }
+});

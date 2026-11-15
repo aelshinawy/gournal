@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
-import type { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
 import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
@@ -124,14 +124,14 @@ describe('malformed items import with defaults', () => {
     importLegacy(db, repo, config, jsonPath);
     expect(repo.list().map((e) => e.project)).toEqual(['uncategorized', 'uncategorized']);
   });
-  test('non-array tags become empty and non-string tags are dropped', () => {
+  test('non-array tags become empty and non-string tags are kept as strings', () => {
     writeLegacy([
       { timestamp: '2026-01-01T00:00:00.000Z', message: 'a', project: 'p', tags: 'x' },
-      { timestamp: '2026-01-02T00:00:00.000Z', message: 'b', project: 'p', tags: ['ok', 3, null, { a: 1 }] },
+      { timestamp: '2026-01-02T00:00:00.000Z', message: 'b', project: 'p', tags: ['ok', 3, true] },
       { timestamp: '2026-01-03T00:00:00.000Z', message: 'c', project: 'p' },
     ]);
     importLegacy(db, repo, config, jsonPath);
-    expect(repo.list().map((e) => e.tags)).toEqual([[], ['ok'], []]);
+    expect(repo.list().map((e) => e.tags)).toEqual([[], ['ok', '3', 'true'], []]);
   });
   test('invalid timestamp uses import time, warns once, and keeps the written key', () => {
     writeLegacy([{ timestamp: 'not a date', message: 'a', project: 'p', tags: [] }]);
@@ -142,6 +142,25 @@ describe('malformed items import with defaults', () => {
     expect(errText()).toContain('gournal: legacy entry 0 has an invalid timestamp; using import time\n');
     expect(mapRows()[0].timestamp).toBe('not a date');
     expect(importLegacy(db, repo, config, jsonPath)).toEqual({ imported: 0, alreadyPresent: 1 });
+  });
+  test('a non-string message keeps its value in details', () => {
+    writeLegacy([{ timestamp: '2026-01-01T00:00:00.000Z', message: { a: [1, 2] }, project: 'p', tags: [] }]);
+    importLegacy(db, repo, config, jsonPath);
+    expect(repo.list()[0]).toMatchObject({ summary: '(no message)', details: '{"a":[1,2]}' });
+  });
+  test('a pre-1970 timestamp imports with the import time', () => {
+    writeLegacy([{ timestamp: '0026-07-28T14:35:23.997Z', message: 'old', project: 'p', tags: [] }]);
+    const before = Date.now();
+    expect(importLegacy(db, repo, config, jsonPath).imported).toBe(1);
+    expect(Date.parse(repo.list()[0].createdAt)).toBeGreaterThanOrEqual(before);
+    expect(errText()).toContain('legacy entry 0 has an invalid timestamp');
+    expect(mapRows()[0].timestamp).toBe('0026-07-28T14:35:23.997Z');
+  });
+  test('a timestamp past 2^48 ms imports with the import time', () => {
+    writeLegacy([{ timestamp: '+012000-01-01T00:00:00.000Z', message: 'far', project: 'p', tags: [] }]);
+    const before = Date.now();
+    expect(importLegacy(db, repo, config, jsonPath).imported).toBe(1);
+    expect(Date.parse(repo.list()[0].createdAt)).toBeGreaterThanOrEqual(before);
   });
   test('a missing timestamp and a non-object item still import', () => {
     writeLegacy([{ message: 'no ts', project: 'p', tags: [] }, null, 'str']);
@@ -185,6 +204,42 @@ test('a failure mid-import leaves zero entries and zero legacy_map rows', () => 
   expect(repo.list({ includeDeleted: true })).toHaveLength(0);
   expect(mapRows()).toHaveLength(0);
   expect(importLegacy(db, repo, config, jsonPath).imported).toBe(5);
+});
+
+test('an unreadable path prints the could-not-be-read line', () => {
+  fs.mkdirSync(jsonPath);
+  expect(importLegacy(db, repo, config, jsonPath)).toEqual({ imported: 0, alreadyPresent: 0 });
+  expect(errText()).toMatch(/^gournal: entries\.json could not be read; legacy import skipped \(.*\)\n$/);
+});
+
+test('migration applies projectAliases and tagAliases', () => {
+  config.projectAliases['old-proj'] = 'new-proj';
+  config.tagAliases['perf'] = 'performance';
+  writeLegacy([{ timestamp: '2026-01-01T00:00:00.000Z', message: 'a', project: 'old-proj', tags: ['Perf'] }]);
+  importLegacy(db, repo, config, jsonPath);
+  expect(repo.list()[0]).toMatchObject({ project: 'new-proj', tags: ['performance'] });
+});
+
+test('an old clear that rewrote entries.json to [] imports nothing and deletes nothing', () => {
+  writeLegacy([legacyA, legacyB]);
+  importLegacy(db, repo, config, jsonPath);
+  writeLegacy([]);
+  expect(importLegacy(db, repo, config, jsonPath)).toEqual({ imported: 0, alreadyPresent: 0 });
+  expect(repo.list()).toHaveLength(2);
+  expect(mapRows()).toHaveLength(2);
+});
+
+test('an import with nothing new takes no write lock', () => {
+  writeLegacy([legacyA]);
+  importLegacy(db, repo, config, jsonPath);
+  const other = new DatabaseSync(path.join(home, 'gournal.db'));
+  try {
+    other.exec('BEGIN IMMEDIATE');
+    const t = Date.now();
+    expect(importLegacy(db, repo, config, jsonPath)).toEqual({ imported: 0, alreadyPresent: 1 });
+    expect(Date.now() - t).toBeLessThan(1000);
+    other.exec('ROLLBACK');
+  } finally { other.close(); }
 });
 
 test('entries.json is never modified', () => {
