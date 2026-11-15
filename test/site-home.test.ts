@@ -57,7 +57,9 @@ describeBuilt('built homepage', () => {
 
   test('the demo video has a poster, WebM then MP4, and a transcript', () => {
     const video = /<video[^>]*>[\s\S]*?<\/video>/.exec(html)?.[0] ?? '';
-    for (const attr of ['autoplay', 'muted', 'loop', 'playsinline']) expect(video).toMatch(new RegExp(`\\s${attr}[\\s>=]`));
+    for (const attr of ['muted', 'loop', 'playsinline']) expect(video).toMatch(new RegExp(`\\s${attr}[\\s>=]`));
+    // No autoplay in markup: the script starts the loop together with its pause control (WCAG 2.2.2).
+    expect(video).not.toMatch(/\sautoplay[\s>=]/);
     expect(video).toContain('poster="/gournal/demo/standup-poster.png"');
     expect(video.indexOf('standup.webm')).toBeGreaterThan(-1);
     expect(video.indexOf('standup.webm')).toBeLessThan(video.indexOf('standup.mp4'));

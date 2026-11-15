@@ -8,6 +8,10 @@
   --h-plate: #1d1912;
   --h-plate-ink: #f1eadc;
   --h-plate-rule: #4d4535;
+  /* The plate is dark in both themes, so controls on it use the dark-theme focus and accent values. */
+  --h-plate-focus: #7db4f0;
+  --h-plate-accent: #e8885c;
+  --h-plate-ink-strong: #fffaf2;
   --h-wrap: 76rem;
   --h-gutter: clamp(1rem, 0.4rem + 3vw, 3rem);
   --h-ease: var(--g-ease-out);
@@ -503,15 +507,20 @@ p {
     bottom: var(--g-space-3);
     margin-top: 0;
   }
+
+  .g-demo__frame .g-demo__toggle:focus-visible {
+    outline-color: var(--h-plate-focus);
+  }
 }
 
 .g-demo__toggle:hover {
-  border-color: #e8885c;
-  color: #fffaf2;
+  border-color: var(--h-plate-accent);
+  color: var(--h-plate-ink-strong);
 }
 
+/* Below 40rem the ring sits on paper: the theme focus token. From 40rem it sits on the plate. */
 .g-demo__toggle:focus-visible {
-  outline: 2px solid #7db4f0;
+  outline: 2px solid var(--g-focus);
   outline-offset: 2px;
 }
 

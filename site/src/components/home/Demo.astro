@@ -6,7 +6,7 @@ const marks = [
   { top: 12.5, text: 'Done, grouped by project' },
   { top: 23.8, text: 'A PR and its commits, from GitHub' },
   { top: 53.7, text: 'Open items carry forward' },
-  { top: 76.2, text: 'GitHub activity not linked to an entry above' }
+  { top: 76.2, text: 'GitHub activity not linked to a done entry' }
 ];
 ---
 
@@ -16,11 +16,10 @@ const marks = [
     <div class="g-demo__plate">
       <video
         class="g-demo__video"
-        autoplay
         muted
         loop
         playsinline
-        preload="auto"
+        preload="metadata"
         poster={poster}
         width="920"
         height="1000"
@@ -53,8 +52,9 @@ const marks = [
 </figure>
 
 <script>
-  // The demo loops, so it needs a pause control (WCAG 2.2.2).
-  // Reduced motion: stop the loop and show the poster frame. CSS also swaps in the still image and hides the control.
+  // The demo loops, so it needs a pause control (WCAG 2.2.2). The markup has no autoplay:
+  // the script starts the loop and shows the control together. With no script, the poster stays.
+  // Reduced motion: the loop never starts. CSS also swaps in the still image and hides the control.
   const video = document.querySelector<HTMLVideoElement>('[data-demo-video]');
   const toggle = document.querySelector<HTMLButtonElement>('[data-demo-toggle]');
   const label = toggle?.querySelector<HTMLElement>('[data-demo-label]');
@@ -70,7 +70,6 @@ const marks = [
   function apply(): void {
     if (!video) return;
     if (reduce.matches) {
-      video.removeAttribute('autoplay');
       video.pause();
     } else if (video.paused && !userPaused) {
       void video.play().catch(() => undefined);
