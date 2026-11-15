@@ -36,23 +36,23 @@ Add a journal entry. Pass `project` explicitly whenever you know it, and pass `c
 
 ### Input
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `summary` | `string` | no | One line, max 120 characters. A longer summary is split into details when you pass `details`, or when you retry a summary with the same first 60 characters within 10 minutes. Otherwise the server rejects it. |
-| `message` | `string` | no | Deprecated alias for summary. Use summary instead. |
-| `details` | `string` | no | Longer text for this entry. Use it when the summary needs more room. |
-| `kind` | `"done" \| "blocker" \| "next"` | no | Entry kind: done (default), blocker (something stops you), or next (a planned step). Default: `"done"`. |
-| `project` | `string` | no | Project name for this entry. Pass it explicitly. Do not rely on the server working directory. |
-| `repo` | `string` | no | Repository name, for example owner/name. |
-| `branch` | `string` | no | Git branch name. |
-| `cwd` | `string` | no | Your working directory. Gournal derives project, repo, and branch from it. |
-| `agent` | `string` | no | Name of the calling agent. Gournal stores it with the entry. |
-| `tags` | `string[]` | no | Tags for this entry. Reuse existing tags (list_tags). |
-| `refs` | `object[]` | no | References such as PRs and ticket keys. Put them here, not in tags. |
-| `refs.type` | `"pr" \| "jira" \| "commit" \| "url"` | yes | Kind of reference: a PR, a Jira key, a commit, or a URL. |
-| `refs.value` | `string` | yes | The PR number, ticket key, commit hash, or URL. |
-| `refs.repo` | `string` | no | Repository (owner/name) of the PR or commit. |
-| `resolves` | `string[]` | no | Ids of open blocker or next entries that this entry closes. Use the full id or the last 8 characters. The server drops an unknown id, and the result carries a note. |
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `summary` | `string` | no |  | One line, max 120 characters. A longer summary is split into details when you pass `details`, or when you retry a summary with the same first 60 characters within 10 minutes. Otherwise the server rejects it. |
+| `message` | `string` | no |  | Deprecated alias for summary. Use summary instead. |
+| `details` | `string` | no |  | Longer text for this entry. Use it when the summary needs more room. |
+| `kind` | `"done" \| "blocker" \| "next"` | no | `"done"` | Entry kind: done (default), blocker (something stops you), or next (a planned step). |
+| `project` | `string` | no |  | Project name for this entry. Pass it explicitly. Do not rely on the server working directory. |
+| `repo` | `string` | no |  | Repository name, for example owner/name. |
+| `branch` | `string` | no |  | Git branch name. |
+| `cwd` | `string` | no |  | Your working directory. Gournal derives project, repo, and branch from it. |
+| `agent` | `string` | no |  | Name of the calling agent. Gournal stores it with the entry. |
+| `tags` | `string[]` | no |  | Tags for this entry. Reuse existing tags (list_tags). |
+| `refs` | `object[]` | no |  | References such as PRs and ticket keys. Put them here, not in tags. |
+| `refs.type` | `"pr" \| "jira" \| "commit" \| "url"` | yes |  | Kind of reference: a PR, a Jira key, a commit, or a URL. |
+| `refs.value` | `string` | yes |  | The PR number, ticket key, commit hash, or URL. |
+| `refs.repo` | `string` | no |  | Repository (owner/name) of the PR or commit. |
+| `resolves` | `string[]` | no |  | Ids of open blocker or next entries that this entry closes. Use the full id or the last 8 characters. The server drops an unknown id, and the result carries a note. |
 
 ### Output
 

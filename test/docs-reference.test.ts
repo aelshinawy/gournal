@@ -146,6 +146,22 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createDocsServer, schemaRows } from '../site/scripts/reference/mcp';
 
+describe('MCP defaults', () => {
+  test('MCP input tables have a Default column when a field has a default', async () => {
+    const search = await get('search.md');
+    expect(search).toContain('| Field | Type | Required | Default | Description |');
+    expect(search).toMatch(/^\| `limit` \| .+ \| no \| `\d+` \| /m);
+    // A table with no defaults has no Default column.
+    expect(await get('edit.md')).toContain('| Field | Type | Required | Description |');
+  });
+
+  test('no MCP description contains "Default:"', async () => {
+    for (const p of await generateReference({ examplesDir })) {
+      if (p.path === 'output-shapes.md' || /\n## MCP tool/.test(p.content)) expect(p.content).not.toContain('Default:');
+    }
+  });
+});
+
 describe('MCP reference', () => {
   const toolNames = async (): Promise<string[]> => {
     const { server } = createDocsServer();
@@ -176,7 +192,7 @@ describe('MCP reference', () => {
     expect(add).toMatch(/^\| `refs.value` \| `string` \| yes \|/m);
     expect(add).toMatch(/^\| `tags` \| `string\[\]` \| no \|/m);
     expect(schemaRows({ type: 'object', required: ['a'], properties: { a: { type: 'string', description: 'x|y' }, b: { type: ['integer', 'null'] } } } as never))
-      .toEqual([['`a`', '`string`', 'yes', 'x|y'], ['`b`', '`integer | null`', 'no', '']]);
+      .toEqual([['`a`', '`string`', 'yes', '', 'x|y'], ['`b`', '`integer | null`', 'no', '', '']]);
   });
 
   test('shared output shapes appear once and tool sections link to them', async () => {

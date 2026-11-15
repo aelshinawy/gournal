@@ -40,20 +40,20 @@ Search journal entries. Every filter is optional, and filters combine.
 
 ### Input
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `project` | `string` | no | Only entries of this project. |
-| `repo` | `string` | no | Only entries of this repository (owner/name). |
-| `tags` | `string[]` | no | Only entries that have all of these tags. |
-| `text` | `string` | no | Search words. Every word must match. |
-| `kind` | `("done" \| "blocker" \| "next")[]` | no | Only entries of these kinds: done, blocker, or next. |
-| `status` | `"open" \| "resolved"` | no | Only open or only resolved entries. |
-| `source` | `"cli" \| "mcp" \| "migration"` | no | Only entries that came from this source. |
-| `from` | `string` | no | Only entries from this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
-| `to` | `string` | no | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
-| `limit` | `integer` | no | Most entries to return. The maximum is 500. Default: `50`. |
-| `order` | `"asc" \| "desc"` | no | desc puts the newest entries first. asc puts the oldest first. Default: `"desc"`. |
-| `includeDeleted` | `boolean` | no | Also return entries that you removed. |
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `project` | `string` | no |  | Only entries of this project. |
+| `repo` | `string` | no |  | Only entries of this repository (owner/name). |
+| `tags` | `string[]` | no |  | Only entries that have all of these tags. |
+| `text` | `string` | no |  | Search words. Every word must match. |
+| `kind` | `("done" \| "blocker" \| "next")[]` | no |  | Only entries of these kinds: done, blocker, or next. |
+| `status` | `"open" \| "resolved"` | no |  | Only open or only resolved entries. |
+| `source` | `"cli" \| "mcp" \| "migration"` | no |  | Only entries that came from this source. |
+| `from` | `string` | no |  | Only entries from this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
+| `to` | `string` | no |  | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
+| `limit` | `integer` | no | `50` | Most entries to return. The maximum is 500. |
+| `order` | `"asc" \| "desc"` | no | `"desc"` | desc puts the newest entries first. asc puts the oldest first. |
+| `includeDeleted` | `boolean` | no |  | Also return entries that you removed. |
 
 ### Output
 
