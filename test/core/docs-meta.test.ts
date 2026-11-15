@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { CONFIG_DEFAULTS, normalizeConfig } from '../../src/core/config';
 import { CONFIG_KEY_DOCS, ENV_VAR_DOCS } from '../../src/core/docs-meta';
 
@@ -45,7 +47,21 @@ test('descriptor defaults match CONFIG_DEFAULTS', () => {
 });
 
 test('env descriptors cover the supported variables only', () => {
-  expect(ENV_VAR_DOCS.map((v) => v.name).sort()).toEqual(['GOURNAL_GH', 'GOURNAL_HOME', 'GOURNAL_NO_AUTOSYNC']);
+  const used = new Set<string>();
+  const walk = (dir: string): void => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith('.ts')) {
+        const text = fs.readFileSync(p, 'utf8');
+        for (const m of text.matchAll(/process\.env(?:\.|\[\s*['"])(GOURNAL_\w+)/g)) used.add(m[1]);
+      }
+    }
+  };
+  walk(path.join(__dirname, '..', '..', 'src'));
+  for (const testOnly of ['GOURNAL_REAL_HOME', 'GOURNAL_TEST_HOME_ROOT']) used.delete(testOnly);
+  expect(used.size).toBeGreaterThan(0);
+  expect(ENV_VAR_DOCS.map((v) => v.name).sort()).toEqual([...used].sort());
 });
 
 test('descriptions are one or two sentences with no em dash', () => {
