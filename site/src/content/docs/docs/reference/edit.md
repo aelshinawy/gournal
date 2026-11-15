@@ -38,7 +38,7 @@ Fix the summary of an entry, replace its tags, and add a pull request reference.
 
 ```json
 {
-  "id": "HSWY5QWK",
+  "id": "D12ZERTC",
   "summary": "Document the invoice export endpoint and its limits",
   "tags": [
     "docs",
@@ -57,7 +57,7 @@ Fix the summary of an entry, replace its tags, and add a pull request reference.
 The text result:
 
 ```text
-Entry HSWY5QWK updated: Document the invoice export endpoint and its limits
+Entry D12ZERTC updated: Document the invoice export endpoint and its limits
 ```
 
 The structured result:
@@ -65,11 +65,11 @@ The structured result:
 ```json
 {
   "entry": {
-    "id": "01M7GHRBRPCWFZY93MHSWY5QWK",
-    "createdAt": "2026-11-15T21:28:03.094Z",
-    "updatedAt": "2026-11-15T21:28:09.129Z",
+    "id": "01M7GEMT0G42PWG95KD12ZERTC",
+    "createdAt": "2026-11-15T20:33:40.880Z",
+    "updatedAt": "2026-11-15T21:55:47.781Z",
     "deletedAt": null,
-    "deviceId": "01M7GHRBRG66M23MA4RN24EN4V",
+    "deviceId": "01M7GKAYPB65ZWS81V3FBKVF3W",
     "summary": "Document the invoice export endpoint and its limits",
     "details": null,
     "kind": "done",

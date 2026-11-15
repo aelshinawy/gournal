@@ -43,22 +43,29 @@ git('remote', 'add', 'origin', 'https://github.com/acme/billing-api.git');
 const journal = openJournal(home);
 try {
   const { repo } = journal;
+  // Spaced timestamps keep the entry order the same on every re-record. Times are relative to now.
+  let minutesAgo = 110;
+  const at = (): string => {
+    const t = new Date(Date.now() - minutesAgo * 60_000).toISOString();
+    minutesAgo -= 14;
+    return t;
+  };
   const billing = { project: 'billing-api', repo: 'acme/billing-api', branch: 'fix/invoice-rounding', source: 'mcp' as const };
   const worker = { project: 'worker', repo: 'acme/worker', branch: 'main', source: 'mcp' as const };
 
   // billing-api: 5 entries. The first has a pr ref, so a sync of PR 412 links to it. Tags: review 2, ui 1, docs 1.
-  repo.add({ ...billing, summary: 'Fix rounding error in invoice totals', tags: ['review'],
+  repo.add({ ...billing, createdAt: at(), summary: 'Fix rounding error in invoice totals', tags: ['review'],
     details: 'Totals were off by one cent when a discount applied after tax.',
     refs: [{ type: 'pr', value: '412', repo: 'acme/billing-api' }] });
-  repo.add({ ...billing, summary: 'Add keyboard focus styles to the invoice date picker', tags: ['ui'] });
-  repo.add({ ...billing, summary: 'Document the invoice export endpoint', tags: ['docs'] });
+  repo.add({ ...billing, createdAt: at(), summary: 'Add keyboard focus styles to the invoice date picker', tags: ['ui'] });
+  repo.add({ ...billing, createdAt: at(), summary: 'Document the invoice export endpoint', tags: ['docs'] });
   // worker: 3 entries. Tags: ui 2, docs 1, review 1.
-  repo.add({ ...worker, summary: 'Move the settings page to the new form components', tags: ['ui'] });
-  repo.add({ ...worker, summary: 'Document the retry policy for webhooks', tags: ['docs'] });
-  repo.add({ ...worker, summary: 'Review the queue backoff change', tags: ['review', 'ui'] });
+  repo.add({ ...worker, createdAt: at(), summary: 'Move the settings page to the new form components', tags: ['ui'] });
+  repo.add({ ...worker, createdAt: at(), summary: 'Document the retry policy for webhooks', tags: ['docs'] });
+  repo.add({ ...worker, createdAt: at(), summary: 'Review the queue backoff change', tags: ['review', 'ui'] });
   // One open blocker and one open next item, both in billing-api.
-  repo.add({ ...billing, summary: 'Cannot reproduce the failing webhook retry in staging', kind: 'blocker' });
-  repo.add({ ...billing, summary: 'Add a regression test for tax rounding', kind: 'next', tags: ['review'] });
+  repo.add({ ...billing, createdAt: at(), summary: 'Cannot reproduce the failing webhook retry in staging', kind: 'blocker' });
+  repo.add({ ...billing, createdAt: at(), summary: 'Add a regression test for tax rounding', kind: 'next', tags: ['review'] });
 } finally {
   journal.close();
 }

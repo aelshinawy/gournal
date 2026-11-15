@@ -14,8 +14,8 @@ Find done and next entries that match a word.
 The text result:
 
 ```markdown
-- 2026-11-15 23:28 `VN86G0RV` [billing-api] Add a regression test for tax rounding #review (next, open)
-- 2026-11-15 23:28 `66CE7C23` [billing-api] Fix rounding error in invoice totals #review
+- 2026-11-15 23:43 `48HE4S3P` [billing-api] Add a regression test for tax rounding #review (next, open)
+- 2026-11-15 22:05 `757FDB8A` [billing-api] Fix rounding error in invoice totals #review
 ```
 
 The structured result lists each entry with all of its fields. This example shows the first entry only.
@@ -24,11 +24,11 @@ The structured result lists each entry with all of its fields. This example show
 {
   "entries": [
     {
-      "id": "01M7GHRBRQWCBPVDN2VN86G0RV",
-      "createdAt": "2026-11-15T21:28:03.095Z",
-      "updatedAt": "2026-11-15T21:28:03.095Z",
+      "id": "01M7GJMZJHR4G9D9E848HE4S3P",
+      "createdAt": "2026-11-15T21:43:40.881Z",
+      "updatedAt": "2026-11-15T21:55:40.881Z",
       "deletedAt": null,
-      "deviceId": "01M7GHRBRG66M23MA4RN24EN4V",
+      "deviceId": "01M7GKAYPB65ZWS81V3FBKVF3W",
       "summary": "Add a regression test for tax rounding",
       "details": null,
       "kind": "next",

@@ -157,13 +157,19 @@ const json = (v: unknown) => JSON.stringify(v, null, 2);
 async function mcp(name: string, fn: (call: (n: string, a: Record<string, unknown>) => Promise<any>, home: string) => Promise<void>) {
   const home = fresh(name);
   process.env.GOURNAL_NO_AUTOSYNC = '1';
+  const saved = { HOME: process.env.HOME, GOURNAL_HOME: process.env.GOURNAL_HOME };
+  process.env.HOME = home;
+  process.env.GOURNAL_HOME = home;
   const journal = openJournal(home);
   const server = createServer({ journal });
   const [ct, st] = InMemoryTransport.createLinkedPair();
   const c = new Client({ name: 'docs', version: '1.0.0' });
   await Promise.all([c.connect(ct), server.connect(st)]);
   const call = (n: string, a: Record<string, unknown>) => c.callTool({ name: n, arguments: a }) as Promise<any>;
-  try { await fn(call, home); } finally { journal.close(); }
+  try { await fn(call, home); } finally {
+    journal.close();
+    for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  }
 }
 
 async function mcpAll() {

@@ -2,15 +2,15 @@ Delete an entry. The entry stays in the database. The text result tells you the 
 
 ```json
 {
-  "id": "HSWY5QWK"
+  "id": "D12ZERTC"
 }
 ```
 
 The text result:
 
 ```text
-Entry HSWY5QWK removed: Document the invoice export endpoint
-restore with gournal restore HSWY5QWK
+Entry D12ZERTC removed: Document the invoice export endpoint
+restore with gournal restore D12ZERTC
 ```
 
 The structured result has the same shape as the `add_entry` result. The `deletedAt` field holds the time of the deletion.
@@ -18,11 +18,11 @@ The structured result has the same shape as the `add_entry` result. The `deleted
 ```json
 {
   "entry": {
-    "id": "01M7GHRBRPCWFZY93MHSWY5QWK",
-    "createdAt": "2026-11-15T21:28:03.094Z",
-    "updatedAt": "2026-11-15T21:28:08.774Z",
-    "deletedAt": "2026-11-15T21:28:08.774Z",
-    "deviceId": "01M7GHRBRG66M23MA4RN24EN4V",
+    "id": "01M7GEMT0G42PWG95KD12ZERTC",
+    "createdAt": "2026-11-15T20:33:40.880Z",
+    "updatedAt": "2026-11-15T21:55:47.422Z",
+    "deletedAt": "2026-11-15T21:55:47.422Z",
+    "deviceId": "01M7GKAYPB65ZWS81V3FBKVF3W",
     "summary": "Document the invoice export endpoint",
     "details": null,
     "kind": "done",

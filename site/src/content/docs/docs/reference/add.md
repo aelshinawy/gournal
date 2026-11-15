@@ -66,17 +66,17 @@ Add an entry. Gournal prints the short id of the new entry.
 
 ```console
 $ gournal add "Fix the stale totals in the invoice PDF" -t review,docs -d "The PDF showed the total before the discount."
-✓ Entry added! (4SCM1Z7V)
+✓ Entry added! (FHF9F7X1)
 ```
 
 Add a blocker or a next item with `--kind`. Gournal takes the project, repo, and branch from the current directory.
 
 ```console
 $ gournal add "Cannot reproduce the failing PDF render in staging" -k blocker -t review
-✓ Entry added! (HHCYCZ9R)
+✓ Entry added! (8Z95DKQ8)
 
 $ gournal add "Add a regression test for PDF totals" -k next -t review,docs
-✓ Entry added! (ZZYCAS64)
+✓ Entry added! (AJ2BSNZ8)
 ```
 
 ### MCP
@@ -106,7 +106,7 @@ Log a finished piece of work. Pass `project` and `cwd`.
 The text result:
 
 ```text
-Entry 75STEM6Q added to billing-api: Fix the stale totals in the invoice PDF
+Entry AXG17ZBH added to billing-api: Fix the stale totals in the invoice PDF
 ```
 
 The structured result:
@@ -114,11 +114,11 @@ The structured result:
 ```json
 {
   "entry": {
-    "id": "01M7GHRH51FPHH309F75STEM6Q",
-    "createdAt": "2026-11-15T21:28:08.609Z",
-    "updatedAt": "2026-11-15T21:28:08.609Z",
+    "id": "01M7GKB4XMS67T9RERAXG17ZBH",
+    "createdAt": "2026-11-15T21:55:47.252Z",
+    "updatedAt": "2026-11-15T21:55:47.252Z",
     "deletedAt": null,
-    "deviceId": "01M7GHRBRG66M23MA4RN24EN4V",
+    "deviceId": "01M7GKAYPB65ZWS81V3FBKVF3W",
     "summary": "Fix the stale totals in the invoice PDF",
     "details": "The PDF showed the total before the discount.",
     "kind": "done",

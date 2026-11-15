@@ -88,20 +88,20 @@ Standup: Today (2026-11-15)
 
   Done
   billing-api
-  23:28  Add keyboard focus styles to the invoice date picker
-  23:28  Fix rounding error in invoice totals
-  23:28  Document the invoice export endpoint
+  22:05  Fix rounding error in invoice totals
+  22:19  Add keyboard focus styles to the invoice date picker
+  22:33  Document the invoice export endpoint
 
   worker
-  23:28  Move the settings page to the new form components
-  23:28  Review the queue backoff change
-  23:28  Document the retry policy for webhooks
+  22:47  Move the settings page to the new form components
+  23:01  Document the retry policy for webhooks
+  23:15  Review the queue backoff change
 
   Blockers
-    Nov 15  CZJBZWY7  Cannot reproduce the failing webhook retry in staging  [billing-api]
+    Nov 15  ZY40X9DE  Cannot reproduce the failing webhook retry in staging  [billing-api]
 
   Next
-    Nov 15  VN86G0RV  Add a regression test for tax rounding  [billing-api]
+    Nov 15  48HE4S3P  Add a regression test for tax rounding  [billing-api]
 ```
 
 ### MCP
@@ -122,15 +122,15 @@ The text result:
 ### Done
 
 **billing-api**
-- 23:28 Add keyboard focus styles to the invoice date picker
-- 23:28 Fix rounding error in invoice totals
-- 23:28 Document the invoice export endpoint
+- 22:05 Fix rounding error in invoice totals
+- 22:19 Add keyboard focus styles to the invoice date picker
+- 22:33 Document the invoice export endpoint
 
 ### Blockers
-- `CZJBZWY7` Cannot reproduce the failing webhook retry in staging (billing-api, since Nov 15)
+- `ZY40X9DE` Cannot reproduce the failing webhook retry in staging (billing-api, since Nov 15)
 
 ### Next
-- `VN86G0RV` Add a regression test for tax rounding (billing-api, since Nov 15)
+- `48HE4S3P` Add a regression test for tax rounding (billing-api, since Nov 15)
 ```
 
 The structured result holds the same data as JSON. This example shows the entries as `...` to stay short.
@@ -139,7 +139,7 @@ The structured result holds the same data as JSON. This example shows the entrie
 {
   "title": "Today (2026-11-15)",
   "start": "2026-11-14T22:00:00.000Z",
-  "end": "2026-11-15T21:28:08.793Z",
+  "end": "2026-11-15T21:55:47.440Z",
   "isMultiDay": false,
   "done": [
     {
