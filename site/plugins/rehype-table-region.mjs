@@ -7,6 +7,7 @@ const HEADINGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
 export function rehypeTableRegion() {
   return () => {
     let heading = '';
+    const seen = new Map();
     return {
       name: 'gournal-table-region',
       element: {
@@ -17,14 +18,19 @@ export function rehypeTableRegion() {
             return;
           }
           const name = heading || ctx.data.astro?.frontmatter?.title;
+          const base = name ? `${name} table` : 'Table';
+          const n = (seen.get(base) ?? 0) + 1;
+          seen.set(base, n);
+          // The reference overview tables share one header. Mark them so CSS can give them equal proportions.
+          const overview = ctx.textContent(node).replace(/\s+/g, '').startsWith('TaskCLIMCPtool');
           ctx.wrapNode(node, {
             type: 'element',
             tagName: 'div',
             properties: {
-              className: ['g-table'],
+              className: overview ? ['g-table', 'g-table--overview'] : ['g-table'],
               role: 'region',
               tabIndex: 0,
-              ariaLabel: name ? `${name} table` : 'Table'
+              ariaLabel: n === 1 ? base : `${base} ${n}`
             },
             children: []
           });

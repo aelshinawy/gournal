@@ -135,6 +135,29 @@ starlight-toc a[aria-current='true'] {
   overflow-wrap: anywhere;
 }
 
+/* The reference overview tables: same full width and same column proportions in every group. */
+.sl-markdown-content .g-table--overview table {
+  table-layout: fixed;
+  min-width: 40rem;
+}
+
+.sl-markdown-content .g-table--overview :is(th, td) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sl-markdown-content .g-table--overview :is(th, td):first-child {
+  width: 28%;
+}
+
+.sl-markdown-content .g-table--overview :is(th, td):nth-child(2) {
+  width: 40%;
+}
+
+.sl-markdown-content .g-table--overview :is(th, td):nth-child(3) {
+  width: 32%;
+}
+
 /* Tables scroll in their own focusable box (.g-table, added by rehype-table-region). */
 .sl-markdown-content .g-table {
   max-width: 100%;

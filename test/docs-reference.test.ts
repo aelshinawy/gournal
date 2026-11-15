@@ -401,11 +401,26 @@ describe('capability pages, carry-over fixes', () => {
   test('writeReference works when the reference folder does not exist yet', async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-ref-empty-'));
     try {
-      await expect(writeReference(tmp)).resolves.toBeDefined();
+      const result = await writeReference(tmp);
+      expect(result.written).toContain('index.md');
+      expect(fs.existsSync(path.join(tmp, REFERENCE_DIR, 'index.md'))).toBe(true);
+      expect(fs.existsSync(path.join(tmp, 'src/generated/reference-sidebar.json'))).toBe(true);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
   });
+});
+
+test('writeReference removes an empty folder under the reference folder', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-ref-empty-dir-'));
+  try {
+    const stale = path.join(tmp, REFERENCE_DIR, 'old-section', 'nested');
+    fs.mkdirSync(stale, { recursive: true });
+    await writeReference(tmp);
+    expect(fs.existsSync(path.join(tmp, REFERENCE_DIR, 'old-section'))).toBe(false);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 describe('reference sidebar and overview', () => {

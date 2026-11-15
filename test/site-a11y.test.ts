@@ -45,7 +45,7 @@ describe('built pages', () => {
       for (const m of html.matchAll(/<table\b/g)) {
         tables++;
         const before = html.slice(0, m.index);
-        const open = before.lastIndexOf('<div class="g-table"');
+        const open = before.lastIndexOf('<div class="g-table');
         const wrapper = html.slice(open, before.length);
         const ok = open !== -1 && /role="region"/.test(wrapper) && /tabindex="0"/.test(wrapper) && /aria-label="[^"]+"/.test(wrapper) && !wrapper.includes('</div>');
         if (!ok) bad.push(path.relative(dist, f));

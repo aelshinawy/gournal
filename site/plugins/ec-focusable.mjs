@@ -14,7 +14,7 @@ function findPre(node) {
 
 // Expressive Code gives the hook no heading context, only the source path and the block index.
 // So read the Markdown source and list the nearest preceding heading for each fenced block.
-function headingsPerBlock(source) {
+export function headingsPerBlock(source) {
   const lines = source.replace(/^---\n[\s\S]*?\n---\n/, '').split('\n');
   const title = source.match(/^title:\s*['"]?(.+?)['"]?\s*$/m)?.[1] ?? '';
   const out = [];
@@ -33,7 +33,7 @@ function headingsPerBlock(source) {
     }
     if (fence) continue;
     const h = line.match(/^#{1,6}\s+(.+?)\s*#*\s*$/);
-    if (h) heading = h[1].replace(/[`*_]/g, '');
+    if (h) heading = h[1].replace(/[`*]/g, '');
   }
   return out;
 }
