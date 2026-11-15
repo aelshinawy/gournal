@@ -2,8 +2,8 @@ Remove the last entry that you added on this device. The command prints the id t
 
 ```console
 $ gournal add "Draft the release notes for 2.4" -t docs
-✓ Entry added! (JGMXAJBK)
+✓ Entry added! (J16Z2MHF)
 
 $ gournal undo
-✓ Removed: Draft the release notes for 2.4 (restore with gournal restore JGMXAJBK)
+✓ Removed: Draft the release notes for 2.4 (restore with gournal restore J16Z2MHF)
 ```

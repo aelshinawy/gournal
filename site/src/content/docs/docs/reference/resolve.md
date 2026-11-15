@@ -49,17 +49,17 @@ Standup: Today (2026-11-15)
 
   Done
   billing-api
-  23:25  Fix rounding error in invoice totals
-  23:25  Add keyboard focus styles to the invoice date picker
-  23:25  Document the invoice export endpoint
+  23:28  Add keyboard focus styles to the invoice date picker
+  23:28  Fix rounding error in invoice totals
+  23:28  Document the invoice export endpoint
 
   Blockers
-    Nov 15  G7Z7E298  Cannot reproduce the failing webhook retry in staging  [billing-api]
+    Nov 15  CZJBZWY7  Cannot reproduce the failing webhook retry in staging  [billing-api]
 
   Next
-    Nov 15  RMGKJSHY  Add a regression test for tax rounding  [billing-api]
+    Nov 15  VN86G0RV  Add a regression test for tax rounding  [billing-api]
 
-$ gournal resolve G7Z7E298
+$ gournal resolve CZJBZWY7
 ✓ Resolved: Cannot reproduce the failing webhook retry in staging
 
 $ gournal standup -p billing-api
@@ -68,12 +68,12 @@ Standup: Today (2026-11-15)
 
   Done
   billing-api
-  23:25  Fix rounding error in invoice totals
-  23:25  Add keyboard focus styles to the invoice date picker
-  23:25  Document the invoice export endpoint
+  23:28  Add keyboard focus styles to the invoice date picker
+  23:28  Fix rounding error in invoice totals
+  23:28  Document the invoice export endpoint
 
   Next
-    Nov 15  RMGKJSHY  Add a regression test for tax rounding  [billing-api]
+    Nov 15  VN86G0RV  Add a regression test for tax rounding  [billing-api]
 ```
 
 ### MCP
@@ -82,14 +82,14 @@ Resolve an open next item. Pass the short id.
 
 ```json
 {
-  "id": "RMGKJSHY"
+  "id": "VN86G0RV"
 }
 ```
 
 The text result:
 
 ```text
-Entry RMGKJSHY resolved: Add a regression test for tax rounding
+Entry VN86G0RV resolved: Add a regression test for tax rounding
 ```
 
 The structured result:
@@ -97,16 +97,16 @@ The structured result:
 ```json
 {
   "entry": {
-    "id": "01M7GHKAQ0P2Q6EZZTRMGKJSHY",
-    "createdAt": "2026-11-15T21:25:18.176Z",
-    "updatedAt": "2026-11-15T21:25:24.026Z",
+    "id": "01M7GHRBRQWCBPVDN2VN86G0RV",
+    "createdAt": "2026-11-15T21:28:03.095Z",
+    "updatedAt": "2026-11-15T21:28:08.965Z",
     "deletedAt": null,
-    "deviceId": "01M7GHKAPQKFY3HJP9QB2X8Q2X",
+    "deviceId": "01M7GHRBRG66M23MA4RN24EN4V",
     "summary": "Add a regression test for tax rounding",
     "details": null,
     "kind": "next",
     "status": "resolved",
-    "resolvedAt": "2026-11-15T21:25:24.026Z",
+    "resolvedAt": "2026-11-15T21:28:08.965Z",
     "resolvedByEntryId": null,
     "project": "billing-api",
     "repo": "acme/billing-api",

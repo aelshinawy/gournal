@@ -17,7 +17,16 @@ import { openJournal } from '../../../src/storage/journal';
 const R = path.resolve(__dirname, '../../..');
 const argv = process.argv.slice(2);
 const WRITE = argv.includes('--write');
-const workArg = argv.indexOf('--work') >= 0 ? argv[argv.indexOf('--work') + 1] : undefined;
+const workAt = argv.indexOf('--work');
+const workArg = workAt >= 0 ? argv[workAt + 1] : undefined;
+if (workAt >= 0 && (!workArg || workArg.startsWith('--'))) {
+  process.stderr.write('record: --work needs a folder\n');
+  process.exit(2);
+}
+if (workArg && fs.existsSync(workArg) && fs.readdirSync(workArg).length > 0) {
+  process.stderr.write(`record: --work folder ${workArg} is not empty\n`);
+  process.exit(2);
+}
 
 const realHome = os.userInfo().homedir;
 const S = path.resolve(workArg ?? fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-examples-')));
@@ -35,13 +44,17 @@ const OUT = WRITE ? path.join(R, 'site/src/content/examples') : STAGE;
 fs.mkdirSync(path.join(OUT, 'cli'), { recursive: true });
 fs.mkdirSync(path.join(OUT, 'mcp'), { recursive: true });
 
-// A scratch bin folder holds a `gournal` link. The PATH drops every folder that holds a `claude` program.
+// A scratch bin folder holds a `gournal` link and a `node` link.
+// The `setup claude` runs use only that folder plus the system folders, so no `claude` program is found.
 fs.mkdirSync(path.join(S, 'bin'), { recursive: true });
 fs.rmSync(path.join(S, 'bin/gournal'), { force: true });
 fs.symlinkSync(path.join(R, 'dist/cli.js'), path.join(S, 'bin/gournal'));
 fs.chmodSync(path.join(R, 'dist/cli.js'), 0o755);
+fs.rmSync(path.join(S, 'bin/node'), { force: true });
+fs.symlinkSync(process.execPath, path.join(S, 'bin/node'));
 const FAKE_GH = path.join(R, 'site/scripts/examples/fake-gh.js');
-const PATHV = [path.join(S, 'bin'), ...(process.env.PATH ?? '').split(':').filter((p) => p && !fs.existsSync(path.join(p, 'claude')))].join(':');
+const PATHV = [path.join(S, 'bin'), process.env.PATH ?? ''].join(':');
+const NO_CLAUDE_PATH = `${path.join(S, 'bin')}:/usr/bin:/bin`;
 
 // Seed once. Every example copies this seed.
 const base = path.join(S, 'base');
@@ -135,8 +148,8 @@ function main() {
 
   h = fresh('setup');
   const sub = (t: string) => t.split(h).join('/Users/you');
-  const c1 = sub(cli(h, 'gournal setup claude --yes --hook'));
-  const c2 = sub(cli(h, 'gournal setup claude --yes'));
+  const c1 = sub(cli(h, 'gournal setup claude --yes --hook', { PATH: NO_CLAUDE_PATH }));
+  const c2 = sub(cli(h, 'gournal setup claude --yes', { PATH: NO_CLAUDE_PATH }));
   w('cli/setup-claude.md', `Set gournal up for Claude Code. This example ran with a fresh home folder that has no claude CLI. The command prints the step that you run yourself, and it writes the skill and the Stop hook.\n\n${block('console', c1)}\n\nRun the command again. The skill step now reports that it is already set up.\n\n${block('console', c2)}`);
 }
 
@@ -203,7 +216,7 @@ async function mcpAll() {
     const id = shortOf(home, 'Document the invoice export endpoint');
     const input = { id, summary: 'Document the invoice export endpoint and its limits', tags: ['docs', 'review'], refs: [{ type: 'pr', value: '415', repo: 'acme/billing-api' }] };
     const r = await call('update_entry', input);
-    w('mcp/update_entry.md', `Fix the summary of an entry, replace its tags, and add a pull request reference. Fields that you omit stay as they are. The \`details\` text below stays the same.\n\n${block('json', json(input))}\n\nThe text result:\n\n${block('text', r.content[0].text)}\n\nThe structured result:\n\n${block('json', json(r.structuredContent))}`);
+    w('mcp/update_entry.md', `Fix the summary of an entry, replace its tags, and add a pull request reference. Fields that you omit stay as they are.\n\n${block('json', json(input))}\n\nThe text result:\n\n${block('text', r.content[0].text)}\n\nThe structured result:\n\n${block('json', json(r.structuredContent))}`);
   });
 }
 
