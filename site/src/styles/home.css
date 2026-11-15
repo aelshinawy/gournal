@@ -468,8 +468,61 @@ p {
   color: var(--g-ink-muted);
 }
 
+/* Pause control: set into the plate corner on wide screens, below the plate on phones. Plate ink either way. */
+.g-demo__frame {
+  position: relative;
+  max-width: 36rem;
+}
+
+.g-demo__toggle {
+  margin-top: var(--g-space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--g-space-2);
+  min-height: 2.75rem;
+  padding: 0 var(--g-space-4);
+  border: 1px solid var(--h-plate-rule);
+  border-radius: var(--g-radius);
+  background: var(--h-plate);
+  color: var(--h-plate-ink);
+  font-family: var(--g-font-ui);
+  font-size: var(--g-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--g-duration) var(--h-ease), color var(--g-duration) var(--h-ease);
+}
+
+.g-demo__toggle[hidden] {
+  display: none;
+}
+
+@media (min-width: 40rem) {
+  .g-demo__toggle {
+    position: absolute;
+    right: var(--g-space-3);
+    bottom: var(--g-space-3);
+    margin-top: 0;
+  }
+}
+
+.g-demo__toggle:hover {
+  border-color: #e8885c;
+  color: #fffaf2;
+}
+
+.g-demo__toggle:focus-visible {
+  outline: 2px solid #7db4f0;
+  outline-offset: 2px;
+}
+
+.g-demo__toggle[data-state='paused'] .g-demo__icon--pause,
+.g-demo__toggle:not([data-state='paused']) .g-demo__icon--play {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .g-demo__video {
+  .g-demo__video,
+  .g-demo__toggle {
     display: none;
   }
 
