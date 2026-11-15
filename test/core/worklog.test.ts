@@ -1,5 +1,5 @@
 import { buildWorkLog, resolvePeriod } from '../../src/core';
-import { makeEntry } from './factory';
+import { makeActivity, makeEntry } from './factory';
 
 const now = new Date(2026, 10, 15, 12);
 const week = resolvePeriod({ week: true }, now, 1);
@@ -21,4 +21,13 @@ test('days ascend, entries ascend within a day, outside entries drop, counts are
   expect(m.count).toBe(3);
   expect(m.projectCount).toBe(2);
   expect(m.title).toBe(week.title);
+});
+
+test('work log keeps linked activity for entries in the period only', () => {
+  const inside = makeEntry({ createdAt: new Date(2026, 10, 15, 9) });
+  const outside = makeEntry({ createdAt: new Date(2026, 10, 1, 9) });
+  const act = makeActivity({ type: 'commit' });
+  expect(buildWorkLog(week, [inside, outside]).linked).toEqual({});
+  const m = buildWorkLog(week, [inside, outside], { [inside.id]: [act], [outside.id]: [act] });
+  expect(m.linked).toEqual({ [inside.id]: [act] });
 });

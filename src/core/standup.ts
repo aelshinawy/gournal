@@ -1,6 +1,8 @@
 import type { Period } from './periods';
 import type { Entry } from './types';
 import { groupBy } from './group';
+import { activityCounts } from './activity';
+import type { Activity, ActivityCounts } from './activity';
 
 export const shortId = (id: string): string => id.slice(-8);
 
@@ -9,13 +11,23 @@ export interface StandupModel {
   done: { project: string; entries: Entry[] }[];
   blockers: Entry[]; next: Entry[];
   stale: { count: number; ids: string[]; days: number };
+  /** Activity linked to an entry, by entry id. */
+  linked: Record<string, Activity[]>;
+  /** Activity with no entry. Null when there is none. */
+  also: { activity: Activity[]; counts: ActivityCounts } | null;
 }
 
 const DAY_MS = 86_400_000;
 const byCreatedAt = (a: Entry, b: Entry): number => Date.parse(a.createdAt) - Date.parse(b.createdAt);
 
-export function buildStandup(input: { period: Period; done: Entry[]; open: Entry[]; now: Date; staleAfterDays: number }): StandupModel {
+export function buildStandup(input: {
+  period: Period; done: Entry[]; open: Entry[]; now: Date; staleAfterDays: number;
+  linked?: Record<string, Activity[]>; unlinked?: Activity[];
+}): StandupModel {
   const { period, now, staleAfterDays } = input;
+  const linked = input.linked ?? {};
+  const linkedIds = new Set(Object.values(linked).flatMap((list) => list.map((a) => a.id)));
+  const free = (input.unlinked ?? []).filter((a) => !linkedIds.has(a.id));
   const done = input.done.filter((e) => e.kind === 'done');
   const end = period.end.getTime();
   const open = input.open
@@ -34,9 +46,11 @@ export function buildStandup(input: { period: Period; done: Entry[]; open: Entry
     blockers: fresh.filter((e) => e.kind === 'blocker'),
     next: fresh.filter((e) => e.kind === 'next'),
     stale: { count: stale.length, ids: stale.map((e) => shortId(e.id)), days: staleAfterDays },
+    linked,
+    also: free.length > 0 ? { activity: free, counts: activityCounts(free) } : null,
   };
 }
 
 export function isEmptyStandup(m: StandupModel): boolean {
-  return m.done.length === 0 && m.blockers.length === 0 && m.next.length === 0 && m.stale.count === 0;
+  return m.done.length === 0 && m.blockers.length === 0 && m.next.length === 0 && m.stale.count === 0 && m.also === null;
 }

@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { buildStandup, buildWorkLog, resolvePeriod } from '../../src/core';
 import { entriesMarkdown, exportCsv, exportMarkdown, standupMarkdown, standupJson, workLogMarkdown, workLogJson } from '../../src/render';
-import { makeEntry } from '../core/factory';
+import { makeActivity, makeEntry } from '../core/factory';
 
 const now = new Date(2026, 10, 15, 12, 0, 0);
 const at = (d: number, h: number, m = 0) => new Date(2026, 10, d, h, m, 0);
@@ -84,5 +84,49 @@ describe('markdown renderers', () => {
       ];
       for (const o of outputs) expect(o).not.toContain('\x1b');
     } finally { chalk.level = level; }
+  });
+
+  describe('activity', () => {
+    const mergedPr4 = makeActivity({ type: 'pr_merged', repo: 'acme/gournal', pr: 4, title: 'Phase 2 layers' });
+    const commits = [1, 2, 3].map(() => makeActivity({ type: 'commit', repo: 'acme/gournal' }));
+    const merged327 = makeActivity({ type: 'pr_merged', repo: 'acme/widgets', pr: 327, title: 'Add widget cache' });
+    const reviewed412 = makeActivity({ type: 'review', repo: 'octo/app', pr: 412, title: 'Fix login redirect' });
+    const withActivity = buildStandup({
+      period, done: [done], open: [], now, staleAfterDays: 14,
+      linked: { [done.id]: [mergedPr4, ...commits] }, unlinked: [mergedPr4, ...commits, merged327, reviewed412],
+    });
+
+    test('no activity looks as before', () => {
+      const plain = buildStandup({ period, done: [done], open: [], now, staleAfterDays: 14 });
+      expect(standupMarkdown({ ...plain, linked: {}, also: null })).toBe(standupMarkdown(plain));
+      expect(standupMarkdown(plain)).toBe('## Standup: Today (2026-11-15)\n\n### Done\n\n**gournal**\n- 10:30 Shipped find\n');
+    });
+
+    test('markdown uses the collapsed form and sub-bullets', () => {
+      expect(standupMarkdown(withActivity)).toBe([
+        '## Standup: Today (2026-11-15)', '', '### Done', '', '**gournal**',
+        '- 10:30 Shipped find',
+        '  - merged #4 Phase 2 layers',
+        '  - 3 commits', '',
+        '- Also: 1 PR merged, 1 review in 2 repos',
+        '  - merged acme/widgets#327 Add widget cache',
+        '  - reviewed octo/app#412 Fix login redirect', '',
+      ].join('\n'));
+    });
+
+    test('work log folds linked activity as sub-bullets', () => {
+      const log = workLogMarkdown(buildWorkLog(period, [done], { [done.id]: [mergedPr4, commits[0]] }));
+      expect(log).toContain('- 10:30 `ABCD1234` Shipped find [gournal] #release\n  - merged #4 Phase 2 layers\n  - 1 commit\n');
+      expect(log).not.toContain('Also');
+    });
+
+    test('markdown and json stay free of ANSI with activity', () => {
+      const level = chalk.level;
+      chalk.level = 3;
+      try {
+        expect(standupMarkdown(withActivity)).not.toContain('\x1b');
+        expect(JSON.stringify(standupJson(withActivity))).not.toContain('\x1b');
+      } finally { chalk.level = level; }
+    });
   });
 });
