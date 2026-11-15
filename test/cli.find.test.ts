@@ -8,7 +8,7 @@ test('find rejects an invalid --from even when the journal is empty', () => {
   const res = spawnSync(
     process.execPath,
     ['-r', 'ts-node/register/transpile-only', 'src/cli.ts', 'find', 'x', '--from', 'garbage'],
-    { cwd: path.join(__dirname, '..'), env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8' }
+    { cwd: path.join(__dirname, '..'), env: { ...process.env, GOURNAL_HOME: home, HOME: home, USERPROFILE: home }, encoding: 'utf8' }
   );
   expect(res.status).toBe(1);
   expect(res.stderr).toContain('Invalid date: garbage');

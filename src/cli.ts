@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { readEntries, updateEntries } from './storage';
 import { getProjectName } from './git';
 import { generateStandupReport } from './report';
 import { generateWorkLog } from './log';
 import { generateStats, countBy } from './stats';
 import { generateCsvExport, generateMarkdownExport } from './export';
 import { startMcpServer } from './mcp';
-import { filterByProject, filterByTags } from './util/entries.util';
-import type { Entry } from './types';
+import { checkSummary } from './core';
+import type { Kind } from './core';
+import { toLegacy } from './legacy-view';
 import { format } from 'date-fns';
 import inquirer from 'inquirer';
 import fs from 'fs-extra';
@@ -18,11 +18,28 @@ import { parseBound } from './util/date-bounds.util';
 import { clearConfirmQuestion } from './prompts';
 import path from 'path';
 import { openJournal } from './storage/journal';
+import type { Journal } from './storage/journal';
+import { exportBundle, importBundle } from './storage/bundle';
+import { backupDbIfNeeded } from './storage/backup';
 import { gournalHome } from './storage/home';
 import { importLegacy, applyPlan, renderPlanDiff } from './storage/migrate';
 import type { MigrationPlan } from './storage/migrate';
 
 const program = new Command();
+
+const KINDS: Kind[] = ['done', 'blocker', 'next'];
+const shortId = (id: string): string => id.slice(-8);
+const splitList = (v?: string): string[] => (v ? v.split(',').map(x => x.trim()).filter(Boolean) : []);
+
+/** Open the journal once for a command and close it when the command ends. */
+const withJournal = async <T>(fn: (journal: Journal) => T | Promise<T>): Promise<T> => {
+  const journal = openJournal();
+  try {
+    return await fn(journal);
+  } finally {
+    journal.close();
+  }
+};
 
 program
   .name('gournal')
@@ -30,51 +47,85 @@ program
   .version(VERSION);
 
 program
-  .command('add <message>')
+  .command('add <summary>')
   .description('Add a new journal entry')
   .option('-t, --tags <tags>', 'Comma-separated tags', '')
-  .action(async (message: string, { tags }: { tags: string }) => {
-    const entry: Entry = {
-      timestamp: new Date().toISOString(),
-      message,
-      project: getProjectName(),
-      tags: tags.split(',').filter(Boolean),
-    };
-    
-    await updateEntries(e => [...e, entry]);
-    console.log(chalk.green('✓ Entry added!'));
+  .option('-d, --details <text>', 'Longer text for this entry')
+  .option('-k, --kind <kind>', 'done (default), blocker, or next')
+  .option('--resolves <ids>', 'Comma-separated ids of open blocker or next entries that this entry closes')
+  .action(async (summary: string, options: { tags: string; details?: string; kind?: string; resolves?: string }) => {
+    if (options.kind !== undefined && !KINDS.includes(options.kind as Kind)) {
+      throw new Error(`Unknown kind "${options.kind}". Use done, blocker, or next.`);
+    }
+    const check = checkSummary(summary, options.details, { allowSplit: true });
+    if (!check.ok) throw new Error(check.error);
+    await withJournal(({ repo }) => {
+      const entry = repo.add({
+        summary: check.summary,
+        details: check.details,
+        kind: options.kind as Kind | undefined,
+        project: getProjectName(),
+        source: 'cli',
+        tags: splitList(options.tags),
+        resolves: splitList(options.resolves),
+      });
+      console.log(chalk.green(`✓ Entry added! (${shortId(entry.id)})`));
+      if (check.summary !== summary.trim()) {
+        console.log(chalk.yellow('Note: summary was long, the rest went to details.'));
+      }
+    });
   });
 
-  program
-    .command('clear')
-    .description('Clear all journal entries')
-    .action(async () => {
+program
+  .command('clear')
+  .description('Clear all journal entries')
+  .action(async () => {
+    await withJournal(async ({ repo }) => {
       const { confirm } = await inquirer.prompt([
         { ...clearConfirmQuestion, message: chalk.red(clearConfirmQuestion.message) },
       ]);
       if (!confirm) return;
-      await updateEntries(() => []);
-      console.log(chalk.green('✓ Entries cleared!'));
+      const count = repo.softDeleteAll();
+      console.log(chalk.green(`✓ Cleared ${count} entries (restore any with gournal restore <id>).`));
     });
+  });
 
-  program
-    .command('undo')
-    .description('Remove the most recently added journal entry')
-    .action(async () => {
-      let removed: Entry | undefined;
-      await updateEntries(e => {
-        if (e.length === 0) return e;
-        removed = e[e.length - 1];
-        return e.slice(0, -1);
-      });
-      if (!removed) {
+program
+  .command('undo')
+  .description('Remove the most recently added journal entry')
+  .action(async () => {
+    await withJournal(({ repo }) => {
+      const latest = repo.latestForDevice();
+      if (!latest) {
         console.log(chalk.yellow('No entries to undo.'));
         return;
       }
-      console.log(chalk.green(`✓ Removed: ${(removed as Entry).message}`));
+      const removed = repo.softDelete(latest.id);
+      console.log(chalk.green(`✓ Removed: ${removed.summary} (restore with gournal restore ${shortId(removed.id)})`));
     });
+  });
 
-  program
+program
+  .command('restore <id>')
+  .description('Restore a removed journal entry (full id or last 8 characters)')
+  .action(async (id: string) => {
+    await withJournal(({ repo }) => {
+      const entry = repo.restore(id);
+      console.log(chalk.green(`✓ Restored: ${entry.summary}`));
+    });
+  });
+
+program
+  .command('resolve <id>')
+  .description('Mark an open blocker or next entry as resolved (full id or last 8 characters)')
+  .action(async (id: string) => {
+    await withJournal(({ repo }) => {
+      const entry = repo.resolve(id);
+      console.log(chalk.green(`✓ Resolved: ${entry.summary}`));
+    });
+  });
+
+program
   .command('standup')
   .description('Generate standup report')
   .option('-y, --yesterday', 'Include yesterday\'s entries')
@@ -83,9 +134,10 @@ program
   .option('-p, --project <project>', 'Filter by project name')
   .option('-t, --tags <tags>', 'Comma-separated tags')
   .action(async (options) => {
-    let entries = filterByProject(await readEntries(), options.project);
-    entries = filterByTags(entries, options.tags ? options.tags.split(',').filter(Boolean) : undefined);
-    console.log(generateStandupReport(entries, options));
+    await withJournal(({ repo }) => {
+      const entries = repo.list({ project: options.project, tags: splitList(options.tags) }).map(e => toLegacy(e));
+      console.log(generateStandupReport(entries, options));
+    });
   });
 
 program
@@ -97,9 +149,10 @@ program
   .option('-p, --project <project>', 'Filter by project name')
   .option('-t, --tags <tags>', 'Comma-separated tags')
   .action(async (options) => {
-    let entries = filterByProject(await readEntries(), options.project);
-    entries = filterByTags(entries, options.tags ? options.tags.split(',').filter(Boolean) : undefined);
-    console.log(generateWorkLog(entries, options));
+    await withJournal(({ repo }) => {
+      const entries = repo.list({ project: options.project, tags: splitList(options.tags) }).map(e => ({ ...toLegacy(e), id: e.id }));
+      console.log(generateWorkLog(entries, options));
+    });
   });
 
 program
@@ -107,61 +160,96 @@ program
   .description('Show entry counts by project/tag and your current daily streak')
   .option('-p, --project <project>', 'Filter by project name')
   .action(async (options) => {
-    const entries = filterByProject(await readEntries(), options.project);
-    console.log(generateStats(entries));
+    await withJournal(({ repo }) => {
+      const entries = repo.list({ project: options.project }).map(e => toLegacy(e));
+      console.log(generateStats(entries));
+    });
   });
 
 program
   .command('tags')
   .description('List distinct tags with entry counts')
   .action(async () => {
-    const entries = await readEntries();
-    const counts = countBy(entries.flatMap(e => e.tags));
-    if (counts.length === 0) {
-      console.log(chalk.yellow('No tags found.'));
-      return;
-    }
-    counts.forEach(([tag, count]) => console.log(`${chalk.magenta(`#${tag}`)}  ${count}`));
+    await withJournal(({ repo }) => {
+      const counts = countBy(repo.list().flatMap(e => e.tags));
+      if (counts.length === 0) {
+        console.log(chalk.yellow('No tags found.'));
+        return;
+      }
+      counts.forEach(([tag, count]) => console.log(`${chalk.magenta(`#${tag}`)}  ${count}`));
+    });
   });
 
 program
   .command('projects')
   .description('List distinct projects with entry counts')
   .action(async () => {
-    const entries = await readEntries();
-    const counts = countBy(entries.map(e => e.project));
-    if (counts.length === 0) {
-      console.log(chalk.yellow('No projects found.'));
-      return;
-    }
-    counts.forEach(([project, count]) => console.log(`${chalk.blue(project)}  ${count}`));
+    await withJournal(({ repo }) => {
+      const counts = countBy(repo.list().map(e => e.project));
+      if (counts.length === 0) {
+        console.log(chalk.yellow('No projects found.'));
+        return;
+      }
+      counts.forEach(([project, count]) => console.log(`${chalk.blue(project)}  ${count}`));
+    });
   });
 
 program
   .command('export')
-  .description('Export journal entries to Markdown or CSV')
-  .option('-f, --format <format>', 'Output format: md or csv', 'md')
-  .option('-p, --project <project>', 'Filter by project name')
-  .option('-t, --tags <tags>', 'Comma-separated tags')
+  .description('Export journal entries to Markdown, CSV, or a full bundle')
+  .option('-f, --format <format>', 'Output format: md, csv, or bundle', 'md')
+  .option('-p, --project <project>', 'Filter by project name (md and csv only)')
+  .option('-t, --tags <tags>', 'Comma-separated tags (md and csv only)')
   .option('-o, --output <file>', 'Write to a file instead of stdout')
   .action(async (options: { format: string; project?: string; tags?: string; output?: string }) => {
-    let entries = filterByProject(await readEntries(), options.project);
-    entries = filterByTags(entries, options.tags ? options.tags.split(',').filter(Boolean) : undefined);
-
     const exportFormat = options.format.toLowerCase();
-    if (exportFormat !== 'md' && exportFormat !== 'csv') {
-      console.log(chalk.red(`Unknown format "${options.format}". Use "md" or "csv".`));
+    if (exportFormat !== 'md' && exportFormat !== 'csv' && exportFormat !== 'bundle') {
+      console.log(chalk.red(`Unknown format "${options.format}". Use "md", "csv", or "bundle".`));
       return;
     }
 
-    const output = exportFormat === 'csv' ? generateCsvExport(entries) : generateMarkdownExport(entries);
+    await withJournal(async ({ repo, db, config }) => {
+      let output: string;
+      let count: number;
+      if (exportFormat === 'bundle') {
+        const bundle = exportBundle(db, config);
+        output = JSON.stringify(bundle, null, 2);
+        count = bundle.entries.length;
+      } else {
+        const entries = repo.list({ project: options.project, tags: splitList(options.tags) }).map(e => toLegacy(e, { withDetails: true }));
+        output = exportFormat === 'csv' ? generateCsvExport(entries) : generateMarkdownExport(entries);
+        count = entries.length;
+      }
 
-    if (options.output) {
-      await fs.writeFile(options.output, output);
-      console.log(chalk.green(`✓ Exported ${entries.length} entries to ${options.output}`));
-    } else {
-      console.log(output);
+      if (options.output) {
+        await fs.writeFile(options.output, output);
+        console.log(chalk.green(`✓ Exported ${count} entries to ${options.output}`));
+      } else {
+        console.log(output);
+      }
+    });
+  });
+
+program
+  .command('import <file>')
+  .description('Import a bundle file made by gournal export --format bundle')
+  .action(async (file: string) => {
+    let bundle: unknown;
+    try {
+      bundle = JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch (err) {
+      if (err instanceof SyntaxError) throw new Error(`Bundle file ${file} is not valid JSON: ${err.message}`);
+      throw err;
     }
+    await withJournal(({ db }) => {
+      try {
+        backupDbIfNeeded(db, path.join(gournalHome(), 'gournal.db'));
+      } catch (err) {
+        process.stderr.write(`gournal: daily backup failed: ${(err as Error).message}\n`);
+      }
+      const r = importBundle(db, bundle);
+      console.log(chalk.green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged.`));
+    });
   });
 
 program
@@ -174,20 +262,20 @@ program
   .action(async (query: string, options: { project?: string; tags?: string; from?: string; to?: string }) => {
     const fromBound = options.from ? parseBound(options.from, 'from') : undefined;
     const toBound = options.to ? parseBound(options.to, 'to') : undefined;
-    let entries = filterByProject(await readEntries(), options.project);
-    entries = filterByTags(entries, options.tags ? options.tags.split(',').filter(Boolean) : undefined);
-    if (fromBound) entries = entries.filter(e => e.timestamp >= fromBound);
-    if (toBound) entries = entries.filter(e => e.timestamp <= toBound);
+    await withJournal(({ repo }) => {
+      const entries = repo.list({ project: options.project, tags: splitList(options.tags), from: fromBound, to: toBound });
+      const needle = query.toLowerCase();
+      const results = entries.filter(e => e.summary.toLowerCase().includes(needle));
 
-    const results = entries.filter(entry => entry.message.toLowerCase().includes(query.toLowerCase()));
-
-    console.log(chalk.bold(`Found ${results.length} entries:\n`));
-    results.forEach(entry => {
-      console.log(
-        `${chalk.gray(format(new Date(entry.timestamp), 'MMM EEE dd - HH:mm'))} ` +
-        `${chalk.blue(`[${entry.project}]`)} ${entry.message} ` +
-        `${entry.tags.map(t => chalk.magenta(`#${t}`)).join(' ')}`
-      );
+      console.log(chalk.bold(`Found ${results.length} entries:\n`));
+      results.forEach(entry => {
+        console.log(
+          `${chalk.gray(format(new Date(entry.createdAt), 'MMM EEE dd - HH:mm'))} ` +
+          `${chalk.gray(shortId(entry.id))} ` +
+          `${chalk.blue(`[${entry.project}]`)} ${entry.summary} ` +
+          `${entry.tags.map(t => chalk.magenta(`#${t}`)).join(' ')}`
+        );
+      });
     });
   });
 

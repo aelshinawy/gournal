@@ -10,7 +10,7 @@ describe('gournal undo', () => {
     spawnSync(
       process.execPath,
       ['-r', 'ts-node/register/transpile-only', 'src/cli.ts', ...args],
-      { cwd: path.join(__dirname, '..'), env: { ...process.env, HOME: home, USERPROFILE: home }, encoding: 'utf8' }
+      { cwd: path.join(__dirname, '..'), env: { ...process.env, GOURNAL_HOME: home, HOME: home, USERPROFILE: home }, encoding: 'utf8' }
     );
 
   beforeEach(() => {
@@ -27,8 +27,7 @@ describe('gournal undo', () => {
     const undo1 = run('undo');
     expect(undo1.status).toBe(0);
     expect(undo1.stdout).toContain('Removed: second');
-    const entries = JSON.parse(fs.readFileSync(path.join(home, '.gournal', 'entries.json'), 'utf8'));
-    expect(entries.map((e: { message: string }) => e.message)).toEqual(['first']);
+    expect(undo1.stdout).toMatch(/restore with gournal restore [0-9A-Z]{8}\)/);
 
     expect(run('undo').stdout).toContain('Removed: first');
     expect(run('undo').stdout).toContain('No entries to undo.');

@@ -26,7 +26,7 @@ export const generateWorkLog = (entries: Entry[], options: ReportOptions): strin
   const body = Array.from(byDay, ([day, dayEntries]) =>
     `  ${chalk.blue.bold(format(new Date(day), 'EEE MMM dd'))}\n` +
     dayEntries.map(e =>
-      `    ${chalk.gray(format(new Date(e.timestamp), 'HH:mm'))}  ${e.message}  ` +
+      `    ${chalk.gray(format(new Date(e.timestamp), 'HH:mm'))}${e.id ? ` ${chalk.gray(e.id.slice(-8))}` : ''}  ${e.message}  ` +
       `${chalk.blue(`[${e.project}]`)} ${e.tags.map(t => chalk.magenta(`#${t}`)).join(' ')}`
     ).join('\n')
   ).join('\n\n');

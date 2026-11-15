@@ -3,6 +3,8 @@ import path from 'path';
 
 /** One item of the legacy entries.json array, as the v0.5 and v0.6 releases wrote it. */
 export interface LegacyEntry {
+  /** Set only by the v2 CLI so the log renderer can show the short id. entries.json never has it. */
+  id?: string;
   timestamp: string;
   message: string;
   project: string;
