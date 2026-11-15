@@ -6,6 +6,8 @@ on:
       - 'site/**'
       - 'src/**'
       - 'README.md'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/site.yml'
   push:
     branches: [main]
@@ -13,6 +15,8 @@ on:
       - 'site/**'
       - 'src/**'
       - 'README.md'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/site.yml'
   workflow_dispatch:
 
