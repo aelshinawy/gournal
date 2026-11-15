@@ -112,11 +112,27 @@ describe('docs examples', () => {
     expect(statsSection(workerStats, 'By project')).toEqual({ worker: PROJECTS.worker });
   });
 
-  test('every example file parses to at least one block', () => {
-    for (const sub of ['cli', 'mcp']) {
-      for (const f of fs.readdirSync(path.join(DIR, sub)).filter((n) => n.endsWith('.md'))) {
-        expect(fences(`${sub}/${f}`).length).toBeGreaterThan(0);
-      }
-    }
+  // [console blocks, JSON blocks] per file. A change here means an example gained or lost a block.
+  const BLOCKS: Record<string, [number, number]> = {
+    'cli/add.md': [2, 0], 'cli/clear.md': [1, 0], 'cli/export.md': [2, 0], 'cli/find.md': [2, 0],
+    'cli/import.md': [2, 0], 'cli/index-rebuild.md': [1, 0], 'cli/log.md': [1, 0], 'cli/mcp.md': [1, 1],
+    'cli/migrate.md': [2, 0], 'cli/projects.md': [1, 0], 'cli/resolve.md': [1, 0], 'cli/restore.md': [1, 0],
+    'cli/setup-claude.md': [2, 0], 'cli/standup.md': [1, 0], 'cli/stats.md': [2, 0], 'cli/sync.md': [2, 0],
+    'cli/tags.md': [1, 0], 'cli/undo.md': [1, 0],
+    'mcp/add_entry.md': [0, 2], 'mcp/delete_entry.md': [0, 2], 'mcp/find_entries.md': [0, 2],
+    'mcp/get_standup.md': [0, 2], 'mcp/list_entries.md': [0, 2], 'mcp/list_projects.md': [0, 2],
+    'mcp/list_tags.md': [0, 2], 'mcp/resolve_entry.md': [0, 2], 'mcp/update_entry.md': [0, 2],
+  };
+
+  test('the example set is the expected set of files', () => {
+    const files = ['cli', 'mcp'].flatMap((sub) => fs.readdirSync(path.join(DIR, sub)).filter((n) => n.endsWith('.md')).map((n) => `${sub}/${n}`));
+    expect(files.sort()).toEqual(Object.keys(BLOCKS).sort());
+  });
+
+  test.each(Object.entries(BLOCKS))('%s has the expected console and JSON blocks', (file, [consoleCount, jsonCount]) => {
+    const blocks = fences(file);
+    expect(blocks.filter((b) => b.lang === 'console')).toHaveLength(consoleCount);
+    expect(blocks.filter((b) => b.lang === 'json')).toHaveLength(jsonCount);
+    expect(jsonBlocks(file)).toHaveLength(jsonCount); // every JSON block parses
   });
 });

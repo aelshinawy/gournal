@@ -23,7 +23,7 @@ Log a finished piece of work. Pass `project` and `cwd`.
 The text result:
 
 ```text
-Entry 7GYPR3BG added to billing-api: Fix the stale totals in the invoice PDF
+Entry RSWVZ6EB added to billing-api: Fix the stale totals in the invoice PDF
 ```
 
 The structured result:
@@ -31,11 +31,11 @@ The structured result:
 ```json
 {
   "entry": {
-    "id": "01M7GHBEJ4JQ9T4NH67GYPR3BG",
-    "createdAt": "2026-11-15T21:20:59.972Z",
-    "updatedAt": "2026-11-15T21:20:59.972Z",
+    "id": "01M7GHKG2TPA73P46ZRSWVZ6EB",
+    "createdAt": "2026-11-15T21:25:23.674Z",
+    "updatedAt": "2026-11-15T21:25:23.674Z",
     "deletedAt": null,
-    "deviceId": "01M7GH6EYY3YJAMZA5DHHG60SJ",
+    "deviceId": "01M7GHKAPQKFY3HJP9QB2X8Q2X",
     "summary": "Fix the stale totals in the invoice PDF",
     "details": "The PDF showed the total before the discount.",
     "kind": "done",

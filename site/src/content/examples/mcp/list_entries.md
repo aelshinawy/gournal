@@ -13,12 +13,12 @@ The structured result. The text result holds the `entries` list as JSON.
 {
   "entries": [
     {
-      "id": "01M7GH6EZ4XNS2KMEFDZ1DB7ZW",
-      "createdAt": "2026-11-15T21:18:16.548Z",
-      "updatedAt": "2026-11-15T21:18:16.548Z",
+      "id": "01M7GHKAPZSBFKBP0YGBBC01PT",
+      "createdAt": "2026-11-15T21:25:18.175Z",
+      "updatedAt": "2026-11-15T21:25:18.175Z",
       "deletedAt": null,
-      "deviceId": "01M7GH6EYY3YJAMZA5DHHG60SJ",
-      "summary": "Move the settings page to the new form components",
+      "deviceId": "01M7GHKAPQKFY3HJP9QB2X8Q2X",
+      "summary": "Review the queue backoff change",
       "details": null,
       "kind": "done",
       "status": null,
@@ -30,16 +30,17 @@ The structured result. The text result holds the `entries` list as JSON.
       "source": "mcp",
       "agent": null,
       "tags": [
+        "review",
         "ui"
       ],
       "refs": []
     },
     {
-      "id": "01M7GH6EZ4GPHFY8GC13T25F97",
-      "createdAt": "2026-11-15T21:18:16.548Z",
-      "updatedAt": "2026-11-15T21:18:16.548Z",
+      "id": "01M7GHKAPZQ84ZVEEJXAHKXVH2",
+      "createdAt": "2026-11-15T21:25:18.175Z",
+      "updatedAt": "2026-11-15T21:25:18.175Z",
       "deletedAt": null,
-      "deviceId": "01M7GH6EYY3YJAMZA5DHHG60SJ",
+      "deviceId": "01M7GHKAPQKFY3HJP9QB2X8Q2X",
       "summary": "Document the retry policy for webhooks",
       "details": null,
       "kind": "done",

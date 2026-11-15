@@ -46,9 +46,10 @@ try {
   const billing = { project: 'billing-api', repo: 'acme/billing-api', branch: 'fix/invoice-rounding', source: 'mcp' as const };
   const worker = { project: 'worker', repo: 'acme/worker', branch: 'main', source: 'mcp' as const };
 
-  // billing-api: 5 entries. Tags: review 2, ui 1, docs 1.
+  // billing-api: 5 entries. The first has a pr ref, so a sync of PR 412 links to it. Tags: review 2, ui 1, docs 1.
   repo.add({ ...billing, summary: 'Fix rounding error in invoice totals', tags: ['review'],
-    details: 'Totals were off by one cent when a discount applied after tax.' });
+    details: 'Totals were off by one cent when a discount applied after tax.',
+    refs: [{ type: 'pr', value: '412', repo: 'acme/billing-api' }] });
   repo.add({ ...billing, summary: 'Add keyboard focus styles to the invoice date picker', tags: ['ui'] });
   repo.add({ ...billing, summary: 'Document the invoice export endpoint', tags: ['docs'] });
   // worker: 3 entries. Tags: ui 2, docs 1, review 1.

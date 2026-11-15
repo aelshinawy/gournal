@@ -2,16 +2,16 @@ Fix the summary of an entry, replace its tags, and add a pull request reference.
 
 ```json
 {
-  "id": "DA4FVKYK",
-  "summary": "Fix one-cent rounding error in invoice totals",
+  "id": "BREW8H23",
+  "summary": "Document the invoice export endpoint and its limits",
   "tags": [
-    "review",
-    "docs"
+    "docs",
+    "review"
   ],
   "refs": [
     {
       "type": "pr",
-      "value": "412",
+      "value": "415",
       "repo": "acme/billing-api"
     }
   ]
@@ -21,7 +21,7 @@ Fix the summary of an entry, replace its tags, and add a pull request reference.
 The text result:
 
 ```text
-Entry DA4FVKYK updated: Fix one-cent rounding error in invoice totals
+Entry BREW8H23 updated: Document the invoice export endpoint and its limits
 ```
 
 The structured result:
@@ -29,13 +29,13 @@ The structured result:
 ```json
 {
   "entry": {
-    "id": "01M7GH6EZ2E6SQ8017DA4FVKYK",
-    "createdAt": "2026-11-15T21:18:16.546Z",
-    "updatedAt": "2026-11-15T21:21:00.510Z",
+    "id": "01M7GHKAPYGCB9VB4GBREW8H23",
+    "createdAt": "2026-11-15T21:25:18.174Z",
+    "updatedAt": "2026-11-15T21:25:24.196Z",
     "deletedAt": null,
-    "deviceId": "01M7GH6EYY3YJAMZA5DHHG60SJ",
-    "summary": "Fix one-cent rounding error in invoice totals",
-    "details": "Totals were off by one cent when a discount applied after tax.",
+    "deviceId": "01M7GHKAPQKFY3HJP9QB2X8Q2X",
+    "summary": "Document the invoice export endpoint and its limits",
+    "details": null,
     "kind": "done",
     "status": null,
     "resolvedAt": null,
@@ -46,13 +46,13 @@ The structured result:
     "source": "mcp",
     "agent": null,
     "tags": [
-      "review",
-      "docs"
+      "docs",
+      "review"
     ],
     "refs": [
       {
         "type": "pr",
-        "value": "412",
+        "value": "415",
         "repo": "acme/billing-api"
       }
     ]

@@ -2,14 +2,14 @@ Resolve an open next item. Pass the short id.
 
 ```json
 {
-  "id": "27GTPX08"
+  "id": "RMGKJSHY"
 }
 ```
 
 The text result:
 
 ```text
-Entry 27GTPX08 resolved: Add a regression test for tax rounding
+Entry RMGKJSHY resolved: Add a regression test for tax rounding
 ```
 
 The structured result:
@@ -17,16 +17,16 @@ The structured result:
 ```json
 {
   "entry": {
-    "id": "01M7GH6EZ45MKNZFFM27GTPX08",
-    "createdAt": "2026-11-15T21:18:16.548Z",
-    "updatedAt": "2026-11-15T21:21:00.345Z",
+    "id": "01M7GHKAQ0P2Q6EZZTRMGKJSHY",
+    "createdAt": "2026-11-15T21:25:18.176Z",
+    "updatedAt": "2026-11-15T21:25:24.026Z",
     "deletedAt": null,
-    "deviceId": "01M7GH6EYY3YJAMZA5DHHG60SJ",
+    "deviceId": "01M7GHKAPQKFY3HJP9QB2X8Q2X",
     "summary": "Add a regression test for tax rounding",
     "details": null,
     "kind": "next",
     "status": "resolved",
-    "resolvedAt": "2026-11-15T21:21:00.345Z",
+    "resolvedAt": "2026-11-15T21:25:24.026Z",
     "resolvedByEntryId": null,
     "project": "billing-api",
     "repo": "acme/billing-api",
