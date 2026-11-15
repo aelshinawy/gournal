@@ -6,6 +6,8 @@ import { ecFocusable } from './plugins/ec-focusable.mjs';
 import { rehypeTableRegion } from './plugins/rehype-table-region.mjs';
 import referenceSidebar from './src/generated/reference-sidebar.json' with { type: 'json' };
 
+const OG_IMAGE = 'https://aelshinawy.github.io/gournal/og.png';
+
 export default defineConfig({
   site: 'https://aelshinawy.github.io',
   base: '/gournal/',
@@ -15,6 +17,10 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'gournal',
+      head: [
+        { tag: 'meta', attrs: { property: 'og:image', content: OG_IMAGE } },
+        { tag: 'meta', attrs: { name: 'twitter:image', content: OG_IMAGE } }
+      ],
       customCss: ['./src/styles/tokens.css', './src/styles/fonts.css', './src/styles/docs.css'],
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/aelshinawy/gournal' }],
       expressiveCode: {

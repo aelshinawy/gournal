@@ -31,7 +31,10 @@ const canonical = new URL(base, 'https://aelshinawy.github.io').href;
     <meta property="og:url" content={canonical} />
     <meta property="og:description" content={description} />
     <meta property="og:site_name" content="gournal" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:locale" content="en" />
+    <meta property="og:image" content="https://aelshinawy.github.io/gournal/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://aelshinawy.github.io/gournal/og.png" />
     <link rel="sitemap" href={`${base}sitemap-index.xml`} />
     <link rel="preload" href={newsreaderUrl} as="font" type="font/woff2" crossorigin />
     <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />

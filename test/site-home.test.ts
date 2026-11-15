@@ -109,3 +109,35 @@ describeBuilt('built homepage', () => {
     expect(css).toContain(href);
   });
 });
+
+describeBuilt('share image and social cards', () => {
+  const OG_URL = 'https://aelshinawy.github.io/gournal/og.png';
+  const docsPage = path.join(root, 'site/dist/docs/start-here/introduction/index.html');
+  const pages: Record<string, string> = {
+    homepage: fs.readFileSync(builtHome, 'utf8'),
+    'docs page': fs.existsSync(docsPage) ? fs.readFileSync(docsPage, 'utf8') : ''
+  };
+
+  for (const [name, html] of Object.entries(pages)) {
+    test(`the ${name} has one absolute og:image and a large twitter card`, () => {
+      expect(html).not.toBe('');
+      const og = [...html.matchAll(/<meta\s+property="og:image"\s+content="([^"]*)"/g)].map((m) => m[1]);
+      expect(og).toEqual([OG_URL]);
+      expect(html).toMatch(/<meta\s+name="twitter:card"\s+content="summary_large_image"/);
+      expect([...html.matchAll(/name="twitter:card"/g)].length).toBe(1);
+      const tw = [...html.matchAll(/<meta\s+name="twitter:image"\s+content="([^"]*)"/g)].map((m) => m[1]);
+      expect(tw).toEqual([OG_URL]);
+    });
+  }
+
+  test('the homepage has og:locale', () => {
+    expect(pages.homepage).toMatch(/<meta\s+property="og:locale"\s+content="en"/);
+  });
+
+  test('og.png ships at 1200 x 630', () => {
+    const buf = fs.readFileSync(path.join(root, 'site/dist/og.png'));
+    expect(buf.subarray(1, 4).toString('ascii')).toBe('PNG');
+    expect(buf.readUInt32BE(16)).toBe(1200);
+    expect(buf.readUInt32BE(20)).toBe(630);
+  });
+});
