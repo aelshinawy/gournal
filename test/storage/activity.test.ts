@@ -184,3 +184,14 @@ test('tryLease takes an expired lease and releaseLease ignores a non-owner', () 
   expect(other.activity.tryLease('github.sync', 'b', 1_000)).toBe(true);
   expect(journal.activity.tryLease('github.sync', 'a', 1_000)).toBe(false);
 });
+
+test('relinkEntries inside repo.transaction joins the open transaction', () => {
+  journal.activity.upsert([item()]);
+  const e = journal.repo.add({ summary: 'ship x', refs: [{ type: 'pr', value: '5', repo: REPO }], ...base });
+  expect(() => journal.repo.transaction(() => journal.activity.relinkEntries([e.id]))).not.toThrow();
+  expect(liveLinks()).toHaveLength(1);
+  // A failure after the relink rolls the link back too: one transaction covers both repositories.
+  const f = journal.repo.add({ summary: 'ship y', refs: [{ type: 'pr', value: '5', repo: REPO }], ...base });
+  expect(() => journal.repo.transaction(() => { journal.activity.relinkEntries([f.id]); throw new Error('boom'); })).toThrow('boom');
+  expect(liveLinks()).toHaveLength(1);
+});

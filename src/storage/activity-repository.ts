@@ -1,7 +1,8 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { BRANCH_WINDOW_MS, matchLinks, newId } from '../core';
 import type { Activity, ActivityQuery, ActivityRepository, ActivityType, Config, Entry, LinkCandidate, NewActivityInput } from '../core';
-import { backupDbIfNeeded } from './backup';
+import { BUMP_UPDATED_AT, createWriter } from './writer';
+import type { Writer } from './writer';
 import { hydrateRows, iso } from './entry-rows';
 import type { Row } from './entry-rows';
 
@@ -14,7 +15,6 @@ interface ActivityRow {
 const CHUNK = 500;
 const MIN_SHA = 7;
 const HEX = /^[0-9a-f]+$/;
-let backupWarned = false;
 
 /** Build an Activity from a row. `pr` comes from the payload. A bad payload reads as an empty one. */
 export function rowToActivity(r: ActivityRow): Activity {
@@ -55,36 +55,9 @@ function chunks<T>(list: T[]): T[][] {
 
 const marks = (n: number): string => Array.from({ length: n }, () => '?').join(', ');
 
-/** With `backup: false`, writes never take the daily backup. The bundle import uses it for its relink. */
-export function createActivityRepository(db: DatabaseSync, config: Config, dbPath: string, opts: { backup?: boolean } = {}): ActivityRepository {
-  const dailyBackup = opts.backup ?? true;
-  let inTransaction = false;
-
-  function write<T>(fn: () => T, backup = true): T {
-    if (inTransaction) return fn();
-    if (backup && dailyBackup) {
-      try {
-        backupDbIfNeeded(db, dbPath);
-      } catch (err) {
-        if (!backupWarned) {
-          backupWarned = true;
-          process.stderr.write(`gournal: daily backup failed: ${(err as Error).message}\n`);
-        }
-      }
-    }
-    db.exec('BEGIN IMMEDIATE');
-    inTransaction = true;
-    try {
-      const result = fn();
-      db.exec('COMMIT');
-      return result;
-    } catch (err) {
-      try { db.exec('ROLLBACK'); } catch { /* ignore */ }
-      throw err;
-    } finally {
-      inTransaction = false;
-    }
-  }
+/** Pass the writer that the entry repository uses, so both share one transaction state per connection. */
+export function createActivityRepository(db: DatabaseSync, config: Config, dbPath: string | null, writer: Writer = createWriter(db, dbPath)): ActivityRepository {
+  const write = <T>(fn: () => T, opts?: { backup?: boolean }): T => writer.write(fn, opts);
 
   function parseTime(value: string, what: string): number {
     const ms = Date.parse(value);
@@ -174,7 +147,7 @@ export function createActivityRepository(db: DatabaseSync, config: Config, dbPat
           title, url, captured_by, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'github', ?)
           ON CONFLICT(type, repo, external_id) DO NOTHING`);
         // updated_at rises strictly, and only when a stored field differs.
-        const update = db.prepare(`UPDATE activity SET occurred_at = ?, branch = ?, title = ?, url = ?, payload = ?, updated_at = max(?, updated_at + 1)
+        const update = db.prepare(`UPDATE activity SET occurred_at = ?, branch = ?, title = ?, url = ?, payload = ?, ${BUMP_UPDATED_AT}
           WHERE type = ? AND repo = ? AND external_id = ?
           AND (occurred_at IS NOT ? OR branch IS NOT ? OR title IS NOT ? OR url IS NOT ? OR payload IS NOT ?)`);
         const idOf = db.prepare('SELECT id FROM activity WHERE type = ? AND repo = ? AND external_id = ?');
@@ -239,7 +212,7 @@ export function createActivityRepository(db: DatabaseSync, config: Config, dbPat
           for (const l of live) if (!keep.has(`${l.entry_id}\u0000${l.activity_id}`)) stale.push(l.id);
         }
         const now = Date.now();
-        const drop = db.prepare('UPDATE links SET deleted_at = ?, updated_at = max(?, updated_at + 1) WHERE id = ? AND deleted_at IS NULL');
+        const drop = db.prepare(`UPDATE links SET deleted_at = ?, ${BUMP_UPDATED_AT} WHERE id = ? AND deleted_at IS NULL`);
         for (const id of stale) drop.run(now, now, id);
         return addLinks(found);
       });
@@ -285,7 +258,7 @@ export function createActivityRepository(db: DatabaseSync, config: Config, dbPat
         db.prepare('INSERT INTO sync_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
           .run(key, `${owner} ${now + ttlMs}`);
         return true;
-      }, false);
+      }, { backup: false });
     },
 
     releaseLease(name, owner) {
@@ -293,7 +266,7 @@ export function createActivityRepository(db: DatabaseSync, config: Config, dbPat
         const key = `lease:${name}`;
         const row = db.prepare('SELECT value FROM sync_state WHERE key = ?').get(key) as { value: string | null } | undefined;
         if (row?.value && row.value.slice(0, row.value.lastIndexOf(' ')) === owner) db.prepare('DELETE FROM sync_state WHERE key = ?').run(key);
-      }, false);
+      }, { backup: false });
     },
   };
 }

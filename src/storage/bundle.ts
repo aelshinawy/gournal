@@ -3,6 +3,7 @@ import { summaryLength, MAX_SUMMARY } from '../core';
 import { newId } from '../core';
 import type { Activity, Entry } from '../core';
 import type { Config } from '../core';
+import { createWriter } from './writer';
 import { createActivityRepository, payloadText, rowToActivity } from './activity-repository';
 import { hydrateRows, replaceRefs, replaceTags } from './entry-rows';
 import type { Row } from './entry-rows';
@@ -197,7 +198,7 @@ export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config)
   if (config && (changedEntries.length > 0 || changedActivity.length > 0)) {
     try {
       // The import command has taken its own backup, and an empty database must not take the day's slot.
-      const activity = createActivityRepository(db, config, '', { backup: false });
+      const activity = createActivityRepository(db, config, null, createWriter(db, null));
       activity.relinkEntries(changedEntries);
       activity.relinkActivity(changedActivity);
     } catch (err) {
