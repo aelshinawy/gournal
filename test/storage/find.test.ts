@@ -79,14 +79,17 @@ test('text with FTS syntax characters does not throw', () => {
   for (const t of ['"quoted"', 'OR', '(grouped)', 'a-b:', 'c*', '"', 'it"s', 'a\u0000b', '\u0000', 'hello\u0000']) expect(() => repo.find({ text: t })).not.toThrow();
   expect(repo.find({ text: '"quoted"' })).toHaveLength(1);
 });
-ftsTest('text of only punctuation matches nothing with a live index', () => {
+test('a text of only punctuation matches nothing, even when a row contains it', () => {
   seed('has a " quote');
-  expect(repo.searchMode()).toBe('fts');
   expect(repo.find({ text: '"' })).toEqual([]);
 });
-test('a NUL inside a term still finds the cleaned term', () => {
-  seed('hello world');
-  if (repo.searchMode() === 'fts') expect(repo.find({ text: 'hel\u0000lo' })).toHaveLength(1);
+test('a NUL-only text matches nothing', () => {
+  seed('unrelated summary');
+  expect(repo.find({ text: '\u0000' })).toEqual([]);
+});
+test('a NUL inside a term is stripped, not a terminator', () => {
+  seed('contains ab here'); seed('ends with a');
+  expect(summaries({ text: 'a\u0000b' })).toEqual(['contains ab here']);
 });
 ftsTest('text search falls back when the index is not live', () => {
   db.exec('DROP TRIGGER entries_fts_ai; DROP TRIGGER entries_fts_ad; DROP TRIGGER entries_fts_au');

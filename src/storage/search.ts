@@ -7,6 +7,8 @@ const CONTROL_CHARS = /[\u0000-\u001f]/g;
  * Build an FTS5 MATCH expression. Each term becomes a quoted prefix phrase, so no FTS syntax
  * character in user input can change the query. A term with no letter or digit is dropped.
  * An empty result means "match nothing".
+ * resolveQuery already cleans the terms (control characters, no-word terms), so both search modes see the
+ * same terms. The cleaning here is a second guard for direct callers.
  */
 export function ftsMatchExpression(terms: string[]): string {
   return terms

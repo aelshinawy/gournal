@@ -48,3 +48,12 @@ test('an empty kind list means no kind filter', () => {
   expect(resolveQuery({ kind: [] }, {}).kind).toBeUndefined();
   expect(resolveQuery({ kind: ['next'] }, {}).kind).toEqual(['next']);
 });
+
+test('text terms drop control characters and terms with no letter or digit', () => {
+  expect(resolveQuery({ text: 'a\u0000b' }, {}).terms).toEqual(['ab']);
+  expect(resolveQuery({ text: 'ok " (x)' }, {}).terms).toEqual(['ok', '(x)']);
+  expect(resolveQuery({ text: '\u0000' }, {}).terms).toEqual([]);
+  expect(resolveQuery({ text: '"' }, {}).terms).toEqual([]);
+  expect(resolveQuery({ text: '   ' }, {}).terms).toBeUndefined();
+  expect(resolveQuery({}, {}).terms).toBeUndefined();
+});

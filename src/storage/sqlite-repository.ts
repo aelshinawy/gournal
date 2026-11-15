@@ -132,7 +132,9 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
     }
     if (r.fromMs !== undefined) { where.push('entries.created_at >= ?'); vals.push(r.fromMs); }
     if (r.toMs !== undefined) { where.push('entries.created_at <= ?'); vals.push(r.toMs); }
-    if (r.terms) {
+    if (r.terms && r.terms.length === 0) {
+      where.push('0');
+    } else if (r.terms) {
       if (searchIndexLive(db)) {
         const expr = ftsMatchExpression(r.terms);
         if (expr === '') where.push('0');

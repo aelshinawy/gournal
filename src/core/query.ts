@@ -38,6 +38,18 @@ export class InvalidQueryError extends Error {
   }
 }
 
+// C0 control characters (U+0000 to U+001F). SQLite LIKE stops at NUL and FTS5 fails on it.
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001f]/g;
+const HAS_WORD_CHAR = /[\p{L}\p{N}]/u;
+
+/** Split text on whitespace, strip control characters, and drop terms with no letter or digit. */
+function searchTerms(text: string): string[] | undefined {
+  const raw = text.split(/\s+/).filter(Boolean);
+  if (raw.length === 0) return undefined;
+  return raw.map((t) => t.replace(CONTROL_CHARS, '')).filter((t) => HAS_WORD_CHAR.test(t));
+}
+
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 export function parseBound(value: string, side: 'from' | 'to'): number {
@@ -75,12 +87,13 @@ export function resolveQuery(q: Query, aliases: Record<string, string>): Resolve
       if (value.toLowerCase() === targetLower && key !== target && !projects.includes(key)) projects.push(key);
     }
   }
-  const terms = q.text ? q.text.split(/\s+/).filter(Boolean) : [];
+  // undefined: no text filter. An empty array: text was given but no usable term is left, so nothing matches.
+  const terms = q.text ? searchTerms(q.text) : undefined;
   return {
     projects,
     repo: q.repo,
     tags: q.tags && q.tags.length > 0 ? q.tags : undefined,
-    terms: terms.length > 0 ? terms : undefined,
+    terms,
     kind: q.kind && q.kind.length > 0 ? q.kind : undefined,
     status: q.status,
     source: q.source,
