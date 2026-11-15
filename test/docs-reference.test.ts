@@ -392,6 +392,20 @@ describe('capability pages, carry-over fixes', () => {
     }
   });
 
+  test('no two-word opener starts more than 3 summaries', () => {
+    const counts = new Map<string, number>();
+    for (const cap of CAPABILITIES) {
+      const opener = cap.summary.split(/\s+/).slice(0, 2).join(' ').toLowerCase();
+      counts.set(opener, (counts.get(opener) ?? 0) + 1);
+    }
+    for (const [opener, n] of counts) expect({ opener, ok: n <= 3 }).toEqual({ opener, ok: true });
+  });
+
+  test('index-rebuild summary says it needs FTS5', () => {
+    const cap = CAPABILITIES.find((c) => c.slug === 'index-rebuild')!;
+    expect(cap.summary).toContain('FTS5');
+  });
+
   test('a capability that links the backups guide in its caution does not repeat it in related', () => {
     for (const cap of CAPABILITIES) {
       if (cap.caution?.includes('/guides/data-safety-and-backups/')) {
