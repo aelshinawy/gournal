@@ -5,6 +5,7 @@ import starlightLinksValidator from 'starlight-links-validator';
 export default defineConfig({
   site: 'https://aelshinawy.github.io',
   base: '/gournal/',
+  markdown: { smartypants: false },
   integrations: [
     starlight({
       title: 'gournal',
