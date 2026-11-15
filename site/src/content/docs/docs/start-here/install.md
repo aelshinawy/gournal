@@ -6,7 +6,7 @@ description: Install gournal with npm, check the install, and optionally sign in
 ## Requirements
 
 - **Node.js 22.13 or newer.** Run `node --version` to check.
-- **Git 2.31 or newer.** Gournal uses Git to find the project, the repository, and the branch of a directory. Without Git, gournal puts entries in the `uncategorized` project.
+- **Git 2.31 or newer.** Gournal uses Git to find the project, the repository, and the branch of a directory. With Git older than 2.31, or without Git, gournal puts entries in the `uncategorized` project and records no repository or branch.
 - **The GitHub CLI (`gh`), optional.** You need it only for [GitHub sync](/gournal/docs/guides/github-activity/).
 
 ## Install gournal

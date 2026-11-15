@@ -72,7 +72,7 @@ Gournal picks the project in this order:
 3. The name of the folder that holds the repository.
 4. `uncategorized`, when the directory is not in a git repository.
 
-A git worktree maps to its main repository, so all worktrees of a repo share one project. This mapping needs a common Git directory that is named `.git`. A worktree of a bare repository uses the name of the worktree folder.
+A git worktree maps to its main repository, so all worktrees of a repo share one project. This mapping needs a common Git directory that is named `.git`. The `origin` remote name still comes first. A worktree of a bare repository uses the name of its own folder only as the fallback.
 
 Project aliases rename a project. They match the full repository name, then the repository name, then the folder name. Matching is not case sensitive. An alias also applies to old entries when you filter by `--project`.
 
