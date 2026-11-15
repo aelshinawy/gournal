@@ -26,7 +26,7 @@ gournal standup --week
 gournal standup --from 2026-07-01 --to 2026-07-15
 ```
 
-See [`gournal standup`](/gournal/docs/reference/cli/standup/) and [`gournal log`](/gournal/docs/reference/cli/log/) for every option.
+See [`gournal standup`](/gournal/docs/reference/standup/) and [`gournal log`](/gournal/docs/reference/work-log/) for every option.
 
 ## The standup
 
@@ -136,7 +136,7 @@ Work Log: Today (2026-11-15)
   3 entries across 1 project.
 ```
 
-Use the standup for a report to your team. Use the log to see what happened and when. To find old entries by words, use [`gournal find`](/gournal/docs/reference/cli/find/).
+Use the standup for a report to your team. Use the log to see what happened and when. To find old entries by words, use [`gournal find`](/gournal/docs/reference/search/).
 
 ## Export
 
@@ -158,4 +158,4 @@ gournal export -f csv -p billing-api -o entries.csv
 
 The filters `--project`, `--tags`, `--from`, and `--to` narrow Markdown and CSV output. A bundle always has every entry. See [Data safety and backups](/gournal/docs/guides/data-safety-and-backups/) for bundles.
 
-An agent uses the MCP tools [`get_standup`](/gournal/docs/reference/mcp/get_standup/), [`get_work_log`](/gournal/docs/reference/mcp/get_work_log/), and [`export_entries`](/gournal/docs/reference/mcp/export_entries/) for the same reports. `export_entries` returns the newest 200 entries by default. Pass `limit` or `from` and `to` to get more.
+An agent uses the MCP tools [`get_standup`](/gournal/docs/reference/standup/), [`get_work_log`](/gournal/docs/reference/work-log/), and [`export_entries`](/gournal/docs/reference/export/) for the same reports. `export_entries` returns the newest 200 entries by default. Pass `limit` or `from` and `to` to get more.

@@ -129,4 +129,4 @@ Export a bundle on the old machine, and import it on the new one. See [Data safe
 
 A bundle does not hold `config.json` or the sync cursor. Copy `config.json` to the new machine yourself. The first sync on the new machine starts `github.initialSyncDays` days back.
 
-See [`gournal migrate`](/gournal/docs/reference/cli/migrate/) for the options.
+See [`gournal migrate`](/gournal/docs/reference/migrate/) for the options.

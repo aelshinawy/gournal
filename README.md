@@ -33,8 +33,8 @@ gournal setup claude
 
 - [Quickstart](https://aelshinawy.github.io/gournal/docs/start-here/quickstart/): install, connect Claude Code, log an entry, and read a standup.
 - Guides: [Standups and work logs](https://aelshinawy.github.io/gournal/docs/guides/standups-and-work-logs/), [GitHub activity](https://aelshinawy.github.io/gournal/docs/guides/github-activity/), [Logging with AI agents](https://aelshinawy.github.io/gournal/docs/guides/logging-with-ai-agents/), [Claude Code setup](https://aelshinawy.github.io/gournal/docs/guides/claude-code-setup/), [Data safety and backups](https://aelshinawy.github.io/gournal/docs/guides/data-safety-and-backups/).
-- CLI reference: every command and option, for example [`gournal add`](https://aelshinawy.github.io/gournal/docs/reference/cli/add/) and [`gournal standup`](https://aelshinawy.github.io/gournal/docs/reference/cli/standup/).
-- MCP tools: every tool and field, for example [`add_entry`](https://aelshinawy.github.io/gournal/docs/reference/mcp/add_entry/) and [`get_standup`](https://aelshinawy.github.io/gournal/docs/reference/mcp/get_standup/).
+- CLI reference: every command and option, for example [`gournal add`](https://aelshinawy.github.io/gournal/docs/reference/add/) and [`gournal standup`](https://aelshinawy.github.io/gournal/docs/reference/standup/).
+- MCP tools: every tool and field, for example [`add_entry`](https://aelshinawy.github.io/gournal/docs/reference/add/) and [`get_standup`](https://aelshinawy.github.io/gournal/docs/reference/standup/).
 - [Configuration](https://aelshinawy.github.io/gournal/docs/reference/configuration/): every key in `config.json`.
 
 ## License

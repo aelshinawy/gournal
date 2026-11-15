@@ -54,10 +54,7 @@ export default defineConfig({
         {
           label: 'Reference',
           items: [
-            { label: 'CLI', items: [{ autogenerate: { directory: 'docs/reference/cli' } }] },
-            { label: 'MCP tools', items: [{ autogenerate: { directory: 'docs/reference/mcp' } }] },
-            'docs/reference/configuration',
-            'docs/reference/environment'
+            { autogenerate: { directory: 'docs/reference' } }
           ]
         },
         {

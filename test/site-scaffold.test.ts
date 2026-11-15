@@ -40,10 +40,9 @@ test('every page in the spec sidebar has a file', () => {
   for (const slug of SINGLE_PAGES) {
     expect(fs.existsSync(path.join(docsRoot, `${slug}.md`))).toBe(true);
   }
-  for (const dir of ['reference/cli', 'reference/mcp']) {
-    const full = path.join(docsRoot, dir);
-    expect(fs.existsSync(full)).toBe(true);
-    expect(fs.readdirSync(full).some((f) => f.endsWith('.md'))).toBe(true);
+  const reference = fs.readdirSync(path.join(docsRoot, 'reference'));
+  for (const slug of ['add', 'standup', 'output-shapes']) {
+    expect(reference).toContain(`${slug}.md`);
   }
 });
 

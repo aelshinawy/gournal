@@ -7,7 +7,7 @@ An AI agent can log your work for you. It uses the gournal MCP server. This guid
 
 ## The three parts
 
-1. **The MCP server.** `gournal mcp` starts a server on stdio. The server gives the agent tools such as `add_entry` and `get_standup`. See the [MCP tools reference](/gournal/docs/reference/mcp/add_entry/).
+1. **The MCP server.** `gournal mcp` starts a server on stdio. The server gives the agent tools such as `add_entry` and `get_standup`. See the [MCP tools reference](/gournal/docs/reference/add/).
 2. **The skill.** A short file that tells Claude Code when and how to log.
 3. **The Stop hook (optional).** A hook that asks Claude once to log a session that edited files and logged nothing.
 
@@ -121,13 +121,13 @@ An entry has a kind. The default kind is `done`.
 A `blocker` or `next` entry stays open until someone closes it. The agent closes it in one of two ways:
 
 - It adds a `done` entry and passes the id of the open entry in `resolves`.
-- It calls [`resolve_entry`](/gournal/docs/reference/mcp/resolve_entry/).
+- It calls [`resolve_entry`](/gournal/docs/reference/resolve/).
 
 The id is the full id or the last 8 characters. A bad id in `resolves` never stops the entry. Gournal drops that id, adds the entry, and tells the agent about the bad id. See [Kinds and carry-forward](/gournal/docs/start-here/core-concepts/#kinds-and-carry-forward).
 
 ## Tags and refs
 
-Ticket keys, PR numbers, and commit hashes go in `refs`. Tags are free labels. Before the agent adds a tag, it can call [`list_tags`](/gournal/docs/reference/mcp/list_tags/) to reuse a tag that exists. When a new tag is close to an existing tag, the answer of `add_entry` names the close tags.
+Ticket keys, PR numbers, and commit hashes go in `refs`. Tags are free labels. Before the agent adds a tag, it can call [`list_tags`](/gournal/docs/reference/tags/) to reuse a tag that exists. When a new tag is close to an existing tag, the answer of `add_entry` names the close tags.
 
 Refs also drive [links to GitHub activity](/gournal/docs/guides/github-activity/#how-activity-links-to-entries).
 
@@ -141,4 +141,4 @@ See [Claude Code setup](/gournal/docs/guides/claude-code-setup/#the-stop-hook-co
 
 ## Read your journal from an agent
 
-The agent can also read the journal. Ask it things like "summarize what I worked on this week". It uses [`get_standup`](/gournal/docs/reference/mcp/get_standup/), [`get_work_log`](/gournal/docs/reference/mcp/get_work_log/), or [`find_entries`](/gournal/docs/reference/mcp/find_entries/). The two report tools also sync your GitHub activity first. See [GitHub activity](/gournal/docs/guides/github-activity/#auto-sync).
+The agent can also read the journal. Ask it things like "summarize what I worked on this week". It uses [`get_standup`](/gournal/docs/reference/standup/), [`get_work_log`](/gournal/docs/reference/work-log/), or [`find_entries`](/gournal/docs/reference/search/). The two report tools also sync your GitHub activity first. See [GitHub activity](/gournal/docs/guides/github-activity/#auto-sync).

@@ -2,9 +2,11 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { buildProgram } from '../../../src/adapters/cli';
-import { cliPages, type GeneratedPage } from './cli';
+import { CAPABILITIES, checkCoverage } from './capabilities';
+import { capabilityPage, outputShapesPage } from './capability-page';
+import { cliSection, leafCommands, type GeneratedPage } from './cli';
 import { configPage, environmentPage } from './config';
-import { mcpPages } from './mcp';
+import { listTools, sharedShapes, toolSection } from './mcp';
 
 export type { GeneratedPage };
 
@@ -12,14 +14,9 @@ export const REFERENCE_DIR = 'src/content/docs/docs/reference';
 
 /**
  * Paths the generator owns, relative to the reference folder. It deletes any other file in a
- * directory entry.
+ * directory entry. The generator owns the whole reference folder.
  */
-export const OWNED: ReadonlyArray<{ dir: string } | { file: string }> = [
-  { dir: 'cli' },
-  { dir: 'mcp' },
-  { file: 'configuration.md' },
-  { file: 'environment.md' },
-];
+export const OWNED: ReadonlyArray<{ dir: string } | { file: string }> = [{ dir: '.' }];
 
 /** A program build must not open the journal. These no-op seams keep it inert. */
 export function inertProgram() {
@@ -53,12 +50,27 @@ function readExamples(examplesDir: string, sub: string): Map<string, string> {
 }
 
 export async function generateReference(opts: { examplesDir: string }): Promise<GeneratedPage[]> {
-  const pages = [
-    ...cliPages(inertProgram(), readExamples(opts.examplesDir, 'cli')),
-    ...(await mcpPages(readExamples(opts.examplesDir, 'mcp'))),
-    configPage(),
-    environmentPage(),
-  ];
+  const program = inertProgram();
+  const leaves = leafCommands(program);
+  const tools = await listTools();
+  const problems = checkCoverage(leaves.map((l) => l.names.join(' ')), tools.map((t) => t.name));
+  if (problems.length > 0) throw new Error(problems.join('\n'));
+
+  const cliExamples = readExamples(opts.examplesDir, 'cli');
+  const mcpExamples = readExamples(opts.examplesDir, 'mcp');
+  const { shapes, slugByTool } = sharedShapes(tools);
+  const pages = CAPABILITIES.map((cap) => capabilityPage(
+    cap,
+    cap.cli.map((name) => {
+      const leaf = leaves.find((l) => l.names.join(' ') === name)!;
+      return cliSection(leaf.names, leaf.cmd, cliExamples.get(leaf.names.join('-')));
+    }),
+    cap.mcp.map((name) => {
+      const tool = tools.find((t) => t.name === name)!;
+      return toolSection(tool, slugByTool.get(name), mcpExamples.get(name));
+    }),
+  ));
+  pages.push(outputShapesPage(shapes), configPage(), environmentPage());
   return pages.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
 
@@ -66,10 +78,20 @@ export async function generateReference(opts: { examplesDir: string }): Promise<
 export function ownedFilesOnDisk(referenceDir: string): string[] {
   const out: string[] = [];
   for (const entry of OWNED) {
-    if ('dir' in entry) out.push(...sortedFiles(path.join(referenceDir, entry.dir), entry.dir));
+    if ('dir' in entry) out.push(...sortedFiles(path.join(referenceDir, entry.dir), entry.dir === '.' ? '' : entry.dir));
     else if (fs.existsSync(path.join(referenceDir, entry.file))) out.push(entry.file);
   }
   return out.sort();
+}
+
+/** Remove empty folders below `dir`, so a removed section leaves no empty folder. */
+function removeEmptyDirs(dir: string): void {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const child = path.join(dir, entry.name);
+    removeEmptyDirs(child);
+    if (fs.readdirSync(child).length === 0) fs.rmdirSync(child);
+  }
 }
 
 export async function writeReference(siteRoot: string): Promise<{ written: string[]; deleted: string[] }> {
@@ -82,6 +104,7 @@ export async function writeReference(siteRoot: string): Promise<{ written: strin
     fs.rmSync(path.join(referenceDir, rel));
     deleted.push(rel);
   }
+  removeEmptyDirs(referenceDir);
   const written: string[] = [];
   for (const p of pages) {
     const target = path.join(referenceDir, p.path);
@@ -92,13 +115,16 @@ export async function writeReference(siteRoot: string): Promise<{ written: strin
   return { written, deleted };
 }
 
-/** Example files that have no generated page. Paths are relative to the examples folder, such as `cli/nope.md`. */
-export function orphanExamples(pages: GeneratedPage[], examplesDir: string): string[] {
-  const have = new Set(pages.map((p) => p.path));
+/** Example files that match no command or tool. Paths are relative to the examples folder, such as `cli/nope.md`. */
+export async function orphanExamples(examplesDir: string): Promise<string[]> {
+  const known = {
+    cli: new Set(leafCommands(inertProgram()).map((l) => l.names.join('-'))),
+    mcp: new Set((await listTools()).map((t) => t.name)),
+  };
   const orphans: string[] = [];
-  for (const sub of ['cli', 'mcp']) {
+  for (const sub of ['cli', 'mcp'] as const) {
     for (const slug of readExamples(examplesDir, sub).keys()) {
-      if (!have.has(`${sub}/${slug}.md`)) orphans.push(`${sub}/${slug}.md`);
+      if (!known[sub].has(slug)) orphans.push(`${sub}/${slug}.md`);
     }
   }
   return orphans.sort();

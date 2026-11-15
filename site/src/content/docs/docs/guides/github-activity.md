@@ -41,7 +41,7 @@ Only one sync runs at a time. If another sync runs, `gournal sync` stops with th
 Another GitHub sync is running; try again in a minute.
 ```
 
-See [`gournal sync`](/gournal/docs/reference/cli/sync/) for the options.
+See [`gournal sync`](/gournal/docs/reference/sync/) for the options.
 
 ## What gournal reads
 

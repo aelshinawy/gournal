@@ -105,7 +105,8 @@ export function buildProgram(io: CliIo): Command {
     .version(VERSION);
 
   program
-    .command('add <summary>')
+    .command('add')
+    .argument('<summary>', 'One line that says what happened.')
     .description('Add a journal entry. Gournal records the project, repo, and branch of the current directory. A summary over 120 characters, or with a line break, is cut at the first sentence. The full text goes to details, and a note prints.')
     .option('-t, --tags <tags>', 'Tag the entry. Separate tags with commas.', '')
     .option('-d, --details <text>', 'Save longer text with the entry. The summary stays one line.')
@@ -175,7 +176,8 @@ export function buildProgram(io: CliIo): Command {
     });
 
   program
-    .command('restore <id>')
+    .command('restore')
+    .argument('<id>', 'The full id or the last 8 characters of the removed entry.')
     .description('Bring back a removed entry. Pass the full id or the last 8 characters.')
     .action(async (id: string) => {
       await withJournal(({ repo }) => {
@@ -185,7 +187,8 @@ export function buildProgram(io: CliIo): Command {
     });
 
   program
-    .command('resolve <id>')
+    .command('resolve')
+    .argument('<id>', 'The full id or the last 8 characters of the entry.')
     .description('Mark an open blocker or next entry as resolved. Pass the full id or the last 8 characters.')
     .action(async (id: string) => {
       await withJournal(({ repo }) => {
@@ -304,7 +307,8 @@ export function buildProgram(io: CliIo): Command {
     });
 
   program
-    .command('import <file>')
+    .command('import')
+    .argument('<file>', 'Path of the bundle file.')
     .description('Load entries from a bundle file. Make the bundle with gournal export --format bundle.')
     .action(async (file: string) => {
       let bundle: unknown;
@@ -339,7 +343,8 @@ export function buildProgram(io: CliIo): Command {
     });
 
   program
-    .command('find <text>')
+    .command('find')
+    .argument('<text>', 'Words to search for. Every word must match.')
     .description('Search your entries for words. Every word must match. The oldest entries come first.')
     .option('-p, --project <project>', OPTION_TEXT.project)
     .option('-t, --tags <tags>', `${OPTION_TEXT.tags} Separate tags with commas.`)

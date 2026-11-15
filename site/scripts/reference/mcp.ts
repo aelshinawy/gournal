@@ -1,8 +1,10 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../../../src/adapters/mcp';
-import type { GeneratedPage } from './cli';
-import { GENERATED_NOTE, code, frontmatter, firstSentence, table } from './markdown';
+import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js';
+import { ActivitySchema, EntrySchema } from '../../../src/render/json';
+import { demoteHeadings } from './cli';
+import { code, table } from './markdown';
 
 export interface JSONSchema {
   type?: string | string[];
@@ -21,14 +23,14 @@ export interface JSONSchema {
   definitions?: Record<string, JSONSchema>;
 }
 
-interface Tool {
+export interface Tool {
   name: string;
   description?: string;
   inputSchema: JSONSchema;
   outputSchema?: JSONSchema;
 }
 
-const BASE = '/gournal/docs/reference/mcp';
+export const SHAPES_URL = '/gournal/docs/reference/output-shapes/';
 
 /**
  * Names for output shapes that two or more tools share. The key is the sorted tool names of the
@@ -144,22 +146,60 @@ function childSchema(schema: JSONSchema, root: JSONSchema): { props?: Record<str
   return { required: [] };
 }
 
+/**
+ * JSON Schema of a zod schema that tools share, without the description of the outer object. It uses the
+ * converter and options of the MCP SDK, so the result compares equal to the schema in a tool listing.
+ */
+function sharedSchema(schema: Parameters<typeof toJsonSchemaCompat>[0]): JSONSchema {
+  return withoutMeta(toJsonSchemaCompat(schema, { strictUnions: true, pipeStrategy: 'output' }) as JSONSchema);
+}
+
+function withoutMeta(schema: JSONSchema): JSONSchema {
+  const { description: _description, ...rest } = schema as JSONSchema & { $schema?: string };
+  delete (rest as { $schema?: string }).$schema;
+  return rest;
+}
+
+/** Shapes that get one section on the output shapes page. Tool tables link to them and do not repeat the fields. */
+const BASE_SHAPES = [
+  { slug: 'entry', schema: EntrySchema },
+  { slug: 'activity', schema: ActivitySchema },
+].map((s) => ({ slug: s.slug, schema: sharedSchema(s.schema) }));
+
+const BASE_BY_CANON = new Map(BASE_SHAPES.map((s) => [canonical(s.schema), s.slug]));
+
+/** The link cell for a field that is one base shape or an array of it, or undefined. */
+function shapeLink(schema: JSONSchema, root: JSONSchema): string | undefined {
+  const s = resolveRef(schema, root);
+  if (s.type === 'array' && s.items) {
+    const inner = shapeLink(s.items, root);
+    return inner ? inner.replace('`](', '[]`](') : undefined;
+  }
+  const slug = BASE_BY_CANON.get(canonical(withoutMeta(s)));
+  return slug ? `[${code(shapeHeading(slug))}](${SHAPES_URL}#${slug})` : undefined;
+}
+
+function typeCell(schema: JSONSchema, root: JSONSchema): string {
+  return shapeLink(schema, root) ?? code(typeText(schema, root));
+}
+
 function rowsFor(props: Record<string, JSONSchema>, required: string[], prefix: string, root: JSONSchema, out: string[][]): void {
   // Schema property order is the zod declaration order. JS keeps string keys in insertion order,
   // so the output is byte-stable on every Node version.
   for (const [name, prop] of Object.entries(props)) {
     const field = `${prefix}${name}`;
-    out.push([code(field), code(typeText(prop, root)), required.includes(name) ? 'yes' : 'no', describe(prop, root)]);
+    out.push([code(field), typeCell(prop, root), required.includes(name) ? 'yes' : 'no', describe(prop, root)]);
     descend(prop, field, root, out);
   }
 }
 
 function descend(prop: JSONSchema, field: string, root: JSONSchema, out: string[][]): void {
+  if (shapeLink(prop, root)) return;
   const child = childSchema(prop, root);
   if (child.props) rowsFor(child.props, child.required, `${field}.`, root, out);
   else if (child.extra) {
     const key = `${field}.<key>`;
-    out.push([code(key), code(typeText(child.extra, root)), 'yes', describe(child.extra, root)]);
+    out.push([code(key), typeCell(child.extra, root), 'yes', describe(child.extra, root)]);
     descend(child.extra, key, root, out);
   }
 }
@@ -176,7 +216,7 @@ const FIELD_HEADERS = ['Field', 'Type', 'Required', 'Description'];
 
 // ---- pages ----
 
-function canonical(value: unknown): string {
+export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   if (value && typeof value === 'object') {
     const o = value as Record<string, unknown>;
@@ -185,81 +225,52 @@ function canonical(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function shapeHeading(slug: string): string {
+export function shapeHeading(slug: string): string {
   const words = slug.replace(/-/g, ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-function fieldTable(schema: JSONSchema): string {
+export function fieldTable(schema: JSONSchema): string {
   return table(FIELD_HEADERS, schemaRows(schema));
 }
 
-/**
- * Starlight sorts pages that have a sidebar order before pages without one. Every page here carries an
- * order, so the tools stay alphabetical and `output-shapes` comes last.
- */
-function withOrder(front: string, order: number): string {
-  return front.replace(/\n---$/, `\nsidebar:\n  order: ${order}\n---`);
+/** The rendered Markdown parts of one MCP tool. */
+export interface ToolSection {
+  name: string;
+  description: string;
+  input: string;
+  output: string;
+  example: string;
 }
 
-function toolPage(tool: Tool, order: number, shapeSlug: string | undefined, example: string | undefined): GeneratedPage {
-  const description = tool.description ?? '';
-  const lines: string[] = [
-    withOrder(frontmatter(tool.name, firstSentence(description)).trimEnd(), order),
-    `<!-- ${GENERATED_NOTE} Edit examples in site/src/content/examples/mcp/${tool.name}.md. -->`,
-    '',
-    description,
-    '',
-    '## Input',
-    '',
-  ];
-  const inputRows = schemaRows(tool.inputSchema);
-  lines.push(inputRows.length > 0 ? fieldTable(tool.inputSchema) : 'This tool takes no input.');
-  lines.push('', '## Output', '');
-  if (!tool.outputSchema) {
-    lines.push('This tool returns text content. It has no structured output.');
-  } else if (shapeSlug) {
-    lines.push(`This tool returns structured output. The shape is the [${shapeHeading(shapeSlug)}](${BASE}/output-shapes/#${shapeSlug}).`);
-  } else {
-    lines.push(fieldTable(tool.outputSchema));
-  }
-  if (example !== undefined && example.trim() !== '') {
-    lines.push('', '## Examples', '', example.trim());
-  }
-  return { path: `mcp/${tool.name}.md`, content: `${lines.join('\n')}\n` };
+export function toolSection(tool: Tool, shapeSlug: string | undefined, example: string | undefined): ToolSection {
+  const input = schemaRows(tool.inputSchema).length > 0 ? fieldTable(tool.inputSchema) : 'This tool takes no input.';
+  let output: string;
+  if (!tool.outputSchema) output = 'This tool returns text content. It has no structured output.';
+  else if (shapeSlug) output = `This tool returns structured output. The shape is the [${shapeHeading(shapeSlug)}](${SHAPES_URL}#${shapeSlug}).`;
+  else output = fieldTable(tool.outputSchema);
+  return {
+    name: tool.name,
+    description: tool.description ?? '',
+    input,
+    output,
+    example: example === undefined || example.trim() === '' ? '' : demoteHeadings(example.trim()),
+  };
 }
 
-function shapesPage(shapes: Array<{ slug: string; tools: string[]; schema: JSONSchema }>, order: number): GeneratedPage {
-  const lines: string[] = [
-    '---',
-    'title: Output shapes',
-    'description: Output shapes that several MCP tools share.',
-    'sidebar:',
-    `  order: ${order}`,
-    '---',
-    `<!-- ${GENERATED_NOTE} -->`,
-    '',
-    'Several MCP tools return the same structured output. This page lists each shared shape once.',
-  ];
-  for (const s of shapes) {
-    lines.push('', `## ${shapeHeading(s.slug)}`, '', `Tools that return this shape: ${s.tools.map((t) => `[${code(t)}](${BASE}/${t}/)`).join(', ')}.`, '', fieldTable(s.schema));
-  }
-  return { path: 'mcp/output-shapes.md', content: `${lines.join('\n')}\n` };
-}
+export interface SharedShape { slug: string; tools: string[]; schema: JSONSchema }
 
-/** One page per MCP tool, plus `mcp/output-shapes.md`. `examples` maps a tool name to its example text. */
-export async function mcpPages(examples: Map<string, string>): Promise<GeneratedPage[]> {
-  const tools = (await listTools()).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-
+/** Output shapes that two or more tools share, sorted by slug, and the shape slug of each tool that uses one. */
+export function sharedShapes(tools: Tool[]): { shapes: SharedShape[]; slugByTool: Map<string, string> } {
   const groups = new Map<string, { schema: JSONSchema; tools: string[] }>();
-  for (const t of tools) {
+  for (const t of [...tools].sort((a, b) => (a.name < b.name ? -1 : 1))) {
     if (!t.outputSchema) continue;
     const key = canonical(t.outputSchema);
     const g = groups.get(key) ?? { schema: t.outputSchema, tools: [] };
     g.tools.push(t.name);
     groups.set(key, g);
   }
-  const shapes: Array<{ slug: string; tools: string[]; schema: JSONSchema }> = [];
+  const shapes: SharedShape[] = [];
   const slugByTool = new Map<string, string>();
   for (const g of groups.values()) {
     if (g.tools.length < 2) continue;
@@ -271,9 +282,10 @@ export async function mcpPages(examples: Map<string, string>): Promise<Generated
     for (const t of g.tools) slugByTool.set(t, slug);
   }
   shapes.sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
+  return { shapes, slugByTool };
+}
 
-  return [
-    ...tools.map((t, i) => toolPage(t, i + 1, slugByTool.get(t.name), examples.get(t.name))),
-    shapesPage(shapes, tools.length + 1),
-  ];
+/** The Entry and Activity shapes, with the title of each. */
+export function baseShapes(): Array<{ slug: string; schema: JSONSchema }> {
+  return BASE_SHAPES;
 }

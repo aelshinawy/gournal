@@ -12,10 +12,10 @@ async function main(): Promise<number> {
   process.env.GOURNAL_NO_AUTOSYNC = '1';
   try {
     // A dynamic import runs after the env is set. A static import would hoist above it.
-    const { generateReference, orphanExamples, writeReference } = await import('./generate');
+    const { orphanExamples, writeReference } = await import('./generate');
     const siteRoot = path.resolve(__dirname, '../..');
     const examplesDir = path.join(siteRoot, 'src/content/examples');
-    const orphans = orphanExamples(await generateReference({ examplesDir }), examplesDir);
+    const orphans = await orphanExamples(examplesDir);
     if (orphans.length > 0) {
       console.error(`Example files with no matching page:\n${orphans.map((o) => `  ${o}`).join('\n')}`);
       return 1;

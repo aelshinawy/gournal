@@ -33,7 +33,7 @@ See [The summary rule](/gournal/docs/start-here/core-concepts/#the-summary-rule)
 
 ## I added an entry by mistake
 
-Run `gournal undo` to remove the newest entry written on this machine. This includes an entry that an AI agent added. Run `gournal restore <id>` to bring an entry back. See [`gournal undo`](/gournal/docs/reference/cli/undo/) and [`gournal restore`](/gournal/docs/reference/cli/restore/).
+Run `gournal undo` to remove the newest entry written on this machine. This includes an entry that an AI agent added. Run `gournal restore <id>` to bring an entry back. See [`gournal undo`](/gournal/docs/reference/remove-restore/) and [`gournal restore`](/gournal/docs/reference/remove-restore/).
 
 ## An open blocker or next item stays in my standup
 
@@ -75,7 +75,7 @@ Gournal does not change a damaged database. It prints the latest backup. Restore
 
 ## `gournal index rebuild` says `This Node build has no FTS5`
 
-Your Node build lacks the full-text search feature, so the command cannot rebuild the index. Use a Node build with FTS5. See [`gournal index rebuild`](/gournal/docs/reference/cli/index-rebuild/).
+Your Node build lacks the full-text search feature, so the command cannot rebuild the index. Use a Node build with FTS5. See [`gournal index rebuild`](/gournal/docs/reference/index-rebuild/).
 
 ## Does gournal send my data anywhere?
 

@@ -59,7 +59,7 @@ Some tags are really refs. Gournal turns them into refs:
 { "ticketPrefixes": ["BILL", "PLAT"] }
 ```
 
-The tools use refs for [links](#links). MCP tools take refs in a `refs` field, so agents should put ticket keys, PR numbers, and commit hashes there, not in tags. See [`add_entry`](/gournal/docs/reference/mcp/add_entry/).
+The tools use refs for [links](#links). MCP tools take refs in a `refs` field, so agents should put ticket keys, PR numbers, and commit hashes there, not in tags. See [`add_entry`](/gournal/docs/reference/add/).
 
 ## Projects and identity
 

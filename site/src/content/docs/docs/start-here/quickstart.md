@@ -40,7 +40,7 @@ This example ran on a machine with no `claude` CLI. When `claude` is installed, 
 
 Restart Claude Code after setup. Then run `claude mcp list`. The list must show `gournal`. In Claude Code, the `/mcp` command also lists the connected servers.
 
-Without `--yes`, gournal shows each change and asks first. See [Claude Code setup](/gournal/docs/guides/claude-code-setup/) and [`gournal setup claude`](/gournal/docs/reference/cli/setup-claude/).
+Without `--yes`, gournal shows each change and asks first. See [Claude Code setup](/gournal/docs/guides/claude-code-setup/) and [`gournal setup claude`](/gournal/docs/reference/setup-claude/).
 
 ## 3. Add entries
 
@@ -58,7 +58,7 @@ $ gournal add "Add a regression test for tax rounding" -k next -t testing
 ✓ Entry added! (KNWP3VQV)
 ```
 
-The id in the output is the last 8 characters of the entry id. Your ids are different. See [`gournal add`](/gournal/docs/reference/cli/add/).
+The id in the output is the last 8 characters of the entry id. Your ids are different. See [`gournal add`](/gournal/docs/reference/add/).
 
 ## 4. Read your standup
 
@@ -75,7 +75,7 @@ Standup: Today (2026-11-15)
     Nov 15  KNWP3VQV  Add a regression test for tax rounding  [billing-api]
 ```
 
-The standup lists what you finished today, grouped by project. It also lists open blockers and next items. Use `--yesterday`, `--week`, or `--month` for other periods. See [`gournal standup`](/gournal/docs/reference/cli/standup/) and [Standups and work logs](/gournal/docs/guides/standups-and-work-logs/).
+The standup lists what you finished today, grouped by project. It also lists open blockers and next items. Use `--yesterday`, `--week`, or `--month` for other periods. See [`gournal standup`](/gournal/docs/reference/standup/) and [Standups and work logs](/gournal/docs/guides/standups-and-work-logs/).
 
 ## 5. Sync GitHub activity (optional)
 
@@ -107,10 +107,10 @@ Standup: Today (2026-11-15)
     Nov 15  KNWP3VQV  Add a regression test for tax rounding  [billing-api]
 ```
 
-`gournal standup` and `gournal log` also sync for you, at most once every 15 minutes. See [GitHub activity](/gournal/docs/guides/github-activity/) and [`gournal sync`](/gournal/docs/reference/cli/sync/).
+`gournal standup` and `gournal log` also sync for you, at most once every 15 minutes. See [GitHub activity](/gournal/docs/guides/github-activity/) and [`gournal sync`](/gournal/docs/reference/sync/).
 
 ## Next steps
 
 1. Read [Core concepts](/gournal/docs/start-here/core-concepts/).
 2. Let your agent log for you: [Logging with AI agents](/gournal/docs/guides/logging-with-ai-agents/).
-3. Browse the [CLI reference](/gournal/docs/reference/cli/add/).
+3. Browse the [CLI reference](/gournal/docs/reference/add/).

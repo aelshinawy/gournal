@@ -35,7 +35,7 @@ $ gournal import bundle.json
 Imported: 0 new, 0 updated, 3 unchanged, 0 duplicates merged.
 ```
 
-`gournal import` adds new entries, updates changed ones, and skips unchanged ones. See [`gournal export`](/gournal/docs/reference/cli/export/) and [`gournal import`](/gournal/docs/reference/cli/import/).
+`gournal import` adds new entries, updates changed ones, and skips unchanged ones. See [`gournal export`](/gournal/docs/reference/export/) and [`gournal import`](/gournal/docs/reference/import/).
 
 ## Restore from a backup
 
@@ -54,4 +54,4 @@ If `gournal.db` is damaged, gournal does not change it. It prints the path of th
 
 ## Search index
 
-Gournal keeps a full-text search index in the database. To drop and recreate the index, run [`gournal index rebuild`](/gournal/docs/reference/cli/index-rebuild/). Run it only when every gournal process uses a Node build with FTS5. On a Node build without FTS5, the command refuses.
+Gournal keeps a full-text search index in the database. To drop and recreate the index, run [`gournal index rebuild`](/gournal/docs/reference/index-rebuild/). Run it only when every gournal process uses a Node build with FTS5. On a Node build without FTS5, the command refuses.
