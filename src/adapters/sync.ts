@@ -32,12 +32,12 @@ export interface SyncReport {
 type SyncJournal = Pick<Journal, 'repo' | 'activity' | 'config'>;
 type Reason = { kind: GhError['kind']; text: string };
 
-function reasonOf(err: unknown): Reason {
+function reasonOf(err: unknown, auto: boolean): Reason {
   if (err instanceof GhError) {
     switch (err.kind) {
       case 'auth': return { kind: 'auth', text: 'gh is not signed in; run gh auth login' };
       case 'rate-limit': return { kind: 'rate-limit', text: 'GitHub rate limit reached' };
-      case 'timeout': return { kind: 'timeout', text: 'timed out after 10 s' };
+      case 'timeout': return { kind: 'timeout', text: auto ? 'timed out after 10 s' : 'a GitHub call timed out' };
       case 'network': return { kind: 'network', text: 'no network' };
       case 'missing': return { kind: 'missing', text: 'gh is not installed; see https://cli.github.com' };
       default: return { kind: 'other', text: firstLine(err.message) };
@@ -52,6 +52,8 @@ function firstLine(text: string): string {
 }
 
 const skippedLine = (reason: string): string => `gournal: GitHub sync skipped (${reason}); showing stored activity`;
+
+const stoppedLine = (reason: string): string => `gournal: GitHub sync stopped early (${reason}); run gournal sync to catch up`;
 
 /** A local day (YYYY-MM-DD) or an ISO timestamp. Throws a plain Error on a bad value. */
 export function parseSince(value: string): Date {
@@ -110,24 +112,27 @@ export async function runSync(
       report.updated = up.updated;
       report.linked = activity.relinkActivity(up.ids);
       repo.setState(SYNC_STATE.login, fetched.login);
-      // A partial sync keeps the cursor. The next sync repeats the gap, and the upsert makes that harmless.
       // A --since later than the cursor must leave it, or the gap before --since is never fetched.
+      const cursorOk = cursorDate === null || isNaN(cursorDate.getTime()) || since.getTime() <= cursorDate.getTime();
       if (fetched.complete) {
-        if (cursorDate === null || isNaN(cursorDate.getTime()) || since.getTime() <= cursorDate.getTime()) {
-          repo.setState(SYNC_STATE.cursor, maxIso(cursor, opts.now.toISOString()));
-        }
+        if (cursorOk) repo.setState(SYNC_STATE.cursor, maxIso(cursor, opts.now.toISOString()));
         repo.setState(SYNC_STATE.lastSyncAt, opts.now.toISOString());
+      } else if (cursorOk && fetched.progressAt !== null) {
+        // A partial sync moves the cursor to the last PR that finished, and never back.
+        // The PRs come in ascending updated order, so the next sync continues there.
+        const at = Date.parse(fetched.progressAt);
+        const stored = cursorDate === null ? NaN : cursorDate.getTime();
+        if (Number.isFinite(at) && !(at <= stored)) repo.setState(SYNC_STATE.cursor, fetched.progressAt);
       }
     });
     if (fetched.complete) return { ...report, status: 'ok' };
-    const why = reasonOf(new GhError(fetched.stoppedBy ?? 'other', 'stopped')).text;
-    return {
-      ...report,
-      status: 'partial',
-      warning: opts.auto ? skippedLine(why) : `Stopped early (${why}); run gournal sync again to continue.`,
-    };
+    const why = reasonOf(new GhError(fetched.stoppedBy ?? 'other', 'stopped'), opts.auto).text;
+    const warning = !opts.auto
+      ? `Stopped early (${why}); run gournal sync again to continue.`
+      : fetched.progressAt !== null ? stoppedLine(why) : skippedLine(why);
+    return { ...report, status: 'partial', warning };
   } catch (err) {
-    const reason = reasonOf(err);
+    const reason = reasonOf(err, opts.auto);
     // Without gh, an auto sync stays silent: the user has not set up GitHub.
     if (opts.auto) return { ...report, status: 'failed', warning: reason.kind === 'missing' ? null : skippedLine(reason.text) };
     return { ...report, status: 'failed', warning: `GitHub sync failed (${reason.text})` };

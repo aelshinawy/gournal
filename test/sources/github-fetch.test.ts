@@ -12,8 +12,8 @@ const none = { include: [] as string[], exclude: [] as string[] };
 function routes(extra: Record<string, unknown> = {}) {
   return {
     user: fx('user.json'),
-    [`search/issues?page=1&per_page=100&q=${Q_OWN}`]: fx('search-authored-p1.json'),
-    [`search/issues?page=1&per_page=100&q=${Q_REV}`]: fx('search-reviewed-p1.json'),
+    [`search/issues?order=asc&page=1&per_page=100&q=${Q_OWN}&sort=updated`]: fx('search-authored-p1.json'),
+    [`search/issues?order=asc&page=1&per_page=100&q=${Q_REV}&sort=updated`]: fx('search-reviewed-p1.json'),
     'repos/acme/widgets/pulls/5': fx('pull-acme-widgets-5.json'),
     'repos/acme/widgets/pulls/5/commits?page=1&per_page=100': fx('commits-acme-widgets-5.json'),
     'repos/blocked-org/vault/pulls/2': { ...fx('pull-acme-widgets-5.json'), number: 2 },
@@ -48,8 +48,16 @@ describe('fetchActivity', () => {
       pr: 5, payload: { pr: 5 },
     }]);
     expect(gh.calls[0]).toEqual(['api', 'user']);
-    expect(gh.calls).toContainEqual(['api', '-X', 'GET', 'search/issues', '-f', `q=${Q_OWN}`, '-f', 'per_page=100', '-f', 'page=1']);
+    expect(gh.calls).toContainEqual(['api', '-X', 'GET', 'search/issues', '-f', `q=${Q_OWN}`, '-f', 'per_page=100', '-f', 'page=1', '-f', 'sort=updated', '-f', 'order=asc']);
     expect(gh.calls).toContainEqual(['api', 'repos/acme/widgets/pulls/5']);
+  });
+
+  test('both searches ask for ascending updated order', async () => {
+    const gh = fakeGh(routes());
+    await fetchActivity(gh, { since, owners: none, callTimeoutMs: 1000 });
+    const searches = gh.calls.filter((c) => c.includes('search/issues'));
+    expect(searches).toHaveLength(2);
+    for (const c of searches) expect(c.join(' ')).toContain('-f sort=updated -f order=asc');
   });
 
   test('reviews on own PRs are skipped and pending reviews are ignored', async () => {
@@ -86,15 +94,15 @@ describe('fetchActivity', () => {
     const full = { items: Array.from({ length: 100 }, (_, i) => mk(i + 1)) };
     const r: Record<string, unknown> = { user: { login: 'dev' } };
     const q = 'is:pr author:dev updated:>=2026-11-01T00:00:00Z';
-    for (let p = 1; p <= 12; p++) r[`search/issues?page=${p}&per_page=100&q=${q}`] = full;
-    r['search/issues?page=1&per_page=100&q=is:pr reviewed-by:dev -author:dev updated:>=2026-11-01T00:00:00Z'] = { items: [] };
+    for (let p = 1; p <= 12; p++) r[`search/issues?order=asc&page=${p}&per_page=100&q=${q}&sort=updated`] = full;
+    r['search/issues?order=asc&page=1&per_page=100&q=is:pr reviewed-by:dev -author:dev updated:>=2026-11-01T00:00:00Z&sort=updated'] = { items: [] };
     const gh = fakeGh(r);
     const res = await fetchActivity(gh, { since, owners: { include: [], exclude: ['acme'] }, callTimeoutMs: 1000 });
     expect(res.complete).toBe(true);
     const own = gh.calls.filter((c) => c.includes('search/issues') && c.some((a) => a.startsWith('q=is:pr author')));
     expect(own).toHaveLength(10);
 
-    const short: Record<string, unknown> = { ...r, [`search/issues?page=2&per_page=100&q=${q}`]: { items: [mk(1)] } };
+    const short: Record<string, unknown> = { ...r, [`search/issues?order=asc&page=2&per_page=100&q=${q}&sort=updated`]: { items: [mk(1)] } };
     const gh2 = fakeGh(short);
     await fetchActivity(gh2, { since, owners: { include: [], exclude: ['acme'] }, callTimeoutMs: 1000 });
     expect(gh2.calls.filter((c) => c.some((a) => a.startsWith('q=is:pr author')))).toHaveLength(2);
@@ -137,5 +145,57 @@ describe('fetchActivity', () => {
   test('a failing user call throws', async () => {
     const gh = fakeGh(routes({ user: new GhError('auth', 'no login') }));
     await expect(fetchActivity(gh, { since, owners: none, callTimeoutMs: 1000 })).rejects.toMatchObject({ kind: 'auth' });
+  });
+
+  describe('progressAt', () => {
+    const pr = (n: number, updated: string) => ({
+      number: n, title: `PR ${n}`, repository_url: 'https://api.github.com/repos/acme/x', user: { login: 'Dev' }, updated_at: updated,
+    });
+    const search = (items: unknown[]) => ({ items });
+    const pull = (n: number) => ({ number: n, title: `PR ${n}`, html_url: `u${n}`, head: { ref: `b${n}` }, state: 'open', created_at: `2026-11-0${n}T00:00:00Z`, base: { ref: 'main' } });
+    const base = (own: unknown[], rev: unknown[], extra: Record<string, unknown> = {}) => {
+      const r: Record<string, unknown> = {
+        [`search/issues?order=asc&page=1&per_page=100&q=${Q_OWN}&sort=updated`]: search(own),
+        [`search/issues?order=asc&page=1&per_page=100&q=${Q_REV}&sort=updated`]: search(rev),
+      };
+      for (const n of [1, 2, 3, 4]) {
+        r[`repos/acme/x/pulls/${n}`] = pull(n);
+        r[`repos/acme/x/pulls/${n}/commits?page=1&per_page=100`] = [];
+      }
+      return { ...r, ...extra };
+    };
+
+    test('a complete run reports the last PR and processes both searches by updated_at', async () => {
+      const own = [pr(1, '2026-11-02T00:00:00Z'), pr(3, '2026-11-04T00:00:00Z')];
+      const rev = [{ ...pr(2, '2026-11-03T00:00:00Z'), user: { login: 'sam' } }];
+      const gh = fakeGh(base(own, rev, { 'repos/acme/x/pulls/2/reviews?page=1&per_page=100': [] }));
+      const r = await fetchActivity(gh, { since, login: 'Dev', owners: none, callTimeoutMs: 1000 });
+      expect(r.complete).toBe(true);
+      expect(r.progressAt).toBe('2026-11-04T00:00:00Z');
+      const order = gh.calls
+        .map((c) => c.find((x) => /^repos\/acme\/x\/pulls\/\d(\/reviews)?$/.test(x)))
+        .filter((x): x is string => x !== undefined)
+        .map((x) => x.split('/')[4]);
+      expect(order).toEqual(['1', '2', '3']);
+    });
+
+    test('a partial run reports the updated_at of the last finished PR', async () => {
+      const own = [1, 2, 3, 4].map((n) => pr(n, `2026-11-0${n + 1}T00:00:00Z`));
+      let done = 0;
+      const inner = fakeGh(base(own, []));
+      const gh: GhRunner = async (a, o) => {
+        if (a.some((x) => x.includes('/commits'))) { done += 1; if (done > 2) throw new GhError('timeout', 't'); }
+        return inner(a, o);
+      };
+      const r = await fetchActivity(gh, { since, login: 'Dev', owners: none, callTimeoutMs: 1000 });
+      expect(r.complete).toBe(false);
+      expect(r.progressAt).toBe('2026-11-03T00:00:00Z');
+    });
+
+    test('progressAt is null when no PR finished', async () => {
+      const gh = fakeGh(base([pr(1, '2026-11-02T00:00:00Z')], [], { 'repos/acme/x/pulls/1': new GhError('timeout', 't') }));
+      const r = await fetchActivity(gh, { since, login: 'Dev', owners: none, callTimeoutMs: 1000 });
+      expect(r).toMatchObject({ complete: false, progressAt: null });
+    });
   });
 });

@@ -5,6 +5,7 @@ export interface SearchItem {
   title: string;
   repository_url: string;
   user?: { login?: string } | null;
+  updated_at?: string;
 }
 
 /** "owner/name" from the last two path parts of repository_url, exactly as GitHub returns it. */
