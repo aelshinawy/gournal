@@ -1,0 +1,50 @@
+---
+const base = import.meta.env.BASE_URL;
+---
+
+<section class="g-section g-features" aria-labelledby="g-features-title">
+  <div class="g-wrap">
+    <h2 id="g-features-title" class="g-visually-hidden">What gournal does</h2>
+    <div class="g-features__grid">
+      <article class="g-tile">
+        <pre class="g-tile__specimen"><code><span class="t-dim">tools/call</span> add_entry
+{ <span class="t-key">"summary"</span>: "Wrote retry tests",
+  <span class="t-key">"project"</span>: "worker",
+  <span class="t-key">"agent"</span>: "claude-code" }</code></pre>
+        <h3>Agents log for you</h3>
+        <p>
+          Claude Code and other MCP clients add entries through the gournal MCP server as they finish work.
+          <code>gournal setup claude</code> registers the server and installs the skill. An optional Stop hook reminds
+          Claude to log.
+        </p>
+        <a class="g-tile__more" href={`${base}docs/guides/logging-with-ai-agents/`}>Logging with AI agents</a>
+      </article>
+
+      <article class="g-tile">
+        <pre class="g-tile__specimen"><code><span class="t-red">Blockers</span>
+  <span class="t-dim">Nov 14</span>  Waiting on staging keys  <span class="t-acc">[api]</span>
+
+<span class="t-yel">Next</span>
+  <span class="t-dim">Nov 15</span>  Ship retry metrics  <span class="t-acc">[worker]</span></code></pre>
+        <h3>Standups that write themselves</h3>
+        <p>
+          <code>gournal standup</code> groups today's done entries by project. Open blockers and next items carry
+          forward until an entry resolves them. Ask for <code>--yesterday</code>, <code>--week</code>, or a date range.
+        </p>
+        <a class="g-tile__more" href={`${base}docs/guides/standups-and-work-logs/`}>Standups and work logs</a>
+      </article>
+
+      <article class="g-tile">
+        <pre class="g-tile__specimen"><code><span class="t-dim">10:41</span>  Fixed the token refresh race
+       <span class="t-dim">↳ merged #412 Fix token refresh race</span>
+       <span class="t-dim">↳ 3 commits</span></code></pre>
+        <h3>GitHub, linked</h3>
+        <p>
+          <code>gournal sync</code> reads your pull requests, commits, and reviews through the <code>gh</code> CLI. It
+          links each item to an entry by PR number, commit sha, or branch and time. The rest goes to the Also line.
+        </p>
+        <a class="g-tile__more" href={`${base}docs/guides/github-activity/`}>GitHub activity</a>
+      </article>
+    </div>
+  </div>
+</section>

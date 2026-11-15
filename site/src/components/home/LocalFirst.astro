@@ -1,0 +1,22 @@
+---
+const base = import.meta.env.BASE_URL;
+---
+
+<section class="g-section g-local" aria-labelledby="g-local-title">
+  <div class="g-wrap g-ledger">
+    <div class="g-ledger__margin">
+      <p class="g-local__path"><code>~/.gournal/gournal.db</code></p>
+      <p class="g-local__detail">
+        One SQLite database file holds every entry and every synced activity item. Set <code>GOURNAL_HOME</code> to keep it
+        somewhere else. <code>gh</code> keeps your GitHub login, not gournal.
+      </p>
+    </div>
+    <div class="g-ledger__specimen">
+      <h2 id="g-local-title" class="g-local__note">Local-first. SQLite on your machine. No account, no tokens stored.</h2>
+      <div class="g-actions">
+        <a class="g-btn g-btn--primary" href={`${base}docs/start-here/quickstart/`}>Get started</a>
+        <a class="g-btn g-btn--quiet" href={`${base}docs/guides/data-safety-and-backups/`}>Data safety and backups</a>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,67 @@
+---
+// The install command with a copy button. It needs no framework.
+// With no Clipboard API, the button selects the command so that the visitor can copy it.
+const command = 'npm install -g gournal';
+---
+
+<div class="g-install">
+  <span class="g-install__prompt" aria-hidden="true">$</span>
+  <code class="g-install__cmd" data-copy-source>{command}</code>
+  <button class="g-install__btn" type="button" data-copy-button aria-describedby="g-install-status">
+    <svg class="g-install__icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <rect x="5" y="5" width="8.5" height="8.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4" />
+      <path d="M10.5 3.5V3A1.5 1.5 0 0 0 9 1.5H3A1.5 1.5 0 0 0 1.5 3v6A1.5 1.5 0 0 0 3 10.5h.5" fill="none" stroke="currentColor" stroke-width="1.4" />
+    </svg>
+    <span data-copy-label>Copy</span>
+  </button>
+  <span class="g-visually-hidden" id="g-install-status" role="status" data-copy-status></span>
+</div>
+
+<script>
+  const root = document.querySelector('.g-install');
+  const button = root?.querySelector<HTMLButtonElement>('[data-copy-button]');
+  const source = root?.querySelector<HTMLElement>('[data-copy-source]');
+  const label = root?.querySelector<HTMLElement>('[data-copy-label]');
+  const status = root?.querySelector<HTMLElement>('[data-copy-status]');
+  let timer: number | undefined;
+
+  function selectSource(el: HTMLElement): void {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }
+
+  async function copy(text: string, el: HTMLElement): Promise<boolean> {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {
+      /* fall through to the selection path */
+    }
+    selectSource(el);
+    try {
+      return document.execCommand('copy');
+    } catch {
+      return false;
+    }
+  }
+
+  button?.addEventListener('click', async () => {
+    if (!source || !label || !status) return;
+    const ok = await copy(source.textContent?.trim() ?? '', source);
+    if (!ok) selectSource(source);
+    root?.setAttribute('data-state', ok ? 'copied' : 'selected');
+    label.textContent = ok ? 'Copied' : 'Selected';
+    status.textContent = ok ? 'Copied the install command.' : 'Selected the install command. Copy it with your keyboard.';
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      root?.removeAttribute('data-state');
+      label.textContent = 'Copy';
+      status.textContent = '';
+    }, 2400);
+  });
+</script>
