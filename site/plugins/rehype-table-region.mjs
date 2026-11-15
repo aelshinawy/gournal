@@ -10,6 +10,7 @@ export function rehypeTableRegion() {
   return () => {
     let heading = '';
     const seen = new Map();
+    let overview;
     return {
       name: 'gournal-table-region',
       element: {
@@ -24,8 +25,11 @@ export function rehypeTableRegion() {
           const n = (seen.get(base) ?? 0) + 1;
           seen.set(base, n);
           // Every table on the reference overview page shares one layout. Mark them by page path so CSS can give them equal proportions.
-          const file = ctx.fileURL ? fileURLToPath(ctx.fileURL).replace(/\\/g, '/') : '';
-          const overview = file.endsWith('reference/index.md');
+          if (overview === undefined) {
+            const url = ctx.fileURL;
+            const file = url ? fileURLToPath(url).replace(/\\/g, '/') : '';
+            overview = file.endsWith('/docs/reference/index.md');
+          }
           ctx.wrapNode(node, {
             type: 'element',
             tagName: 'div',
