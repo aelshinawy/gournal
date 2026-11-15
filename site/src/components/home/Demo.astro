@@ -60,6 +60,23 @@ const marks = [
   const label = toggle?.querySelector<HTMLElement>('[data-demo-label]');
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   let userPaused = false;
+  // The standup is fully printed from about 2.5s. The first play starts at 3s, so a visitor
+  // sees the populated report at once. The loop still returns to 0 and replays the typing.
+  const START = 3;
+  let seeded = false;
+
+  function startPlayback(): void {
+    if (!video) return;
+    const go = (): void => {
+      if (!seeded) {
+        seeded = true;
+        if (video.duration > START + 1) video.currentTime = START;
+      }
+      void video.play().catch(() => undefined);
+    };
+    if (video.readyState >= 1) go();
+    else video.addEventListener('loadedmetadata', go, { once: true });
+  }
 
   function render(): void {
     if (!video || !toggle || !label) return;
@@ -72,7 +89,7 @@ const marks = [
     if (reduce.matches) {
       video.pause();
     } else if (video.paused && !userPaused) {
-      void video.play().catch(() => undefined);
+      startPlayback();
     }
     render();
   }
