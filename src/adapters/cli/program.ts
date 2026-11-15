@@ -1,6 +1,7 @@
 import { Command, CommanderError } from 'commander';
 import chalk from 'chalk';
-import { resolveIdentity } from '../../sources';
+import { execGh, resolveIdentity, type GhRunner } from '../../sources';
+import { maybeAutoSync, parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
 import { startMcpServer } from '../mcp';
 import { standupModel, workLogModel } from '../reports';
 import { buildStats, checkSummary, resolveQuery, shortId } from '../../core';
@@ -11,8 +12,10 @@ import {
 import inquirer from 'inquirer';
 import fs from 'fs-extra';
 import path from 'path';
+import os from 'os';
 import { VERSION } from '../version';
 import { clearConfirmQuestion } from './prompts';
+import { execFileRunner, setupClaude, stopHook, type CommandRunner } from '../setup';
 import { openJournal, exportBundle, importBundle, backupDbIfNeeded, gournalHome, hasFts5, rebuildSearchIndex, importLegacy, applyPlan, renderPlanDiff } from '../../storage';
 import type { Journal, MigrationPlan } from '../../storage';
 
@@ -22,6 +25,23 @@ export interface CliIo {
   cwd: string;
   home: string;
   isTTY: boolean;
+  /** Test seam. The default runs the real gh. */
+  gh?: GhRunner;
+  /** The user's home, for `setup claude`. `home` above is the gournal home. Default: os.homedir() at call time. */
+  userHome?: string;
+  /** Test seam for `setup claude`. The default asks with inquirer. */
+  confirm?: (message: string, def: boolean) => Promise<boolean>;
+  /** Test seam for `setup claude`. The default runs the claude CLI with execFile, no shell. */
+  exec?: CommandRunner;
+}
+
+async function inquirerConfirm(message: string, def: boolean): Promise<boolean> {
+  try {
+    const { confirm } = await inquirer.prompt([{ type: 'confirm', name: 'confirm', message, default: def }]);
+    return confirm as boolean;
+  } catch {
+    return false; // no terminal to ask: the answer is no
+  }
 }
 
 const KINDS: Kind[] = ['done', 'blocker', 'next'];
@@ -99,7 +119,8 @@ export function buildProgram(io: CliIo): Command {
       }
       const check = checkSummary(summary, options.details, { allowSplit: true });
       if (!check.ok) throw new Error(check.error);
-      await withJournal(({ repo, config }) => {
+      await withJournal((journal) => {
+        const { repo, config } = journal;
         const id = resolveIdentity(io.cwd, config.projectAliases);
         const entry = repo.add({
           summary: check.summary,
@@ -112,6 +133,7 @@ export function buildProgram(io: CliIo): Command {
           tags: splitList(options.tags),
           resolves: splitList(options.resolves),
         });
+        relinkAfterWrite(journal, [entry.id]);
         io.out(chalk.green(`✓ Entry added! (${shortId(entry.id)})`));
         if (check.summary !== summary.trim()) {
           io.out(chalk.yellow('Note: summary was long, the rest went to details.'));
@@ -185,10 +207,14 @@ export function buildProgram(io: CliIo): Command {
     .option('-p, --project <project>', 'Filter by project name')
     .option('--repo <owner/name>', 'Filter by repository')
     .option('-t, --tags <tags>', 'Comma-separated tags')
-    .action(async (options: PeriodCliOptions) => {
+    .option('--activity', 'List all GitHub activity that has no entry, not only the counts')
+    .action(async (options: PeriodCliOptions & { activity?: boolean }) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
-      await withJournal(({ repo, config }) => {
-        io.out(standupText(standupModel(repo, config, { ...options, tags: splitList(options.tags) }, new Date())));
+      await withJournal(async (journal) => {
+        const warning = await maybeAutoSync(journal, io.gh ?? execGh(), new Date());
+        if (warning) io.err(warning);
+        const model = standupModel(journal, { ...options, tags: splitList(options.tags) }, new Date());
+        io.out(standupText(model, { expandActivity: options.activity === true }));
       });
     });
 
@@ -205,8 +231,10 @@ export function buildProgram(io: CliIo): Command {
     .option('-t, --tags <tags>', 'Comma-separated tags')
     .action(async (options: PeriodCliOptions) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
-      await withJournal(({ repo, config }) => {
-        io.out(workLogText(workLogModel(repo, config, { ...options, tags: splitList(options.tags) }, new Date())));
+      await withJournal(async (journal) => {
+        const warning = await maybeAutoSync(journal, io.gh ?? execGh(), new Date());
+        if (warning) io.err(warning);
+        io.out(workLogText(workLogModel(journal, { ...options, tags: splitList(options.tags) }, new Date())));
       });
     });
 
@@ -298,7 +326,7 @@ export function buildProgram(io: CliIo): Command {
             io.err(`gournal: daily backup failed: ${(err as Error).message}`);
           }
         }
-        const r = importBundle(db, bundle);
+        const r = importBundle(db, bundle, config);
         io.out(chalk.green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged, ${r.deduplicated} duplicates merged.`));
         // The bundle's legacy keys are in place now. The legacy import adds only lines the bundle did not know.
         const jsonPath = path.join(io.home, 'entries.json');
@@ -396,6 +424,54 @@ export function buildProgram(io: CliIo): Command {
     });
 
   program
+    .command('sync')
+    .description('Fetch your GitHub activity (PRs, commits, reviews) through the gh CLI')
+    .option('--since <date>', 'Start date (local day or ISO timestamp). Default: the last sync.')
+    .action(async (options: { since?: string }) => {
+      const since = options.since === undefined ? undefined : parseSince(options.since); // fail before the journal opens
+      const report = await withJournal((journal) =>
+        runSync(journal, io.gh ?? execGh(), { since, auto: false, now: new Date() }));
+      if (report.status === 'failed') throw new Error(report.warning ?? 'GitHub sync failed');
+      const line = syncSummaryLine(report);
+      io.out(report.status === 'partial' && report.warning ? `${line} ${report.warning}` : line);
+    });
+
+  const setup = program.command('setup').description('Set gournal up for another tool');
+  setup
+    .command('claude')
+    .description('Register the MCP server, install the skill, and optionally add a Stop hook for Claude Code')
+    .option('--uninstall', 'Remove what setup added')
+    .option('-y, --yes', 'Apply the MCP and skill steps without asking')
+    .option('--hook', 'Also add the Stop hook that reminds Claude to log work')
+    .action(async (options: { uninstall?: boolean; yes?: boolean; hook?: boolean }) => {
+      const code = await setupClaude({
+        out: io.out, err: io.err, isTTY: io.isTTY,
+        home: io.userHome ?? os.homedir(),
+        confirm: io.confirm ?? inquirerConfirm,
+        exec: io.exec ?? execFileRunner,
+      }, { uninstall: options.uninstall === true, yes: options.yes === true, hook: options.hook === true });
+      if (code !== 0) throw new CommanderError(code, 'gournal.setup', 'setup did not finish'); // setup already printed why
+    });
+
+  const hook = program.command('hook', { hidden: true }).description('Claude Code hook entry points');
+  hook
+    .command('stop')
+    .description('Stop hook: ask the agent to log edited work once per session')
+    .action(async () => {
+      // Never opens the database. Never fails: any error means no output and exit 0.
+      let stdin = '';
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
+        stdin = Buffer.concat(chunks).toString('utf8');
+      } catch {
+        return;
+      }
+      const result = await stopHook(stdin, io.home, new Date());
+      if (result !== null) io.out(result);
+    });
+
+  program
     .command('mcp')
     .description('Start an MCP server exposing gournal entries, standup reports, and export as tools')
     .action(async () => {
@@ -412,6 +488,7 @@ export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<n
     cwd: io.cwd ?? process.cwd(),
     home: io.home ?? gournalHome(),
     isTTY: io.isTTY ?? process.stdin.isTTY === true,
+    gh: io.gh,
   };
   try {
     await buildProgram(full).parseAsync(argv);

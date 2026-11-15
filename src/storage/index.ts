@@ -1,6 +1,7 @@
 // Public entry of the storage layer.
 export { openJournal } from './journal';
 export type { Journal } from './journal';
+export { createActivityRepository } from './activity-repository';
 export { exportBundle, importBundle } from './bundle';
 export { backupDbIfNeeded } from './backup';
 export { gournalHome } from './home';

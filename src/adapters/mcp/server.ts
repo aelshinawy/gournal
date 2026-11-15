@@ -2,13 +2,14 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { fileURLToPath } from 'url';
-import { resolveIdentity } from '../../sources';
+import { execGh, resolveIdentity, type GhRunner } from '../../sources';
+import { maybeAutoSync, parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
 import { resolveCallIdentity } from './identity';
 import { VERSION } from '../version';
 import { checkSummary, closeTags, normalizeTags, shortId } from '../../core';
-import type { Config, Entry, EntryPatch, EntryRepository, Query, RepoIdentity } from '../../core';
+import type { ActivityRepository, Config, Entry, EntryPatch, EntryRepository, Query, RepoIdentity } from '../../core';
 import {
-  EntryListSchema, EntryResultSchema, ProjectCountsSchema, StandupSchema, TagCountsSchema, WorkLogSchema,
+  EntryListSchema, EntryResultSchema, ProjectCountsSchema, StandupSchema, SyncReportSchema, TagCountsSchema, WorkLogSchema,
   entriesMarkdown, entryJson, exportCsv, exportMarkdown, standupJson, standupMarkdown, workLogJson, workLogMarkdown,
 } from '../../render';
 import { openJournal } from '../../storage';
@@ -21,12 +22,13 @@ export const SERVER_INSTRUCTIONS = [
   'kind is done (default), blocker (something stops you), or next (a planned next step).',
   'To close a blocker or next item, pass its id in resolves on the done entry, or call resolve_entry.',
   'Reuse existing tags (list_tags). Ticket keys and PR numbers go in refs, not tags.',
+  'Call sync_activity to fetch the user\'s GitHub activity. Report tools already sync when the data is stale.',
 ].join('\n');
 
 const RETRY_WINDOW_MS = 10 * 60 * 1000;
 const RETRY_PREFIX = 60;
 
-type JournalLike = { repo: EntryRepository; config: Config };
+type JournalLike = { repo: EntryRepository; activity: ActivityRepository; config: Config };
 
 const EXPORT_DEFAULT_LIMIT = 200;
 const FIND_DEFAULT_LIMIT = 50;
@@ -39,12 +41,18 @@ type ToolResult = TextResult | ReturnType<typeof dataResult> | ReturnType<typeof
 const entryResult = (text: string, entry: Entry, notes: string[] = []) =>
   dataResult(text, { entry: entryJson(entry), notes });
 
+/** The sync warning is the last line of the text. */
+const withWarning = (markdown: string, warning: string | null): string =>
+  warning === null ? markdown : `${markdown.endsWith('\n') ? markdown : `${markdown}\n`}${warning}\n`;
+
 const KIND = z.enum(['done', 'blocker', 'next']);
 
 export interface ServerDeps {
   journal?: JournalLike;
   identity?: (cwd: string) => RepoIdentity;
   processCwd?: () => string;
+  /** Test seam. The default runs the real gh. */
+  gh?: GhRunner;
 }
 
 const ROOTS_TIMEOUT_MS = 1000;
@@ -130,7 +138,8 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       summary?: string; message?: string; details?: string; kind?: 'done' | 'blocker' | 'next';
       project?: string; repo?: string; branch?: string; cwd?: string; agent?: string; tags?: string[];
       refs?: { type: 'pr' | 'jira' | 'commit' | 'url'; value: string; repo?: string }[]; resolves?: string[];
-    }, { repo, config }) => {
+    }, journal) => {
+      const { repo, config } = journal;
       const raw = args.summary ?? args.message;
       if (raw === undefined) return errorResult('summary is required');
       const now = Date.now();
@@ -183,6 +192,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
           resolves: [...validResolves],
         });
       });
+      relinkAfterWrite(journal, [entry.id]);
       const lines = [`Entry ${shortId(entry.id)} added to ${entry.project}: ${entry.summary}`, ...hints, ...dropped];
       if (check.summary !== text) lines.push('Summary was too long and was split; full text is in details.');
       return entryResult(lines.join('\n'), entry, lines.slice(1));
@@ -208,7 +218,8 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     guarded((args: {
       id: string; summary?: string; details?: string; kind?: 'done' | 'blocker' | 'next'; project?: string;
       tags?: string[]; refs?: { type: 'pr' | 'jira' | 'commit' | 'url'; value: string; repo?: string }[];
-    }, { repo }) => {
+    }, journal) => {
+      const { repo } = journal;
       const patch: EntryPatch = {};
       if (args.summary !== undefined) {
         const check = checkSummary(args.summary, args.details, { allowSplit: args.details !== undefined });
@@ -223,6 +234,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       if (args.tags !== undefined) patch.tags = args.tags;
       if (args.refs !== undefined) patch.refs = args.refs;
       const entry = repo.update(args.id, patch);
+      relinkAfterWrite(journal, [entry.id]);
       return entryResult(`Entry ${shortId(entry.id)} updated: ${entry.summary}`, entry);
     })
   );
@@ -323,12 +335,13 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     {
       title: 'Get standup report',
       description: 'Generate a gournal standup report (today by default, or yesterday/week/month, or a from/to range). Done entries use the period. Open blockers and next items carry forward from before it. Optionally filter by project, repo, and tags.',
-      outputSchema: StandupSchema,
+      outputSchema: StandupSchema.extend({ syncWarning: z.string().nullable() }),
       inputSchema: periodInput,
     },
-    guarded((args: PeriodArgs, { repo, config }) => {
-      const model = standupModel(repo, config, args, new Date());
-      return dataResult(standupMarkdown(model), standupJson(model));
+    guarded(async (args: PeriodArgs, journal) => {
+      const syncWarning = await maybeAutoSync(journal, deps.gh ?? execGh(), new Date());
+      const model = standupModel(journal, args, new Date());
+      return dataResult(withWarning(standupMarkdown(model), syncWarning), { ...standupJson(model), syncWarning });
     })
   );
 
@@ -337,12 +350,13 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     {
       title: 'Get chronological work log',
       description: 'Generate a gournal work log grouped by day (today by default, or yesterday/week/month, or a from/to range). Optionally filter by project, repo, and tags.',
-      outputSchema: WorkLogSchema,
+      outputSchema: WorkLogSchema.extend({ syncWarning: z.string().nullable() }),
       inputSchema: periodInput,
     },
-    guarded((args: PeriodArgs, { repo, config }) => {
-      const model = workLogModel(repo, config, args, new Date());
-      return dataResult(workLogMarkdown(model), workLogJson(model));
+    guarded(async (args: PeriodArgs, journal) => {
+      const syncWarning = await maybeAutoSync(journal, deps.gh ?? execGh(), new Date());
+      const model = workLogModel(journal, args, new Date());
+      return dataResult(withWarning(workLogMarkdown(model), syncWarning), { ...workLogJson(model), syncWarning });
     })
   );
 
@@ -399,6 +413,23 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       const content = [{ type: 'text' as const, text: body }];
       if (truncated) content.push({ type: 'text' as const, text: `(Showing the newest ${limit} entries. Pass limit or from/to for more.)` });
       return { content };
+    })
+  );
+
+  server.registerTool(
+    'sync_activity',
+    {
+      title: 'Sync GitHub activity',
+      description: 'Fetch the user\'s GitHub activity (PRs, commits, reviews) through the gh CLI and link it to journal entries. Needs gh signed in. `since` is a local day or an ISO timestamp; the default is the last sync.',
+      outputSchema: SyncReportSchema,
+      inputSchema: { since: z.string().optional().describe('Start date: a local day (YYYY-MM-DD) or an ISO timestamp') },
+    },
+    guarded(async ({ since }: { since?: string }, journal) => {
+      const from = since === undefined ? undefined : parseSince(since);
+      const report = await runSync(journal, deps.gh ?? execGh(), { since: from, auto: false, now: new Date() });
+      if (report.status === 'failed') return dataResult(report.warning ?? 'GitHub sync failed', { ...report });
+      const line = syncSummaryLine(report);
+      return dataResult(report.warning ? `${line} ${report.warning}` : line, { ...report });
     })
   );
 

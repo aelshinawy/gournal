@@ -1,0 +1,20 @@
+[
+  {
+    "sha": "ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+    "html_url": "https://github.com/acme/widgets/commit/abcdef1234567890abcdef1234567890abcdef12",
+    "author": { "login": "DEV" },
+    "commit": { "message": "Add cache layer\n\nLonger body here.", "author": { "date": "2026-11-02T10:00:00Z" } }
+  },
+  {
+    "sha": "1111111222222233333334444444555555566666",
+    "html_url": "https://github.com/acme/widgets/commit/1111111222222233333334444444555555566666",
+    "author": { "login": "casey" },
+    "commit": { "message": "Review nit", "author": { "date": "2026-11-02T11:00:00Z" } }
+  },
+  {
+    "sha": "9999999888888877777776666666555555544444",
+    "html_url": "https://github.com/acme/widgets/commit/9999999888888877777776666666555555544444",
+    "author": null,
+    "commit": { "message": "Unlinked author", "author": { "date": "2026-11-02T12:00:00Z" } }
+  }
+]

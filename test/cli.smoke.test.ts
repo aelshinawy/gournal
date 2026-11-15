@@ -84,4 +84,16 @@ describe('real process', () => {
     expect(r.status).toBe(1);
     expect(r.stderr).toContain('Not a terminal; nothing cleared.');
   });
+  test('hook stop reads real stdin, asks once, and never creates the database', () => {
+    const file = path.join(home, 't.jsonl');
+    fs.writeFileSync(file, JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Edit', input: {} }] } }) + '\n');
+    const stdin = JSON.stringify({ session_id: 'smoke', transcript_path: file, stop_hook_active: false });
+    const r = spawnCli(['hook', 'stop'], stdin);
+    expect(r.status).toBe(0);
+    expect(JSON.parse(r.stdout).decision).toBe('block');
+    const again = spawnCli(['hook', 'stop'], stdin);
+    expect(again.status).toBe(0);
+    expect(again.stdout).toBe('');
+    expect(fs.existsSync(path.join(home, 'gournal.db'))).toBe(false);
+  });
 });

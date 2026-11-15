@@ -2,7 +2,8 @@ import type { DatabaseSync } from 'node:sqlite';
 import { hasLineBreak, mergeRefs, newId, normalizeTags, resolveProjectAlias, resolveQuery, summaryLength, MAX_SUMMARY } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Query, Ref } from '../core';
 import type { EntryRepository } from '../core';
-import { backupDbIfNeeded } from './backup';
+import { BUMP_UPDATED_AT, createWriter } from './writer';
+import type { Writer } from './writer';
 import { searchIndexLive } from './schema';
 import { ftsMatchExpression, likePattern } from './search';
 import type { Config } from '../core';
@@ -17,14 +18,6 @@ export class AmbiguousIdError extends Error {
 }
 
 const MIN_SUFFIX = 6;
-/**
- * SQL for every write that edits a live entry. It takes the current time as its one parameter and keeps
- * updated_at strictly rising, even within one millisecond. The bundle merge calls an entry pristine when
- * updated_at equals imported_at, so an edit must never land on that value.
- */
-const BUMP_UPDATED_AT = 'updated_at = max(?, updated_at + 1)';
-let backupWarned = false;
-
 function checkSummary(summary: string): void {
   if (summary.trim().length === 0) throw new Error('summary is empty');
   if (summaryLength(summary) > MAX_SUMMARY) throw new Error(`summary is over ${MAX_SUMMARY} characters`);
@@ -34,37 +27,11 @@ function checkSummary(summary: string): void {
 const isActionable = (kind: string | null): boolean => kind === 'blocker' || kind === 'next';
 const noEntry = (input: string): Error => new Error(`No entry with id "${input}"`);
 
-export function createRepository(db: DatabaseSync, config: Config, dbPath: string): EntryRepository {
+export function createRepository(db: DatabaseSync, config: Config, dbPath: string, writer: Writer = createWriter(db, dbPath)): EntryRepository {
   const normalize = (tags: string[]) => normalizeTags(tags, config.tagAliases, { ticketPrefixes: config.ticketPrefixes });
   const aliasProject = (p: string): string => resolveProjectAlias(p, config.projectAliases);
 
-  // True while this repository holds an open transaction. Nested writes then join it.
-  let inTransaction = false;
-
-  function write<T>(fn: () => T): T {
-    if (inTransaction) return fn();
-    try {
-      backupDbIfNeeded(db, dbPath);
-    } catch (err) {
-      // A failed backup never blocks logging. Warn once per process.
-      if (!backupWarned) {
-        backupWarned = true;
-        process.stderr.write(`gournal: daily backup failed: ${(err as Error).message}\n`);
-      }
-    }
-    db.exec('BEGIN IMMEDIATE');
-    inTransaction = true;
-    try {
-      const result = fn();
-      db.exec('COMMIT');
-      return result;
-    } catch (err) {
-      try { db.exec('ROLLBACK'); } catch { /* ignore */ }
-      throw err;
-    } finally {
-      inTransaction = false;
-    }
-  }
+  const write = <T>(fn: () => T): T => writer.write(fn);
 
   const hydrate = (rows: Row[]): Entry[] => hydrateRows(db, rows);
 

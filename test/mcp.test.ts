@@ -10,7 +10,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { pathToFileURL } from 'url';
 import { ListRootsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createServer, SERVER_INSTRUCTIONS, type ServerDeps } from '../src/adapters/mcp';
-import { resolveIdentity } from '../src/sources';
+import { GhError, resolveIdentity, type GhRunner } from '../src/sources';
 import type { NewEntryInput } from '../src/core';
 import { openJournal, type Journal } from '../src/storage/journal';
 
@@ -56,6 +56,7 @@ test('server sends the instructions', () => {
     'kind is done (default), blocker (something stops you), or next (a planned next step).',
     'To close a blocker or next item, pass its id in resolves on the done entry, or call resolve_entry.',
     'Reuse existing tags (list_tags). Ticket keys and PR numbers go in refs, not tags.',
+    'Call sync_activity to fetch the user\'s GitHub activity. Report tools already sync when the data is stale.',
   ].join('\n'));
 });
 
@@ -142,7 +143,7 @@ test('the default identity applies config aliases to a real repo', async () => {
   try {
     const g = (...a: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main', '-C', repoDir, ...a], { stdio: 'ignore' });
     g('init'); g('remote', 'add', 'origin', 'git@github.com:acme/collection-app.git'); g('commit', '--allow-empty', '-m', 'i');
-    const aliased = { repo: journal.repo, config: { ...journal.config, projectAliases: { 'acme/collection-app': 'Collection' } } };
+    const aliased = { repo: journal.repo, activity: journal.activity, config: { ...journal.config, projectAliases: { 'acme/collection-app': 'Collection' } } };
     const c = await connect(undefined, { journal: aliased, identity: undefined });
     await c.callTool({ name: 'add_entry', arguments: { summary: 'Real', cwd: repoDir } });
     expect(journal.repo.find()[0]).toMatchObject({ project: 'Collection', repo: 'acme/collection-app', branch: 'main' });
@@ -586,4 +587,129 @@ test('a bad from date is a tool error, not a protocol error', async () => {
   }
   const r = await call('get_standup', { from: 'soon' });
   expect(text(r)).toContain('Invalid date: soon');
+});
+
+describe('sync_activity', () => {
+  const ghFor = () => {
+    const calls: string[][] = [];
+    const gh = (async (args: string[]) => {
+      calls.push(args);
+      const j = args.join(' ');
+      if (j === 'api user') return JSON.stringify({ login: 'Dev' });
+      if (j.includes('search/issues')) return JSON.stringify({ total_count: 0, items: [] });
+      throw new Error(`no route ${j}`);
+    }) as GhRunner & { calls: string[][] };
+    gh.calls = calls;
+    return gh;
+  };
+
+  test('returns counts as structured content', async () => {
+    const gh = ghFor();
+    const c = await connect(journal, { gh });
+    const r = await c.callTool({ name: 'sync_activity', arguments: {} }) as any;
+    expect(r.isError).toBeFalsy();
+    expect(r.structuredContent).toMatchObject({ status: 'ok', inserted: 0, updated: 0, linked: 0, warning: null });
+    expect(typeof r.structuredContent.since).toBe('string');
+    expect(text(r)).toContain('Synced GitHub activity since');
+  });
+
+  test('a bad since is a tool error and a failed sync reports its warning', async () => {
+    const c = await connect(journal, { gh: ghFor() });
+    const bad = await c.callTool({ name: 'sync_activity', arguments: { since: 'nope' } }) as any;
+    expect(bad.isError).toBe(true);
+    expect(text(bad)).toContain('Invalid date "nope"');
+    const down = await connect(journal, { gh: (async () => { throw new GhError('auth', 'x'); }) as GhRunner });
+    const r = await down.callTool({ name: 'sync_activity', arguments: {} }) as any;
+    expect(r.structuredContent.status).toBe('failed');
+    expect(text(r)).toContain('gh is not signed in');
+  });
+
+  test('add_entry links to synced activity without the network', async () => {
+    journal.activity.upsert([{
+      type: 'pr_opened', occurredAt: new Date().toISOString(), repo: 'acme/widgets', branch: 'feat/x',
+      externalId: '5', title: 'Add x', url: null, pr: 5, payload: { pr: 5 },
+    }]);
+    const gh = ghFor();
+    const c = await connect(journal, { gh });
+    const r = await c.callTool({ name: 'add_entry', arguments: { summary: 'Did x', project: 'p', repo: 'acme/widgets', refs: [{ type: 'pr', value: '5' }] } }) as any;
+    const id = r.structuredContent.entry.id;
+    expect(journal.activity.linkedTo([id])[id]).toHaveLength(1);
+    expect(gh.calls).toHaveLength(0);
+  });
+});
+
+describe('get_standup and get_work_log with activity', () => {
+  const savedNoAuto = process.env.GOURNAL_NO_AUTOSYNC;
+  afterEach(() => {
+    if (savedNoAuto === undefined) delete process.env.GOURNAL_NO_AUTOSYNC; else process.env.GOURNAL_NO_AUTOSYNC = savedNoAuto;
+  });
+  const merged = (over: Record<string, unknown> = {}) => ({
+    type: 'pr_merged' as const, occurredAt: new Date().toISOString(), repo: 'acme/widgets', branch: null,
+    externalId: 'm327', title: 'Add widget cache', url: null, pr: 327, payload: { pr: 327 }, ...over,
+  });
+  const down = (async () => { throw new GhError('auth', 'x'); }) as GhRunner;
+
+  test('get_standup JSON contains the full activity list and its markdown is collapsed', async () => {
+    journal.activity.upsert([merged(), merged({ type: 'review', externalId: 'r1', repo: 'octo/app', pr: 412, title: 'Fix login', payload: { pr: 412 } })]);
+    const r = await call('get_standup');
+    expect(r.isError).toBeFalsy();
+    expect(r.structuredContent.also.activity).toHaveLength(2);
+    expect(r.structuredContent.also.counts).toMatchObject({ prsMerged: 1, reviews: 1, repos: 2 });
+    expect(r.structuredContent.syncWarning).toBeNull();
+    expect(text(r)).toContain('- Also: 1 PR merged, 1 review in 2 repos');
+    expect(text(r)).not.toContain('Also happened');
+  });
+
+  test('get_standup carries linked activity under an entry', async () => {
+    journal.activity.upsert([merged({ pr: 5, payload: { pr: 5 }, externalId: 'm5', title: 'Add x' })]);
+    const e = journal.repo.add({ summary: 'Shipped x', project: 'p', source: 'mcp', repo: 'acme/widgets', refs: [{ type: 'pr', value: '5' }] });
+    journal.activity.relinkEntries([e.id]);
+    const r = await call('get_standup');
+    expect(r.structuredContent.linkedActivity[e.id]).toHaveLength(1);
+    expect(r.structuredContent.also).toBeNull();
+  });
+
+  test('get_standup honours the project and tags filters on activity', async () => {
+    journal.activity.upsert([merged(), merged({ externalId: 'g', repo: 'octo/gears', pr: 2, payload: { pr: 2 } })]);
+    seed('Tagged', { project: 'widgets', tags: ['bug'] });
+    const byProject = await call('get_standup', { project: 'widgets' });
+    expect(byProject.structuredContent.also.activity.map((a: any) => a.repo)).toEqual(['acme/widgets']);
+    const byTags = await call('get_standup', { tags: ['bug'] });
+    expect(byTags.structuredContent.also).toBeNull();
+  });
+
+  test('get_standup adds the sync warning as the last markdown line and as syncWarning', async () => {
+    delete process.env.GOURNAL_NO_AUTOSYNC;
+    seed('Did a thing');
+    const c = await connect(journal, { gh: down });
+    const r: any = await c.callTool({ name: 'get_standup', arguments: {} });
+    const warning = 'gournal: GitHub sync skipped (gh is not signed in; run gh auth login); showing stored activity';
+    expect(r.structuredContent.syncWarning).toBe(warning);
+    expect(text(r).trimEnd().split('\n').pop()).toBe(warning);
+    expect(text(r)).toContain('Did a thing');
+  });
+
+  test('get_work_log runs auto-sync and reports the warning', async () => {
+    delete process.env.GOURNAL_NO_AUTOSYNC;
+    seed('Did a thing');
+    const c = await connect(journal, { gh: down });
+    const r: any = await c.callTool({ name: 'get_work_log', arguments: {} });
+    expect(r.structuredContent.syncWarning).toContain('GitHub sync skipped');
+    expect(text(r).trimEnd().split('\n').pop()).toContain('GitHub sync skipped');
+  });
+
+  test('get_work_log folds linked activity and has no Also section', async () => {
+    journal.activity.upsert([merged({ pr: 5, payload: { pr: 5 }, externalId: 'm5', title: 'Add x' })]);
+    const e = journal.repo.add({ summary: 'Shipped x', project: 'p', source: 'mcp', repo: 'acme/widgets', refs: [{ type: 'pr', value: '5' }] });
+    journal.activity.relinkEntries([e.id]);
+    const r = await call('get_work_log');
+    expect(r.structuredContent.linkedActivity[e.id]).toHaveLength(1);
+    expect(text(r)).not.toContain('Also');
+  });
+});
+
+test('the server lists 12 tools', async () => {
+  const { tools } = await client.listTools();
+  expect(tools).toHaveLength(12);
+  expect(tools.find((t) => t.name === 'sync_activity')?.outputSchema).toBeDefined();
 });

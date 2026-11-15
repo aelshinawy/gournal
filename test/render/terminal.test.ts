@@ -4,7 +4,8 @@ import { buildStandup, buildStats, buildWorkLog, resolvePeriod } from '../../src
 import {
   entryLinesText, projectCountsText, standupText, statsText, tagCountsText, workLogText,
 } from '../../src/render';
-import { makeEntry } from '../core/factory';
+import { makeActivity, makeEntry } from '../core/factory';
+import type { Activity, StandupModel } from '../../src/core';
 
 const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '');
 const now = new Date(2026, 10, 15, 12, 0, 0);
@@ -119,5 +120,123 @@ describe('terminal renderers', () => {
     chalk.level = 3;
     expect(standupText(standup(doneEntries))).toContain('\x1b');
     expect(statsText(buildStats(doneEntries, now))).toContain('\x1b');
+  });
+});
+
+describe('terminal renderers with activity', () => {
+  let level: typeof chalk.level;
+  beforeEach(() => { level = chalk.level; chalk.level = 0; });
+  afterEach(() => { chalk.level = level; });
+
+  const entry = makeEntry({ createdAt: at(15, 10, 41), summary: 'Merged gournal PR #4 and installed 0.8.0', project: 'gournal' });
+  const mergedPr4 = makeActivity({ type: 'pr_merged', repo: 'acme/gournal', pr: 4, title: 'Phase 2 layers', occurredAt: at(15, 10, 40).toISOString() });
+  const commits = [1, 2, 3].map(() => makeActivity({ type: 'commit', repo: 'acme/gournal', occurredAt: at(15, 10, 30).toISOString() }));
+  const merged327 = makeActivity({ type: 'pr_merged', repo: 'acme/widgets', pr: 327, title: 'Add widget cache', occurredAt: at(15, 9, 0).toISOString() });
+  const reviewed412 = makeActivity({ type: 'review', repo: 'octo/app', pr: 412, title: 'Fix login redirect', occurredAt: at(15, 8, 0).toISOString() });
+  const model = (unlinked: Activity[], linked: Record<string, Activity[]> = {}, opts = {}) =>
+    buildStandup({ period: resolvePeriod(opts, now, 1), done: [entry], open: [], now, staleAfterDays: 14, linked, unlinked });
+
+  test('no activity looks as before', () => {
+    const phase2 = standupText(standup([entry]));
+    expect(phase2).toBe('\nStandup: Today (2026-11-15)\n\n  gournal\n  10:41  Merged gournal PR #4 and installed 0.8.0\n');
+    const m = { ...standup([entry]), linked: {}, also: null } satisfies StandupModel;
+    expect(standupText(m)).toBe(phase2);
+    expect(standupText(m, { expandActivity: true })).toBe(phase2);
+    const log = buildWorkLog(resolvePeriod({}, now, 1), [entry]);
+    expect(workLogText({ ...log, linked: {} })).toBe(workLogText(log));
+  });
+
+  test('linked activity folds under its entry', () => {
+    const out = standupText(model([], { [entry.id]: [mergedPr4, ...commits] }));
+    expect(out).toBe(
+      '\nStandup: Today (2026-11-15)\n\n  gournal\n  10:41  Merged gournal PR #4 and installed 0.8.0\n' +
+      '         \u21b3 merged #4 Phase 2 layers\n         \u21b3 3 commits\n');
+  });
+
+  test('a single linked commit uses the singular form', () => {
+    expect(standupText(model([], { [entry.id]: [commits[0]] }))).toContain('         \u21b3 1 commit\n');
+  });
+
+  test('collapsed Also line lists merged PRs and reviews by title', () => {
+    const out = standupText(model([reviewed412, merged327]));
+    expect(out).toBe(
+      '\nStandup: Today (2026-11-15)\n\n  Done\n  gournal\n  10:41  Merged gournal PR #4 and installed 0.8.0\n\n' +
+      '  Also: 1 PR merged, 1 review in 2 repos (--activity to expand)\n' +
+      '    merged    acme/widgets#327  Add widget cache\n' +
+      '    reviewed  octo/app#412      Fix login redirect\n');
+  });
+
+  test('the Also line matches the brief counts and leaves out zero counts', () => {
+    const many = [
+      ...Array.from({ length: 15 }, (_, i) => makeActivity({ type: 'commit', repo: ['acme/widgets', 'octo/app', 'acme/gears'][i % 3] })),
+      makeActivity({ type: 'pr_opened', repo: 'acme/widgets', pr: 1 }),
+      makeActivity({ type: 'pr_merged', repo: 'acme/widgets', pr: 327 }), makeActivity({ type: 'pr_merged', repo: 'acme/widgets', pr: 328 }),
+      ...[1, 2, 3, 4].map((n) => makeActivity({ type: 'review', repo: 'octo/app', pr: n })),
+    ];
+    expect(stripAnsi(standupText(model(many)))).toContain('  Also: 15 commits, 1 PR opened, 2 PRs merged, 4 reviews in 3 repos (--activity to expand)\n');
+    expect(standupText(model([commits[0]]))).toContain('  Also: 1 commit in 1 repo (--activity to expand)\n');
+    expect(standupText(model([merged327]))).toContain('  Also: 1 PR merged in 1 repo (--activity to expand)\n');
+    expect(standupText(model([makeActivity({ type: 'pr_opened', pr: 2, repo: 'a/b' })]))).toContain('  Also: 1 PR opened in 1 repo');
+    expect(standupText(model([reviewed412]))).toContain('  Also: 1 review in 1 repo');
+  });
+
+  test('--activity expands the full list grouped by repo', () => {
+    const c = makeActivity({ type: 'commit', repo: 'acme/widgets', externalId: 'abcdef0123456789', title: 'Fix cache key', occurredAt: at(15, 7, 5).toISOString() });
+    const opened = makeActivity({ type: 'pr_opened', repo: 'acme/widgets', pr: 327, title: 'Add widget cache', occurredAt: at(15, 8, 30).toISOString() });
+    const out = standupText(model([reviewed412, merged327, opened, c]), { expandActivity: true });
+    expect(out).toBe(
+      '\nStandup: Today (2026-11-15)\n\n  Done\n  gournal\n  10:41  Merged gournal PR #4 and installed 0.8.0\n\n' +
+      '  Also happened\n' +
+      '  acme/widgets\n' +
+      '    07:05  commit    abcdef0  Fix cache key\n' +
+      '    08:30  opened    #327     Add widget cache\n' +
+      '    09:00  merged    #327     Add widget cache\n' +
+      '  octo/app\n' +
+      '    08:00  reviewed  #412     Fix login redirect\n');
+    expect(out).not.toContain('--activity to expand');
+  });
+
+  test('Done gets its header when only Also follows it', () => {
+    const out = standupText(model([merged327]));
+    expect(out).toContain('  Done\n  gournal\n  10:41  Merged gournal PR #4');
+    expect(out.indexOf('Done')).toBeLessThan(out.indexOf('  Also:'));
+  });
+
+  test('Also renders last, after Blockers, Next, and the Stale line', () => {
+    const old = makeEntry({ kind: 'next', status: 'open', createdAt: subDays(now, 30), summary: 'Old next' });
+    const blocker = makeEntry({ kind: 'blocker', status: 'open', createdAt: at(14, 9), summary: 'A blocker' });
+    const next = makeEntry({ kind: 'next', status: 'open', createdAt: at(14, 10), summary: 'A next' });
+    const m = buildStandup({ period: resolvePeriod({}, now, 1), done: [entry], open: [old, blocker, next], now, staleAfterDays: 14, unlinked: [merged327] });
+    const out = standupText(m);
+    const at_ = (t: string) => out.indexOf(t);
+    expect(at_('Blockers')).toBeGreaterThan(at_('Done'));
+    expect(at_('Stale:')).toBeGreaterThan(at_('Next'));
+    expect(at_('  Also:')).toBeGreaterThan(at_('Stale:'));
+  });
+
+  test('multi-day ranges use the day-of-week time on activity lines', () => {
+    const out = standupText(model([merged327], {}, { week: true }), { expandActivity: true });
+    expect(out).toContain('    Sun 15 09:00  merged  #327  Add widget cache\n');
+  });
+
+  test('a standup with only unlinked activity still renders', () => {
+    const m = buildStandup({ period: resolvePeriod({}, now, 1), done: [], open: [], now, staleAfterDays: 14, unlinked: [merged327] });
+    expect(standupText(m)).toContain('  Also: 1 PR merged in 1 repo (--activity to expand)');
+    expect(standupText(m)).not.toContain('No entries found');
+  });
+
+  test('Also lines are gray when color is on', () => {
+    chalk.level = 3;
+    expect(standupText(model([merged327]))).toContain(chalk.gray('  Also: 1 PR merged in 1 repo (--activity to expand)'));
+  });
+
+  test('work log folds linked activity under its entry', () => {
+    const log = buildWorkLog(resolvePeriod({}, now, 1), [entry], { [entry.id]: [mergedPr4, ...commits] });
+    const out = workLogText(log);
+    const lines = out.split('\n');
+    const i = lines.findIndex((l) => l.includes('Merged gournal PR #4'));
+    expect(lines[i + 1].trimStart()).toBe('\u21b3 merged #4 Phase 2 layers');
+    expect(lines[i + 2].trimStart()).toBe('\u21b3 3 commits');
+    expect(out).not.toContain('Also');
   });
 });
