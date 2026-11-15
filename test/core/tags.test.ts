@@ -15,3 +15,16 @@ test('drops empty tags', () => expect(normalizeTags(['', '  ']).tags).toEqual([]
 test('closeTags suggests near variants', () =>
   expect(closeTags('reveiw', ['review', 'code-review', 'refactor', 'godot'])).toEqual(['review']));
 test('closeTags is empty for an existing tag', () => expect(closeTags('review', ['review'])).toEqual([]));
+test('non-ticket prefixes stay tags', () =>
+  expect(normalizeTags(['sprint-12', 'node-22', 'ios-17', 'gpt-4', 'utf-8'])).toEqual({
+    tags: ['sprint-12', 'node-22', 'ios-17', 'gpt-4', 'utf-8'],
+    refs: [],
+  }));
+test('ticketPrefixes limits which prefixes are tickets', () =>
+  expect(normalizeTags(['sbdc-1749', 'abc-12'], {}, { ticketPrefixes: ['SBDC'] })).toEqual({
+    tags: ['abc-12'],
+    refs: [{ type: 'jira', value: 'SBDC-1749' }],
+  }));
+test('aliases ignore the prototype chain', () =>
+  expect(normalizeTags(['constructor', '__proto__']).tags).toEqual(['constructor', '__proto__']));
+test('closeTags ignores short tags for distance', () => expect(closeTags('ci', ['pr', 'ui'])).toEqual([]));

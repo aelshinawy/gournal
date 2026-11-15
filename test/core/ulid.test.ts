@@ -6,3 +6,7 @@ test('ulids are unique', () => expect(new Set(Array.from({ length: 1000 }, () =>
 test('newId rejects an invalid time', () => {
   for (const bad of [NaN, -1, 1.5]) expect(() => newId(bad)).toThrow(new RangeError('nowMs must be a non-negative safe integer'));
 });
+test('newId rejects a time above 48 bits', () => {
+  expect(() => newId(2 ** 48)).toThrow(RangeError);
+  expect(() => newId(2 ** 48 - 1)).not.toThrow();
+});

@@ -1,18 +1,18 @@
 import type { Ref } from './types';
-import { mergeRefs, ticketToRef } from './refs';
+import { mergeRefs, ticketToRef, type TicketOptions } from './refs';
 
-export function normalizeTags(raw: string[], aliases: Record<string, string> = {}): { tags: string[]; refs: Ref[] } {
+export function normalizeTags(raw: string[], aliases: Record<string, string> = {}, opts: TicketOptions = {}): { tags: string[]; refs: Ref[] } {
   const tags: string[] = [];
   const refs: Ref[] = [];
   for (const item of raw) {
     let tag = item.trim().toLowerCase().replace(/\s+/g, '-');
     if (!tag) continue;
-    const ref = ticketToRef(tag);
+    const ref = ticketToRef(tag, opts);
     if (ref) {
       refs.push(ref);
       continue;
     }
-    tag = aliases[tag] ?? tag;
+    tag = Object.hasOwn(aliases, tag) ? aliases[tag] : tag;
     if (tag && !tags.includes(tag)) tags.push(tag);
   }
   return { tags, refs: mergeRefs(refs) };
@@ -34,7 +34,7 @@ export function closeTags(tag: string, existing: string[], max = 3): string[] {
   if (existing.includes(tag)) return [];
   const scored: { name: string; dist: number }[] = [];
   for (const name of new Set(existing)) {
-    const dist = distance(tag, name);
+    const dist = tag.length >= 4 && name.length >= 4 ? distance(tag, name) : Infinity;
     const [short, long] = tag.length <= name.length ? [tag, name] : [name, tag];
     const prefix = short.length >= 4 && long.startsWith(short);
     if (dist <= 2 || prefix) scored.push({ name, dist });
