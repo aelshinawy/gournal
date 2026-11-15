@@ -1,15 +1,15 @@
-import { spawnSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { runIn } from './helpers/run-cli';
 
-test('find rejects an invalid --from even when the journal is empty', () => {
+test('find rejects an invalid --from even when the journal is empty', async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-'));
-  const res = spawnSync(
-    process.execPath,
-    ['-r', 'ts-node/register/transpile-only', 'src/cli.ts', 'find', 'x', '--from', 'garbage'],
-    { cwd: path.join(__dirname, '..'), env: { ...process.env, GOURNAL_HOME: home, HOME: home, USERPROFILE: home }, encoding: 'utf8' }
-  );
-  expect(res.status).toBe(1);
-  expect(res.stderr).toContain('Invalid date: garbage');
+  try {
+    const res = await runIn(home, ['find', 'x', '--from', 'garbage']);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain('Invalid date: garbage');
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
 });

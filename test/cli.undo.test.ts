@@ -1,17 +1,12 @@
-import { spawnSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { runIn } from './helpers/run-cli';
 
 describe('gournal undo', () => {
   let home: string;
 
-  const run = (...args: string[]) =>
-    spawnSync(
-      process.execPath,
-      ['-r', 'ts-node/register/transpile-only', 'src/cli.ts', ...args],
-      { cwd: path.join(__dirname, '..'), env: { ...process.env, GOURNAL_HOME: home, HOME: home, USERPROFILE: home }, encoding: 'utf8' }
-    );
+  const run = (...args: string[]) => runIn(home, args);
 
   beforeEach(() => {
     home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-'));
@@ -20,16 +15,16 @@ describe('gournal undo', () => {
     fs.rmSync(home, { recursive: true, force: true });
   });
 
-  test('removes the last entry it reports, one at a time', () => {
-    expect(run('add', 'first').status).toBe(0);
-    expect(run('add', 'second').status).toBe(0);
+  test('removes the last entry it reports, one at a time', async () => {
+    expect((await run('add', 'first')).status).toBe(0);
+    expect((await run('add', 'second')).status).toBe(0);
 
-    const undo1 = run('undo');
+    const undo1 = await run('undo');
     expect(undo1.status).toBe(0);
     expect(undo1.stdout).toContain('Removed: second');
     expect(undo1.stdout).toMatch(/restore with gournal restore [0-9A-Z]{8}\)/);
 
-    expect(run('undo').stdout).toContain('Removed: first');
-    expect(run('undo').stdout).toContain('No entries to undo.');
+    expect((await run('undo')).stdout).toContain('Removed: first');
+    expect((await run('undo')).stdout).toContain('No entries to undo.');
   });
 });

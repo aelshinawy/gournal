@@ -6,7 +6,7 @@ import { generateStandupReport } from './report';
 import { generateCsvExport, generateMarkdownExport } from './export';
 import { generateWorkLog } from './log';
 import { countBy } from './stats';
-import { VERSION } from './version';
+import { VERSION } from './adapters/version';
 import { parseBound } from './util/date-bounds.util';
 import { checkSummary, closeTags, normalizeTags, type Entry, type EntryPatch } from './core';
 import type { EntryRepository } from './core/repository';
