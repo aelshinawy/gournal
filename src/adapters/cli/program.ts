@@ -298,7 +298,7 @@ export function buildProgram(io: CliIo): Command {
             io.err(`gournal: daily backup failed: ${(err as Error).message}`);
           }
         }
-        const r = importBundle(db, bundle);
+        const r = importBundle(db, bundle, config);
         io.out(chalk.green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged, ${r.deduplicated} duplicates merged.`));
         // The bundle's legacy keys are in place now. The legacy import adds only lines the bundle did not know.
         const jsonPath = path.join(io.home, 'entries.json');
