@@ -42,6 +42,7 @@ describe('gournal CLI on the SQLite journal', () => {
     const bad = run('add', 'Nope', '--resolves', 'ZZZZZZZZ');
     expect(bad.status).toBe(1);
     expect(bad.stderr).toContain('No entry with id');
+    expect(rows(home)).toHaveLength(2);
   });
 
   test('add rejects an unknown kind', () => {
@@ -109,7 +110,9 @@ describe('gournal CLI on the SQLite journal', () => {
 
   test('clear with no TTY deletes nothing', () => {
     run('add', 'keep me');
-    run('clear');
+    const r = run('clear');
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('Not a terminal; nothing cleared.');
     expect(rows(home).filter((r) => r.deleted_at === null)).toHaveLength(1);
   });
 
@@ -118,8 +121,28 @@ describe('gournal CLI on the SQLite journal', () => {
     expect(run('find', 'findable').stdout).toContain(id);
     expect(run('log').stdout).toContain(id);
     expect(run('tags').stdout).toContain('No tags found.');
-    expect(run('projects').status).toBe(0);
-    expect(run('stats').status).toBe(0);
-    expect(run('standup').status).toBe(0);
+    const projects = run('projects');
+    expect(projects.status).toBe(0);
+    expect(projects.stdout).toMatch(/^\S+  1$/m);
+    const stats = run('stats');
+    expect(stats.status).toBe(0);
+    expect(stats.stdout).toContain('Total entries: 1');
+    const standup = run('standup');
+    expect(standup.status).toBe(0);
+    expect(standup.stdout).toContain('findable thing');
+  });
+
+  test('find matches text that is only in the details', () => {
+    run('add', 'plain summary', '-d', 'Has a Needle inside');
+    const r = run('find', 'needle');
+    expect(r.stdout).toContain('Found 1 entries');
+    expect(run('find', 'absent').stdout).toContain('Found 0 entries');
+  });
+
+  test('an unknown export format is an error on stderr only', () => {
+    const r = run('export', '-f', 'xml');
+    expect(r.status).toBe(1);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toContain('Unknown format "xml". Use md, csv, or bundle.');
   });
 });

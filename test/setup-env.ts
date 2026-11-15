@@ -1,13 +1,7 @@
-import fs from 'fs';
 import os from 'os';
-import path from 'path';
 
-// Runs before any test module loads. global-setup.ts already set the env for the whole run.
-// This file is the fallback if a worker starts without it, and it never lets HOME stay real.
-if (!process.env.GOURNAL_REAL_HOME) process.env.GOURNAL_REAL_HOME = process.env.HOME || process.env.USERPROFILE || os.homedir();
+// Runs before any test module loads. test/global-setup.ts must already have set the env for the run.
 if (!process.env.GOURNAL_TEST_HOME_ROOT) {
-  const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-test-home-')));
-  process.env.GOURNAL_HOME = temp;
-  process.env.HOME = temp;
-  process.env.USERPROFILE = temp;
+  throw new Error('test isolation not initialised: globalSetup did not run');
 }
+if (!process.env.GOURNAL_REAL_HOME) process.env.GOURNAL_REAL_HOME = os.homedir();

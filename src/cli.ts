@@ -80,11 +80,17 @@ program
   .command('clear')
   .description('Clear all journal entries')
   .action(async () => {
-    await withJournal(async ({ repo }) => {
-      const { confirm } = await inquirer.prompt([
+    if (!process.stdin.isTTY) throw new Error('Not a terminal; nothing cleared.');
+    let confirmed: boolean;
+    try {
+      ({ confirm: confirmed } = await inquirer.prompt([
         { ...clearConfirmQuestion, message: chalk.red(clearConfirmQuestion.message) },
-      ]);
-      if (!confirm) return;
+      ]));
+    } catch {
+      throw new Error('Not a terminal; nothing cleared.');
+    }
+    if (!confirmed) return;
+    await withJournal(({ repo }) => {
       const count = repo.softDeleteAll();
       console.log(chalk.green(`✓ Cleared ${count} entries (restore any with gournal restore <id>).`));
     });
@@ -204,8 +210,7 @@ program
   .action(async (options: { format: string; project?: string; tags?: string; output?: string }) => {
     const exportFormat = options.format.toLowerCase();
     if (exportFormat !== 'md' && exportFormat !== 'csv' && exportFormat !== 'bundle') {
-      console.log(chalk.red(`Unknown format "${options.format}". Use "md", "csv", or "bundle".`));
-      return;
+      throw new Error(`Unknown format "${options.format}". Use md, csv, or bundle.`);
     }
 
     await withJournal(async ({ repo, db, config }) => {
@@ -265,7 +270,7 @@ program
     await withJournal(({ repo }) => {
       const entries = repo.list({ project: options.project, tags: splitList(options.tags), from: fromBound, to: toBound });
       const needle = query.toLowerCase();
-      const results = entries.filter(e => e.summary.toLowerCase().includes(needle));
+      const results = entries.filter(e => `${e.summary}\n${e.details ?? ''}`.toLowerCase().includes(needle));
 
       console.log(chalk.bold(`Found ${results.length} entries:\n`));
       results.forEach(entry => {
