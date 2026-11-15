@@ -65,6 +65,19 @@ describeBuilt('built homepage', () => {
     expect(video.indexOf('standup.webm')).toBeLessThan(video.indexOf('standup.mp4'));
     expect(html).toContain('Standup: Today');
   });
+  test('the demo comes after the hero actions in document order', () => {
+    const hero = /<section class="g-hero"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+    const order = ['<h1', 'g-hero__lede', 'g-install"', 'g-hero__req', 'g-actions', 'g-demo"'].map((m) => hero.indexOf(m));
+    for (const i of order) expect(i).toBeGreaterThan(-1);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  test('the hero has no ledger margin column', () => {
+    const hero = /<section class="g-hero"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+    expect(hero).not.toContain('g-ledger');
+    expect(hero).not.toContain('g-hero__margin');
+    expect(hero).not.toContain('g-hero__specimen');
+  });
   test('the head has the title, canonical link, social tags, and sitemap link', () => {
     expect(html).toContain('<title>gournal: a command-line work journal</title>');
     expect(html).toContain('<link rel="canonical" href="https://aelshinawy.github.io/gournal/"');

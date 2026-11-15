@@ -198,7 +198,7 @@ A restrained palette: tinted paper and ink neutrals plus one violet accent. Dark
 
 ## Layout
 
-The homepage is a ledger. A container of max 76rem with a fluid gutter (clamp(1rem, 0.4rem + 3vw, 3rem)) holds a margin column (minmax(17rem, 4fr)) and a specimen column (8fr). A 1px violet rule divides them. Below 60rem the ledger stacks to one column and the rule goes away. The hero margin and the transcript are sticky at 60rem and wider.
+The homepage hero is one column inside a container of max 76rem with a fluid gutter (clamp(1rem, 0.4rem + 3vw, 3rem)). The order is: title, lede, install plate (up to 36rem wide), requirement line, buttons on their own row, then the demo. The demo stage fills the container width. At 60rem and wider, the proof notes sit to the right of the 36rem terminal plate. Below 60rem, the notes are hidden. The hero has no margin column and no sticky element. The other sections (How it works, Local-first) still use the ledger: a margin column (minmax(17rem, 4fr)) and a specimen column (8fr), divided by a 1px violet rule. Below 60rem the ledger stacks to one column and the rule goes away. The transcript is sticky at 60rem and wider.
 
 Sections are divided by a 1px rule and padded clamp(3rem, 2rem + 5vw, 7rem). Spacing follows the 4px-based scale (0.25rem to 7rem). Feature tiles sit in three columns divided by hairlines at 60rem and wider, become specimen-beside-text rows from 40rem to 60rem, and stack below 40rem.
 
@@ -225,7 +225,7 @@ Corners are gently rounded: 4px for inline code, sidebar items, and small marks;
 - **Focus:** a 2px focus-blue outline with a 3px offset on every control.
 
 ### Install plate
-- **Style:** a code-paper box with a strong-rule border. A violet `$`, the command in mono, and a Copy button divided by a hairline.
+- **Style:** a code-paper box with a strong-rule border. A violet `$`, the command in mono, and a Copy button divided by a hairline. The plate grows to 36rem. The command does not scroll at 768 px and wider.
 - **States:** "Copied" fills the button with violet. "Selected" (no Clipboard API) uses violet wash and selects the command text. A status region announces both.
 
 ### Terminal plate

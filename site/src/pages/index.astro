@@ -63,22 +63,20 @@ const canonical = new URL(base, 'https://aelshinawy.github.io').href;
       <section class="g-hero" aria-labelledby="g-hero-title">
         <div class="g-wrap">
           <h1 id="g-hero-title" class="g-hero__title">{PITCH_LINE}</h1>
-          <div class="g-ledger g-hero__ledger">
-            <div class="g-ledger__margin g-hero__margin">
-              <p class="g-hero__lede">
-                You and your AI agents log finished work in one local journal. Gournal links each entry to its pull
-                requests and commits, and it writes your standup from them.
-              </p>
-              <Install />
-              <p class="g-hero__req">Needs Node 22.13 or newer. The <code>gh</code> CLI is optional.</p>
-              <div class="g-actions">
-                <a class="g-btn g-btn--primary" href={`${base}docs/start-here/quickstart/`}>Get started</a>
-                <a class="g-btn g-btn--secondary" href="https://github.com/aelshinawy/gournal" rel="noopener">GitHub</a>
-              </div>
+          <div class="g-hero__intro">
+            <p class="g-hero__lede">
+              You and your AI agents log finished work in one local journal. Gournal links each entry to its pull
+              requests and commits, and it writes your standup from them.
+            </p>
+            <Install />
+            <p class="g-hero__req">Needs Node 22.13 or newer. The <code>gh</code> CLI is optional.</p>
+            <div class="g-actions">
+              <a class="g-btn g-btn--primary" href={`${base}docs/start-here/quickstart/`}>Get started</a>
+              <a class="g-btn g-btn--secondary" href="https://github.com/aelshinawy/gournal" rel="noopener">GitHub</a>
             </div>
-            <div class="g-ledger__specimen g-hero__specimen">
-              <Demo />
-            </div>
+          </div>
+          <div class="g-hero__demo">
+            <Demo />
           </div>
         </div>
       </section>
