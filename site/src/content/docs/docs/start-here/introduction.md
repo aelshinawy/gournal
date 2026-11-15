@@ -57,9 +57,8 @@ $ gournal standup
 
 Standup: Today (2026-11-15)
 
-  Done
   billing-api
-  16:19  Fix rounding error in invoice totals
+  16:26  Fix rounding error in invoice totals
 ```
 
 ## Where to go next

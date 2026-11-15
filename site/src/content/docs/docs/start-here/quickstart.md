@@ -34,7 +34,7 @@ The command does up to three things:
 
 1. It registers the gournal MCP server with Claude Code.
 2. It writes a skill file that tells Claude when to log work.
-3. It adds a Stop hook, only when you pass `--hook`.
+3. It can add a Stop hook. With `--yes`, gournal adds the hook only when you pass `--hook`. Without `--yes`, gournal asks.
 
 This example ran on a machine with no `claude` CLI. When `claude` is installed, gournal runs the `claude mcp add` command for you. When it is missing, gournal prints the command, and you run it yourself.
 
@@ -88,7 +88,7 @@ This example used a stand-in `gh` program with fixture data for one pull request
 
 If you are not signed in, gournal tells you why it stopped. For example, `gh` is not signed in, and you must run `gh auth login`.
 
-Now run the standup again. Gournal linked the pull request and its commit to the entry, because the entry and the pull request share a repository and a branch.
+Now run the standup again. Gournal linked the pull request and its commit to the entry, because the entry and the pull request share a repository and a branch, the entry is within 2 hours of the activity, and no other done entry fits. An older pull request does not link by this rule, and it shows in the standup under `Also`. See [Links](/gournal/docs/start-here/core-concepts/#links).
 
 ```console
 $ gournal standup
