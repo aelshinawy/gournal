@@ -71,6 +71,14 @@ gournal export --format md
 gournal export --format csv --project gournal --output entries.csv
 ```
 
+### Data safety
+- Entries live in `~/.gournal/entries.json`.
+- Gournal makes a daily backup in `~/.gournal/backups/`. It keeps the newest 7.
+- If you see "Journal file ... is not valid", copy the named backup over `entries.json`.
+- If you see "Journal is busy", remove the named lock folder. Do this only if no gournal process is running.
+- After an upgrade from 0.5.x, restart your MCP clients. Old servers keep running and write without the lock.
+- `clear` asks for confirmation. The default answer is no.
+
 ## 🤖 MCP Server
 
 `gournal mcp` starts an [MCP](https://modelcontextprotocol.io) server (stdio transport) that exposes your journal to AI agents like Claude Code. It reuses the same storage/report/export logic as the CLI, so agents see exactly what you'd see.
