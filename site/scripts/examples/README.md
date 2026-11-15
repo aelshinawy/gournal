@@ -7,7 +7,17 @@ The journal has one open blocker and one open next item, both in `billing-api`.
 The entry ids are random ULIDs. The counts stay the same.
 The test `test/docs-examples.test.ts` checks that the counts agree across pages.
 
+## Requirements
+
+- A built `dist/` (run `npm run build`).
+- A POSIX shell.
+- Git 2.28 or newer, for `git init -b`.
+- macOS or Linux. Windows does not work.
+
 ## Record
+
+Do not record within 2 hours of midnight, because times are relative to now.
+The page `cli/mcp.md` is hand-written. The recorder does not touch it.
 
 1. Run `npm run build`.
 2. Run `node -r ts-node/register/transpile-only site/scripts/examples/record.ts`.
