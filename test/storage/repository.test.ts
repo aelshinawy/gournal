@@ -243,3 +243,9 @@ test('add dedupes resolves by the resolved id, not the raw string', () => {
   expect(() => repo.add({ summary: 'fix', ...base, resolves: [b.id, b.id.slice(-8)] })).not.toThrow();
   expect(repo.get(b.id)?.status).toBe('resolved');
 });
+
+test.each([['CR', '\r'], ['U+2028', '\u2028'], ['U+2029', '\u2029']])('the repository rejects a %s inside a summary', (_n, br) => {
+  expect(() => repo.add({ summary: `one${br}two`, ...base })).toThrow('summary must be one line');
+  const e = repo.add({ summary: 'fine', ...base });
+  expect(() => repo.update(e.id, { summary: `one${br}two` })).toThrow('summary must be one line');
+});

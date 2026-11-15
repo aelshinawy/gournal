@@ -226,14 +226,15 @@ export function applyPlan(
   plan: MigrationPlan,
   opts: { dryRun: boolean }
 ): { changes: PlanChange[]; snapshot?: string } {
-  // A real run first keeps a copy of the database, so a bad plan can be undone.
+  importLegacy(db, repo, config, jsonPath);
+  const resolved = validatePlan(db, jsonPath, plan);
+  // A real run keeps a copy of the database before it writes, so a bad plan can be undone.
+  // The copy comes after validation, so a plan that fails leaves no snapshot.
   let snapshot: string | undefined;
   if (!opts.dryRun) {
     const main = (db.prepare('PRAGMA database_list').all() as { name: string; file: string }[]).find((r) => r.name === 'main');
     if (main?.file) snapshot = snapshotDb(db, main.file);
   }
-  importLegacy(db, repo, config, jsonPath);
-  const resolved = validatePlan(db, jsonPath, plan);
   const byEntry = new Map(resolved.map((r) => [r.entryId, r]));
   const origin = new Map(
     (db.prepare('SELECT legacy_index, timestamp, entry_id FROM legacy_map ORDER BY legacy_index DESC').all() as

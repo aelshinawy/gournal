@@ -255,6 +255,12 @@ describe('pre-plan snapshot', () => {
     try { expect((copy.prepare('SELECT summary FROM entries ORDER BY created_at').all() as { summary: string }[])[0].summary).toBe('Shipped SBDC-1748 (PR #327).'); }
     finally { copy.close(); }
   });
+  test('a plan that fails validation leaves no snapshot', () => {
+    expect(() => apply(plan(item(A, 0), { ...item(B, 1), messageHash: 'wrong' }))).toThrow(/does not match entries.json/);
+    expect(snaps()).toEqual([]);
+    expect(() => apply(plan(item(A, 0, { summary: 'x'.repeat(130) })))).toThrow(/Plan item 0/);
+    expect(snaps()).toEqual([]);
+  });
   test('a dry run writes no snapshot', () => {
     const r = apply(plan(item(A, 0)), true);
     expect(snaps()).toEqual([]);

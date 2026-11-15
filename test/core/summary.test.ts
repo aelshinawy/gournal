@@ -40,3 +40,14 @@ test('a summary with a newline splits at the first line when splitting is on', (
 test('a newline only at the end is not a second line', () => {
   expect(checkSummary('Line one\n', null, { allowSplit: false })).toEqual({ ok: true, summary: 'Line one', details: null });
 });
+
+describe.each([['CR', '\r'], ['LF', '\n'], ['U+2028', '\u2028'], ['U+2029', '\u2029']])('line break %s', (_name, br) => {
+  test('checkSummary rejects it as a second line', () => {
+    expect(checkSummary(`Line one${br}Line two`, null, { allowSplit: false }).ok).toBe(false);
+  });
+  test('splitting cuts the summary at it and keeps the full text in details', () => {
+    expect(checkSummary(`Line one${br}Line two`, null, { allowSplit: true })).toEqual({
+      ok: true, summary: 'Line one', details: `Line one${br}Line two` });
+    expect(splitSummary(`Line one${br}Line two`)).toEqual({ summary: 'Line one', details: `Line one${br}Line two` });
+  });
+});

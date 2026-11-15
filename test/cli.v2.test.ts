@@ -179,6 +179,28 @@ describe('bundle restore with migrated entries', () => {
     expect(rows(home, 'SELECT id FROM entries').length).toBe(2);
   });
 
+  test('import into an empty database takes no daily backup, a non-empty one does', () => {
+    const other = mkHome();
+    try {
+      fs.writeFileSync(path.join(other, 'entries.json'), JSON.stringify(legacy));
+      expect(runIn(other, ['stats']).status).toBe(0);
+      const file = path.join(other, 'b.json');
+      expect(runIn(other, ['export', '--format', 'bundle', '-o', file]).status).toBe(0);
+      const fresh = mkHome();
+      try {
+        expect(runIn(fresh, ['import', file]).status).toBe(0);
+        expect(fs.existsSync(path.join(fresh, 'backups'))).toBe(false);
+        // The second import finds entries, so the day's backup is taken now.
+        expect(runIn(fresh, ['import', file]).status).toBe(0);
+        expect(fs.readdirSync(path.join(fresh, 'backups')).filter((n) => /^gournal-\d{4}-\d{2}-\d{2}\.db$/.test(n))).toHaveLength(1);
+      } finally {
+        fs.rmSync(fresh, { recursive: true, force: true });
+      }
+    } finally {
+      fs.rmSync(other, { recursive: true, force: true });
+    }
+  });
+
   test('an already migrated database merges the duplicates of a bundle of the same lines', () => {
     const other = mkHome();
     try {

@@ -152,8 +152,11 @@ The plan file is JSON:
   1. Stop every gournal process. Close the Claude Code sessions, or kill the `gournal mcp` processes.
   2. Move `gournal.db`, `gournal.db-wal`, and `gournal.db-shm` aside.
   3. Copy the chosen `backups/gournal-YYYY-MM-DD.db` to `gournal.db`.
-- To restore from a bundle, run `gournal import <file>`. Gournal merges duplicates of migrated entries automatically.
-- `gournal migrate --plan` first saves a snapshot as `backups/gournal-pre-plan-<yyyyMMdd-HHmmss>.db`. Gournal never prunes snapshots.
+- To restore from a bundle:
+  1. Stop every gournal process first. Close the Claude Code sessions, or kill the `gournal mcp` processes.
+  2. Run `gournal import <file>`.
+  Gournal merges duplicates of migrated entries automatically. Your edited or deleted entry wins over a raw copy that gournal imported from `entries.json`.
+- `gournal migrate --plan` first saves a snapshot as `backups/gournal-pre-plan-<yyyyMMdd-HHmmss>.db`. Gournal never prunes snapshots. You can restore a snapshot the same way as a daily backup.
 - `entries.json` from older versions is read-only. Gournal never writes to it. Gournal imports it into the database automatically, and `gournal migrate` imports it on request.
 - After an upgrade from 0.6.x or older, restart your MCP clients. Old servers keep running and write to `entries.json`, not to the database. Run `gournal migrate` to import those late entries.
 - Removed entries stay in the database. `restore` brings them back.

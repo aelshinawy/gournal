@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { mergeRefs, newId, normalizeTags, summaryLength, MAX_SUMMARY } from '../core';
+import { hasLineBreak, mergeRefs, newId, normalizeTags, summaryLength, MAX_SUMMARY } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref } from '../core';
 import type { EntryRepository, ListQuery } from '../core/repository';
 import { backupDbIfNeeded } from './backup';
@@ -20,7 +20,7 @@ let backupWarned = false;
 function checkSummary(summary: string): void {
   if (summary.trim().length === 0) throw new Error('summary is empty');
   if (summaryLength(summary) > MAX_SUMMARY) throw new Error(`summary is over ${MAX_SUMMARY} characters`);
-  if (summary.includes('\n')) throw new Error('summary must be one line');
+  if (hasLineBreak(summary)) throw new Error('summary must be one line');
 }
 
 const isActionable = (kind: string | null): boolean => kind === 'blocker' || kind === 'next';

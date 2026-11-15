@@ -248,10 +248,14 @@ program
       throw err;
     }
     await withJournal(({ db, repo, config }) => {
-      try {
-        backupDbIfNeeded(db, path.join(gournalHome(), 'gournal.db'));
-      } catch (err) {
-        process.stderr.write(`gournal: daily backup failed: ${(err as Error).message}\n`);
+      // An empty database has nothing to protect. It must not take the day's backup slot.
+      const hasEntries = (db.prepare('SELECT 1 AS x FROM entries LIMIT 1').get() as { x: number } | undefined) !== undefined;
+      if (hasEntries) {
+        try {
+          backupDbIfNeeded(db, path.join(gournalHome(), 'gournal.db'));
+        } catch (err) {
+          process.stderr.write(`gournal: daily backup failed: ${(err as Error).message}\n`);
+        }
       }
       const r = importBundle(db, bundle);
       console.log(chalk.green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged, ${r.deduplicated} duplicates merged.`));

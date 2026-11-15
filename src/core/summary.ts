@@ -5,8 +5,12 @@ export function summaryLength(s: string): number {
   return Array.from(s).length;
 }
 
+/** CR, LF, U+2028, and U+2029 all end a line. */
+const LINE_BREAK = /[\r\n\u2028\u2029]/;
+export const hasLineBreak = (s: string): boolean => LINE_BREAK.test(s);
+
 function firstSentence(trimmed: string): string {
-  const match = /[.!?](?=\s|$)|\r?\n/.exec(trimmed);
+  const match = /[.!?](?=\s|$)|[\r\n\u2028\u2029]/.exec(trimmed);
   if (!match) return trimmed;
   const end = /[.!?]/.test(match[0]) ? match.index + 1 : match.index;
   return trimmed.slice(0, end).trim();
@@ -40,7 +44,7 @@ export function checkSummary(
   const trimmed = summary.trim();
   const length = summaryLength(trimmed);
   // A second line counts as over the limit: a summary is one line.
-  const multiline = trimmed.includes('\n');
+  const multiline = hasLineBreak(trimmed);
   if (length <= MAX_SUMMARY && !multiline) return { ok: true, summary: trimmed, details: details ?? null };
   if (!opts.allowSplit) {
     return { ok: false, error: multiline
