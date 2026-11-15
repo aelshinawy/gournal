@@ -221,7 +221,7 @@ export function buildProgram(io: CliIo): Command {
   program
     .command('log')
     .description('Show your entries in time order, grouped by day. The log covers today unless you choose a period.')
-    .option('-y, --yesterday', 'Report on yesterday and today.')
+    .option('-y, --yesterday', 'Show yesterday and today.')
     .option('-w, --week', 'Show the current week.')
     .option('-m, --month', 'Show the current month.')
     .option('--from <date>', 'Start of the period (inclusive). Use a local day or an ISO timestamp.')

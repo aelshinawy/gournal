@@ -18,7 +18,7 @@ Fetch the user's GitHub activity (PRs, commits, reviews) through the gh CLI, and
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `status` | `"ok" \| "partial" \| "skipped" \| "failed"` | yes | ok: the sync finished. partial: the sync stopped early and kept what it fetched. skipped: an automatic sync did not run because another sync held the lock. failed: the sync did not run, for example when gh is missing or signed out. |
+| `status` | `"ok" \| "partial" \| "skipped" \| "failed"` | yes | ok: the sync finished. partial: the sync stopped early and kept what it fetched. skipped: an automatic sync did not run because another sync held the lock. Only automatic sync returns skipped. The sync_activity tool returns ok, partial, or failed. failed: the sync did not run, for example when gh is missing or signed out. |
 | `since` | `string` | yes | Start of the fetched window, as an ISO timestamp. |
 | `inserted` | `number` | yes | Number of new activity items stored. |
 | `updated` | `number` | yes | Number of known activity items that changed. |

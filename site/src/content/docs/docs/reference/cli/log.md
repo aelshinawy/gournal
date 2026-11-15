@@ -14,7 +14,7 @@ Show your entries in time order, grouped by day. The log covers today unless you
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-y, --yesterday` | Report on yesterday and today. |  |
+| `-y, --yesterday` | Show yesterday and today. |  |
 | `-w, --week` | Show the current week. |  |
 | `-m, --month` | Show the current month. |  |
 | `--from <date>` | Start of the period (inclusive). Use a local day or an ISO timestamp. |  |

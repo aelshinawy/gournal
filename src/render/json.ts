@@ -140,7 +140,7 @@ export function workLogJson(m: WorkLogModel): WorkLogJson {
 }
 
 export const SyncReportSchema = z.object({
-  status: z.enum(['ok', 'partial', 'skipped', 'failed']).describe('ok: the sync finished. partial: the sync stopped early and kept what it fetched. skipped: an automatic sync did not run because another sync held the lock. failed: the sync did not run, for example when gh is missing or signed out.'),
+  status: z.enum(['ok', 'partial', 'skipped', 'failed']).describe('ok: the sync finished. partial: the sync stopped early and kept what it fetched. skipped: an automatic sync did not run because another sync held the lock. Only automatic sync returns skipped. The sync_activity tool returns ok, partial, or failed. failed: the sync did not run, for example when gh is missing or signed out.'),
   since: z.string().describe('Start of the fetched window, as an ISO timestamp.'),
   inserted: z.number().describe('Number of new activity items stored.'),
   updated: z.number().describe('Number of known activity items that changed.'),

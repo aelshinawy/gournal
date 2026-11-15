@@ -25,7 +25,7 @@ $ gournal sync --since 2026-11-01
 Synced GitHub activity since Nov 01: 4 new, 0 updated, 0 links.
 ```
 
-Without a working gh CLI, the command reports why it stopped.
+After an earlier sync worked, a later sync without a working gh CLI reports why it stopped. A new user who never synced sees `GitHub sync failed (gh is not installed; see https://cli.github.com)` instead.
 
 ```console
 $ gournal sync

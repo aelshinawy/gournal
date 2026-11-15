@@ -18,7 +18,7 @@ Change fields of an existing entry. Fields that you omit stay as they are.
 | `kind` | `"done" \| "blocker" \| "next"` | no | New kind: done, blocker, or next. |
 | `project` | `string` | no | New project name. |
 | `tags` | `string[]` | no | New tags. They replace the current tags. |
-| `refs` | `object[]` | no | New references. They replace the current references. |
+| `refs` | `object[]` | no | New references. They replace the current references. If you also pass `tags`, references that come from ticket-style tags are added to them. |
 | `refs.type` | `"pr" \| "jira" \| "commit" \| "url"` | yes | Kind of reference: a PR, a Jira key, a commit, or a URL. |
 | `refs.value` | `string` | yes | The PR number, ticket key, commit hash, or URL. |
 | `refs.repo` | `string` | no | Repository (owner/name) of the PR or commit. |

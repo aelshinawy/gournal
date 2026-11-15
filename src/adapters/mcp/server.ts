@@ -212,7 +212,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
         kind: KIND.optional().describe('New kind: done, blocker, or next.'),
         project: z.string().optional().describe('New project name.'),
         tags: z.array(z.string()).optional().describe('New tags. They replace the current tags.'),
-        refs: z.array(refSchema).optional().describe('New references. They replace the current references.'),
+        refs: z.array(refSchema).optional().describe('New references. They replace the current references. If you also pass `tags`, references that come from ticket-style tags are added to them.'),
       },
     },
     guarded((args: {
@@ -243,7 +243,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'delete_entry',
     {
       title: 'Delete journal entry',
-      description: 'Delete an entry. The entry stays in the database, so you can restore it with gournal restore.',
+      description: 'Delete an entry. The entry stays in the database, so you can restore it with the CLI command `gournal restore <id>`.',
       outputSchema: EntryResultSchema,
       inputSchema: { id: z.string().min(1).describe('Full id or the last 8 characters of the entry.') },
     },
