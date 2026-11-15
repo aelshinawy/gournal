@@ -13,7 +13,7 @@ Gournal is a command-line work journal. You log what you did, and gournal builds
 
 ## Install
 
-You need Node.js 22.13 or newer and Git 2.31 or newer.
+You need Node.js 22.13 or newer and Git 2.31 or newer. Without Git, gournal puts entries in the `uncategorized` project.
 
 ```bash
 npm install -g gournal

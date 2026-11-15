@@ -54,6 +54,10 @@ Gournal stores four kinds of activity:
 
 Gournal skips your reviews of your own pull requests. It skips pending reviews. It reads the commits of a pull request only when you opened the pull request.
 
+## Limits
+
+Each search reads at most 1000 pull requests. The limit applies to the search for your own pull requests and to the search for pull requests that you reviewed. Gournal reads at most 300 commits for each of your own pull requests. It reads at most 100 reviews for each pull request that you reviewed. Gournal prints no warning when a limit cuts the result. To stay under the limits, use a narrower `--since` date.
+
 ## Owners
 
 Limit the sync to some owners (users or organizations) with `github.owners.include` and `github.owners.exclude` in `config.json`.

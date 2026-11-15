@@ -33,7 +33,7 @@ See [The summary rule](/gournal/docs/start-here/core-concepts/#the-summary-rule)
 
 ## I added an entry by mistake
 
-Run `gournal undo` to remove the last entry that you added on this machine. Run `gournal restore <id>` to bring an entry back. See [`gournal undo`](/gournal/docs/reference/cli/undo/) and [`gournal restore`](/gournal/docs/reference/cli/restore/).
+Run `gournal undo` to remove the newest entry written on this machine. This includes an entry that an AI agent added. Run `gournal restore <id>` to bring an entry back. See [`gournal undo`](/gournal/docs/reference/cli/undo/) and [`gournal restore`](/gournal/docs/reference/cli/restore/).
 
 ## An open blocker or next item stays in my standup
 
@@ -79,4 +79,4 @@ Your Node build lacks the full-text search feature, so the command cannot rebuil
 
 ## Does gournal send my data anywhere?
 
-Gournal stores your journal on your machine. It calls GitHub only through the `gh` CLI, during a sync. It stores no GitHub token. `gournal add` and the `add_entry` tool never use the network. See [GitHub activity](/gournal/docs/guides/github-activity/).
+Gournal stores your journal on your machine. It calls GitHub only through the `gh` CLI, during a sync. It stores no GitHub token. Reports sync with GitHub by default. Turn this off with `github.autoSync: false` or `GOURNAL_NO_AUTOSYNC=1`. `gournal add` and the `add_entry` tool never use the network. See [GitHub activity](/gournal/docs/guides/github-activity/).
