@@ -1,0 +1,5 @@
+[
+  { "id": 9001, "state": "APPROVED", "submitted_at": "2026-11-04T08:00:00Z", "html_url": "https://github.com/octo/app/pull/9#pullrequestreview-9001", "user": { "login": "dev" } },
+  { "id": 9002, "state": "PENDING", "submitted_at": null, "html_url": "https://github.com/octo/app/pull/9#pullrequestreview-9002", "user": { "login": "dev" } },
+  { "id": 9003, "state": "COMMENTED", "submitted_at": "2026-11-04T09:00:00Z", "html_url": "https://github.com/octo/app/pull/9#pullrequestreview-9003", "user": { "login": "sam" } }
+]

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Entry, StandupModel, WorkLogModel } from '../core';
+import type { Activity, Entry, StandupModel, WorkLogModel } from '../core';
 
 export const EntrySchema = z.object({
   id: z.string(),
@@ -27,6 +27,27 @@ export const EntrySchema = z.object({
 });
 export type EntryJson = z.infer<typeof EntrySchema>;
 
+export const ActivitySchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  deletedAt: z.string().nullable(),
+  deviceId: z.string(),
+  type: z.enum(['commit', 'pr_opened', 'pr_merged', 'review']),
+  occurredAt: z.string(),
+  repo: z.string(),
+  branch: z.string().nullable(),
+  externalId: z.string(),
+  title: z.string().nullable(),
+  url: z.string().nullable(),
+  capturedBy: z.literal('github'),
+  pr: z.number().nullable(),
+  payload: z.record(z.string(), z.unknown()),
+});
+export type ActivityJson = z.infer<typeof ActivitySchema>;
+
+const LinkedActivitySchema = z.record(z.string(), z.array(ActivitySchema));
+
 export const StandupSchema = z.object({
   title: z.string(),
   start: z.string(),
@@ -36,6 +57,11 @@ export const StandupSchema = z.object({
   blockers: z.array(EntrySchema),
   next: z.array(EntrySchema),
   stale: z.object({ count: z.number(), ids: z.array(z.string()), days: z.number() }),
+  linkedActivity: LinkedActivitySchema,
+  also: z.object({
+    activity: z.array(ActivitySchema),
+    counts: z.object({ commits: z.number(), prsOpened: z.number(), prsMerged: z.number(), reviews: z.number(), repos: z.number() }),
+  }).nullable(),
 });
 export type StandupJson = z.infer<typeof StandupSchema>;
 
@@ -46,6 +72,7 @@ export const WorkLogSchema = z.object({
   days: z.array(z.object({ date: z.string(), entries: z.array(EntrySchema) })),
   count: z.number(),
   projectCount: z.number(),
+  linkedActivity: LinkedActivitySchema,
 });
 export type WorkLogJson = z.infer<typeof WorkLogSchema>;
 
@@ -58,16 +85,33 @@ export function entryJson(e: Entry): EntryJson {
   return { ...e, tags: [...e.tags], refs: e.refs.map((r) => ({ ...r })) };
 }
 
+const activityJson = (a: Activity): ActivityJson => ({ ...a, payload: { ...a.payload } });
+const linkedJson = (linked: Record<string, Activity[]>): Record<string, ActivityJson[]> =>
+  Object.fromEntries(Object.entries(linked).map(([id, list]) => [id, list.map(activityJson)]));
+
 export function standupJson(m: StandupModel): StandupJson {
+  const { linked, also, ...rest } = m;
   return {
-    ...m,
+    ...rest,
     done: m.done.map((g) => ({ project: g.project, entries: g.entries.map(entryJson) })),
     blockers: m.blockers.map(entryJson),
     next: m.next.map(entryJson),
     stale: { ...m.stale, ids: [...m.stale.ids] },
+    linkedActivity: linkedJson(linked),
+    also: also ? { activity: also.activity.map(activityJson), counts: { ...also.counts } } : null,
   };
 }
 
 export function workLogJson(m: WorkLogModel): WorkLogJson {
-  return { ...m, days: m.days.map((d) => ({ date: d.date, entries: d.entries.map(entryJson) })) };
+  const { linked, ...rest } = m;
+  return { ...rest, days: m.days.map((d) => ({ date: d.date, entries: d.entries.map(entryJson) })), linkedActivity: linkedJson(linked) };
 }
+
+export const SyncReportSchema = z.object({
+  status: z.enum(['ok', 'partial', 'skipped', 'failed']),
+  since: z.string(),
+  inserted: z.number(),
+  updated: z.number(),
+  linked: z.number(),
+  warning: z.string().nullable(),
+});

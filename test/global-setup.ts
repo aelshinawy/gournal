@@ -12,4 +12,6 @@ export default function globalSetup(): void {
   process.env.HOME = temp;
   process.env.USERPROFILE = temp;
   process.env.GOURNAL_TEST_HOME_ROOT = temp;
+  // Tests never start a background GitHub sync. A test that needs one unsets this for itself.
+  process.env.GOURNAL_NO_AUTOSYNC = '1';
 }

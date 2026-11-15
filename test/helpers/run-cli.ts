@@ -1,11 +1,12 @@
 import chalk from 'chalk';
+import type { GhRunner } from '../../src/sources';
 import { runCli } from '../../src/adapters/cli/program';
 
 /** Run the CLI in this process. Collects out, err, and process.stderr writes. Calls must not overlap: the chalk level and the stderr spy are shared. */
 export async function runIn(
   home: string,
   args: string[],
-  opts: { cwd?: string; isTTY?: boolean } = {},
+  opts: { cwd?: string; isTTY?: boolean; gh?: GhRunner } = {},
 ): Promise<{ status: number; stdout: string; stderr: string }> {
   const level = chalk.level;
   const out: string[] = [];
@@ -20,6 +21,7 @@ export async function runIn(
       home,
       cwd: opts.cwd ?? process.cwd(),
       isTTY: opts.isTTY ?? false,
+      gh: opts.gh,
       out: (t) => out.push(t),
       err: (t) => err.push(t),
     });

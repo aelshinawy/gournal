@@ -7,6 +7,7 @@ import { hasFts5, ftsTest } from '../fts5';
 import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
 import { exportBundle, importBundle } from '../../src/storage/bundle';
+import { createActivityRepository } from '../../src/storage/activity-repository';
 import type { EntryRepository } from '../../src/core/repository';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository;
@@ -243,5 +244,81 @@ describe('legacy map in bundles', () => {
       expect(() => importBundle(db2, bundle)).toThrow('Bundle legacyMap row 0 is invalid');
       expect(db2.prepare('SELECT count(*) AS n FROM entries').get()).toEqual({ n: 0 });
     } finally { db2.close(); }
+  });
+});
+
+describe('activity in bundles', () => {
+  const act = (over: Record<string, unknown> = {}) => ({
+    type: 'pr_opened' as const, occurredAt: '2026-11-10T10:00:00.000Z', repo: 'acme/widgets', branch: 'feat/x',
+    externalId: '5', title: 'Add x', url: null, pr: 5, payload: { state: 'open' }, ...over,
+  });
+  const entryRefs = [{ type: 'pr' as const, value: '5', repo: 'acme/widgets' }];
+
+  test('export includes activity; import upserts by type, repo, and external id and relinks', async () => {
+    const { d: db2, r: repo2 } = open('b.db');
+    const act2 = createActivityRepository(db2, config, path.join(home, 'b.db'));
+    // The local row is older than the bundle row, so the bundle wins on import.
+    const local = act2.upsert([act({ title: 'old title' })]).ids[0];
+    await new Promise((r) => setTimeout(r, 5));
+    const act1 = createActivityRepository(db, config, path.join(home, 'a.db'));
+    const { ids } = act1.upsert([act(), act({ type: 'review', externalId: 'r9', pr: 7 })]);
+    const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
+    expect(bundle.activity).toHaveLength(2);
+    expect(bundle.schemaVersion).toBe(1);
+
+    try {
+      const entry = repo2.add({ summary: 'ship x', refs: entryRefs, ...base });
+      const withEntry = { ...bundle, entries: [...bundle.entries, { ...JSON.parse(JSON.stringify(entry)) }] };
+      const r = importBundle(db2, withEntry, config);
+      expect(r.inserted).toBe(0);
+      const found = act2.find();
+      expect(found).toHaveLength(2);
+      const pr5 = found.find((a) => a.externalId === '5')!;
+      expect(pr5.id).toBe(local);
+      expect(pr5.id).not.toBe(ids[0]);
+      expect(pr5.title).toBe('Add x');
+      // The entry already existed locally. The import relinked it to the activity.
+      expect(act2.linkedTo([entry.id])[entry.id].map((a) => a.externalId)).toEqual(['5']);
+      expect(importBundle(db2, withEntry, config).skipped).toBeGreaterThan(0);
+      expect(act2.find()).toHaveLength(2);
+    } finally { db2.close(); }
+  });
+
+  test('a new imported entry links to activity that already exists locally', () => {
+    const { d: db2 } = open('b.db');
+    const act2 = createActivityRepository(db2, config, path.join(home, 'b.db'));
+    try {
+      act2.upsert([act()]);
+      const entry = repo.add({ summary: 'ship x', refs: entryRefs, ...base });
+      const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
+      delete bundle.activity; // the activity is not part of the import. It is already local.
+      expect(importBundle(db2, bundle, config)).toMatchObject({ inserted: 1 });
+      expect(act2.linkedTo([entry.id])[entry.id]?.map((a) => a.externalId)).toEqual(['5']);
+    } finally { db2.close(); }
+  });
+
+  test('an older bundle activity row does not overwrite a newer local one', () => {
+    const a = createActivityRepository(db, config, path.join(home, 'a.db'));
+    a.upsert([act()]);
+    const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
+    a.upsert([act({ title: 'newer local' })]);
+    importBundle(db, bundle, config);
+    expect(a.find()[0].title).toBe('newer local');
+  });
+
+  test('a bundle without activity still imports', () => {
+    repo.add({ summary: 'one', ...base });
+    const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
+    delete bundle.activity;
+    const { d: db2 } = open('c.db');
+    try {
+      expect(importBundle(db2, bundle, config)).toEqual({ inserted: 1, updated: 0, skipped: 0, deduplicated: 0 });
+    } finally { db2.close(); }
+  });
+
+  test('an invalid activity row is rejected', () => {
+    const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
+    bundle.activity = [{ id: 'nope' }];
+    expect(() => importBundle(db, bundle, config)).toThrow(/activity 0 is invalid/);
   });
 });

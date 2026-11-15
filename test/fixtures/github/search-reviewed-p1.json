@@ -1,0 +1,7 @@
+{
+  "total_count": 2,
+  "items": [
+    { "number": 9, "title": "Fix app routing", "repository_url": "https://api.github.com/repos/octo/app", "user": { "login": "sam" }, "updated_at": "2026-11-04T08:00:00Z" },
+    { "number": 10, "title": "My own PR in octo", "repository_url": "https://api.github.com/repos/octo/app", "user": { "login": "dev" }, "updated_at": "2026-11-06T08:00:00Z" }
+  ]
+}

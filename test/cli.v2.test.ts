@@ -7,6 +7,8 @@ import { format, startOfWeek } from 'date-fns';
 import { runIn } from './helpers/run-cli';
 import { openJournal } from '../src/storage/journal';
 import { ftsTest } from './fts5';
+import { GhError, type GhRunner } from '../src/sources';
+import type { NewActivityInput } from '../src/core';
 
 const mkHome = () => fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cli-v2-'));
 const rows = (home: string, sql = 'SELECT id, summary, details, status, deleted_at FROM entries ORDER BY created_at') => {
@@ -415,5 +417,123 @@ describe('gournal CLI reads on Query and renderers', () => {
     } finally {
       if (prev === undefined) delete process.env.GOURNAL_DISABLE_FTS5; else process.env.GOURNAL_DISABLE_FTS5 = prev;
     }
+  });
+});
+
+describe('standup and log with GitHub activity', () => {
+  let home: string;
+  const savedNoAuto = process.env.GOURNAL_NO_AUTOSYNC;
+  beforeEach(() => { home = mkHome(); });
+  afterEach(() => {
+    fs.rmSync(home, { recursive: true, force: true });
+    if (savedNoAuto === undefined) delete process.env.GOURNAL_NO_AUTOSYNC; else process.env.GOURNAL_NO_AUTOSYNC = savedNoAuto;
+  });
+
+  const activity = (over: Partial<NewActivityInput> & { externalId: string }): NewActivityInput => ({
+    type: 'pr_merged', occurredAt: new Date().toISOString(), repo: 'acme/widgets', branch: null,
+    title: 'Add widget cache', url: null, pr: 327, payload: { pr: 327 }, ...over,
+  });
+  const seedActivity = (items: NewActivityInput[], aliases?: Record<string, string>) => {
+    if (aliases) fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ projectAliases: aliases }));
+    const j = openJournal(home);
+    try { j.activity.upsert(items); } finally { j.close(); }
+  };
+  const seedEntry = (summary: string, project = 'widgets') => {
+    const j = openJournal(home);
+    try { j.repo.add({ summary, project, source: 'cli' }); } finally { j.close(); }
+  };
+
+  test('standup collapses the Also list, and --activity expands it', async () => {
+    seedActivity([activity({ externalId: 'm327' }), activity({ type: 'review', externalId: 'r412', repo: 'octo/app', pr: 412, title: 'Fix login redirect', payload: { pr: 412 } })]);
+    const plain = await runIn(home, ['standup']);
+    expect(plain.stdout).toContain('Also: 1 PR merged, 1 review in 2 repos (--activity to expand)');
+    const full = await runIn(home, ['standup', '--activity']);
+    expect(full.status).toBe(0);
+    expect(full.stdout).toContain('Also happened');
+    expect(full.stdout).toContain('acme/widgets');
+    expect(full.stdout).toMatch(/merged\s+#327/);
+    expect(full.stdout).not.toContain('--activity to expand');
+  });
+
+  test('log folds linked activity under its entry and has no Also section', async () => {
+    seedActivity([activity({ externalId: 'm5', pr: 5, payload: { pr: 5 }, title: 'Add x' })]);
+    const j = openJournal(home);
+    try {
+      const e = j.repo.add({ summary: 'Shipped x', project: 'widgets', source: 'cli', repo: 'acme/widgets', refs: [{ type: 'pr', value: '5' }] });
+      j.activity.relinkEntries([e.id]);
+    } finally { j.close(); }
+    const r = await runIn(home, ['log']);
+    expect(r.stdout).toContain('↳ merged #5 Add x');
+    expect(r.stdout).not.toContain('Also');
+  });
+
+  test('project filter keeps only activity whose repo maps to the project', async () => {
+    seedActivity([
+      activity({ externalId: 'a', repo: 'acme/widgets', pr: 1, payload: { pr: 1 }, title: 'Widget thing' }),
+      activity({ externalId: 'b', repo: 'octo/gears', pr: 2, payload: { pr: 2 }, title: 'Gear thing' }),
+      activity({ externalId: 'c', repo: 'acme/legacy-app', pr: 3, payload: { pr: 3 }, title: 'Aliased thing' }),
+    ], { 'acme/legacy-app': 'widgets' });
+    const widgets = await runIn(home, ['standup', '--activity', '-p', 'widgets']);
+    expect(widgets.stdout).toContain('Widget thing');
+    expect(widgets.stdout).toContain('Aliased thing');
+    expect(widgets.stdout).not.toContain('Gear thing');
+    const gears = await runIn(home, ['standup', '--activity', '-p', 'GEARS']);
+    expect(gears.stdout).toContain('Gear thing');
+    expect(gears.stdout).not.toContain('Widget thing');
+  });
+
+  test('repo filter compares without case', async () => {
+    seedActivity([
+      activity({ externalId: 'a', repo: 'acme/widgets', title: 'Widget thing' }),
+      activity({ externalId: 'b', repo: 'octo/gears', pr: 2, payload: { pr: 2 }, title: 'Gear thing' }),
+    ]);
+    const r = await runIn(home, ['standup', '--activity', '--repo', 'ACME/Widgets']);
+    expect(r.stdout).toContain('Widget thing');
+    expect(r.stdout).not.toContain('Gear thing');
+  });
+
+  test('tags filter hides the Also section', async () => {
+    seedActivity([activity({ externalId: 'a' })]);
+    const j = openJournal(home);
+    try { j.repo.add({ summary: 'Tagged work', project: 'widgets', source: 'cli', tags: ['bug'] }); } finally { j.close(); }
+    const r = await runIn(home, ['standup', '--activity', '-t', 'bug']);
+    expect(r.stdout).toContain('Tagged work');
+    expect(r.stdout).not.toContain('Also');
+  });
+
+  test('standup prints the sync warning on stderr and still prints the standup', async () => {
+    delete process.env.GOURNAL_NO_AUTOSYNC;
+    seedEntry('Did a thing');
+    const gh: GhRunner = async () => { throw new GhError('auth', 'x'); };
+    const r = await runIn(home, ['standup'], { gh });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toBe('gournal: GitHub sync skipped (gh is not signed in; run gh auth login); showing stored activity');
+    expect(r.stdout).toContain('Did a thing');
+  });
+
+  test('log runs auto-sync too, and a missing gh stays silent', async () => {
+    delete process.env.GOURNAL_NO_AUTOSYNC;
+    seedEntry('Did a thing');
+    const down: GhRunner = async () => { throw new GhError('auth', 'x'); };
+    const r = await runIn(home, ['log'], { gh: down });
+    expect(r.stderr).toContain('GitHub sync skipped');
+    expect(r.stdout).toContain('Did a thing');
+    const home2 = mkHome();
+    try {
+      const j = openJournal(home2);
+      try { j.repo.add({ summary: 'Other', project: 'p', source: 'cli' }); } finally { j.close(); }
+      const missing: GhRunner = async () => { throw new GhError('missing', 'x'); };
+      const q = await runIn(home2, ['log'], { gh: missing });
+      expect(q.stderr).toBe('');
+      expect(q.stdout).toContain('Other');
+    } finally { fs.rmSync(home2, { recursive: true, force: true }); }
+  });
+
+  test('a bad option fails before any sync runs', async () => {
+    delete process.env.GOURNAL_NO_AUTOSYNC;
+    const gh = jest.fn(async () => '{}') as unknown as GhRunner;
+    const r = await runIn(home, ['standup', '--from', 'nope'], { gh });
+    expect(r.status).toBe(1);
+    expect(gh).not.toHaveBeenCalled();
   });
 });

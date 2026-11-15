@@ -3,7 +3,9 @@ import type { DatabaseSync } from 'node:sqlite';
 import { checkSummary, extractRefs, mergeRefs, normalizeTags, resolveProjectAlias, splitSummary } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref } from '../core';
 import type { EntryRepository } from '../core';
+import { createActivityRepository } from './activity-repository';
 import { snapshotDb } from './backup';
+import { createWriter } from './writer';
 import type { Config } from '../core';
 import { CorruptJournalError, readLegacyEntriesSync } from './legacy-json';
 import type { LegacyEntry } from './legacy-json';
@@ -114,16 +116,26 @@ export function importLegacy(
     );
     let imported = 0;
     let alreadyPresent = 0;
+    const ids: string[] = [];
     for (const k of keys) {
       if (known.has(mapKey(k.timestamp, k.messageHash, k.occurrence))) { alreadyPresent++; continue; }
       const entry = repo.add(mechanicalEntry(items[k.index], config, k.index));
       insert.run(k.index, k.timestamp, k.messageHash, k.occurrence, entry.id, Date.parse(entry.updatedAt));
       imported++;
+      ids.push(entry.id);
     }
-    return { imported, alreadyPresent };
+    return { imported, alreadyPresent, ids };
   });
   if (result.imported > 0) process.stderr.write(`gournal: imported ${result.imported} entries from entries.json\n`);
-  return result;
+  // Links are derived data. A relink failure never fails the import.
+  if (result.ids.length > 0) {
+    try {
+      createActivityRepository(db, config, null, createWriter(db, null)).relinkEntries(result.ids);
+    } catch (err) {
+      process.stderr.write(`gournal: relink after import failed (${(err as Error).message})\n`);
+    }
+  }
+  return { imported: result.imported, alreadyPresent: result.alreadyPresent };
 }
 
 export interface PlanItem {

@@ -1,5 +1,6 @@
 import { buildStandup, isEmptyStandup, resolvePeriod } from '../../src/core';
-import { makeEntry } from './factory';
+import type { Activity } from '../../src/core';
+import { makeActivity, makeEntry } from './factory';
 
 const now = new Date(2026, 10, 15, 12);
 const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000);
@@ -65,4 +66,36 @@ test('blockers and next sort oldest first, and metadata is copied', () => {
 test('only stale items keep the standup non-empty', () => {
   const m = build([next('Ancient', daysAgo(30))]);
   expect(isEmptyStandup(m)).toBe(false);
+});
+
+describe('activity in the standup model', () => {
+  const entry = makeEntry({ createdAt: new Date(2026, 10, 15, 10), summary: 'Merged PR' });
+  const linkedAct = makeActivity({ type: 'pr_merged', pr: 4, title: 'Phase 2 layers' });
+  const freeAct = makeActivity({ type: 'commit' });
+  const withActivity = (over: { linked?: Record<string, Activity[]>; unlinked?: Activity[] }, done = [entry]) =>
+    buildStandup({ period: today, done, open: [], now, staleAfterDays: 14, ...over });
+
+  test('without activity input, linked is empty and also is null', () => {
+    const m = build([]);
+    expect(m.linked).toEqual({});
+    expect(m.also).toBeNull();
+  });
+
+  test('standup with only unlinked activity is not empty', () => {
+    const m = withActivity({ unlinked: [freeAct] }, []);
+    expect(m.also).not.toBeNull();
+    expect(isEmptyStandup(m)).toBe(false);
+  });
+
+  test('linked activity is not in Also', () => {
+    const m = withActivity({ linked: { [entry.id]: [linkedAct] }, unlinked: [linkedAct, freeAct] });
+    expect(m.linked[entry.id]).toEqual([linkedAct]);
+    expect(m.also?.activity).toEqual([freeAct]);
+    expect(m.also?.counts).toMatchObject({ commits: 1, prsMerged: 0 });
+  });
+
+  test('Also is null when every unlinked item is linked', () => {
+    const m = withActivity({ linked: { [entry.id]: [linkedAct] }, unlinked: [linkedAct] });
+    expect(m.also).toBeNull();
+  });
 });
