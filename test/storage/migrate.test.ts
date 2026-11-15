@@ -220,6 +220,13 @@ test('migration applies projectAliases and tagAliases', () => {
   expect(repo.find()[0]).toMatchObject({ project: 'new-proj', tags: ['performance'] });
 });
 
+test('migration applies projectAliases case-insensitively', () => {
+  config.projectAliases['old-proj'] = 'New Proj';
+  writeLegacy([{ timestamp: '2026-01-01T00:00:00.000Z', message: 'a', project: 'OLD-PROJ', tags: [] }]);
+  importLegacy(db, repo, config, jsonPath);
+  expect(repo.find()[0].project).toBe('New Proj');
+});
+
 test('an old clear that rewrote entries.json to [] imports nothing and deletes nothing', () => {
   writeLegacy([legacyA, legacyB]);
   importLegacy(db, repo, config, jsonPath);

@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import { checkSummary, extractRefs, mergeRefs, normalizeTags, splitSummary } from '../core';
+import { checkSummary, extractRefs, mergeRefs, normalizeTags, resolveProjectAlias, splitSummary } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref } from '../core';
 import type { EntryRepository } from '../core';
 import { snapshotDb } from './backup';
@@ -241,7 +241,7 @@ export function applyPlan(
       { legacy_index: number; timestamp: string; entry_id: string }[])
       .map((r) => [r.entry_id, r] as const)
   );
-  const aliasProject = (p: string) => (Object.hasOwn(config.projectAliases, p) ? config.projectAliases[p] : p);
+  const aliasProject = (p: string) => resolveProjectAlias(p, config.projectAliases);
 
   const planAll = (): { change: PlanChange; patch: EntryPatch }[] => {
     const planned: { change: PlanChange; patch: EntryPatch }[] = [];

@@ -32,6 +32,13 @@ test('project aliases apply on write', () => {
   config.projectAliases['collection-app-v2'] = 'collection-app';
   expect(repo.add({ summary: 's', project: 'collection-app-v2', source: 'cli' }).project).toBe('collection-app');
 });
+test('project aliases match case-insensitively on add and update', () => {
+  config.projectAliases['gournal'] = 'Gournal App';
+  expect(repo.add({ summary: 's', project: 'Gournal', source: 'cli' }).project).toBe('Gournal App');
+  const e = repo.add({ summary: 't', project: 'other', source: 'cli' });
+  expect(repo.update(e.id, { project: 'GOURNAL' }).project).toBe('Gournal App');
+  expect(repo.get(e.id)?.project).toBe('Gournal App');
+});
 test('blocker starts open and resolves', () => {
   const b = repo.add({ summary: 'Waiting on infra', kind: 'blocker', project: 'p', source: 'mcp' });
   expect(b.status).toBe('open');

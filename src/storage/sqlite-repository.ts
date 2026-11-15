@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { hasLineBreak, mergeRefs, newId, normalizeTags, resolveQuery, summaryLength, MAX_SUMMARY } from '../core';
+import { hasLineBreak, mergeRefs, newId, normalizeTags, resolveProjectAlias, resolveQuery, summaryLength, MAX_SUMMARY } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Query, Ref } from '../core';
 import type { EntryRepository } from '../core';
 import { backupDbIfNeeded } from './backup';
@@ -36,7 +36,7 @@ const noEntry = (input: string): Error => new Error(`No entry with id "${input}"
 
 export function createRepository(db: DatabaseSync, config: Config, dbPath: string): EntryRepository {
   const normalize = (tags: string[]) => normalizeTags(tags, config.tagAliases, { ticketPrefixes: config.ticketPrefixes });
-  const aliasProject = (p: string): string => (Object.hasOwn(config.projectAliases, p) ? config.projectAliases[p] : p);
+  const aliasProject = (p: string): string => resolveProjectAlias(p, config.projectAliases);
 
   // True while this repository holds an open transaction. Nested writes then join it.
   let inTransaction = false;
