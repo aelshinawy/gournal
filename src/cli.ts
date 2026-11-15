@@ -16,6 +16,11 @@ import fs from 'fs-extra';
 import { VERSION } from './version';
 import { parseBound } from './util/date-bounds.util';
 import { clearConfirmQuestion } from './prompts';
+import path from 'path';
+import { openJournal } from './storage/journal';
+import { gournalHome } from './storage/home';
+import { importLegacy, applyPlan, renderPlanDiff } from './storage/migrate';
+import type { MigrationPlan } from './storage/migrate';
 
 const program = new Command();
 
@@ -184,6 +189,42 @@ program
         `${entry.tags.map(t => chalk.magenta(`#${t}`)).join(' ')}`
       );
     });
+  });
+
+program
+  .command('migrate')
+  .description('Import entries.json into the database, or apply a reviewed migration plan')
+  .option('--plan <file>', 'Reviewed migration plan (JSON)')
+  .option('--dry-run', 'Compute the changes and write nothing')
+  .option('--diff <file>', 'Write the dry-run diff (markdown) to this file')
+  .action((options: { plan?: string; dryRun?: boolean; diff?: string }) => {
+    if (options.dryRun && !options.diff) {
+      console.error('--dry-run needs --diff <file>');
+      process.exitCode = 1;
+      return;
+    }
+    const jsonPath = path.join(gournalHome(), 'entries.json');
+    const journal = openJournal();
+    try {
+      if (!options.plan) {
+        const r = importLegacy(journal.db, journal.repo, journal.config, jsonPath);
+        console.log(`Imported ${r.imported} entries (${r.alreadyPresent} already present).`);
+        return;
+      }
+      const plan = JSON.parse(fs.readFileSync(options.plan, 'utf8')) as MigrationPlan;
+      const { changes } = applyPlan(journal.db, journal.repo, journal.config, jsonPath, plan, { dryRun: !!options.dryRun });
+      if (options.dryRun) {
+        const target = options.diff as string;
+        const tmp = path.join(path.dirname(path.resolve(target)), `.${path.basename(target)}.${process.pid}.tmp`);
+        fs.writeFileSync(tmp, renderPlanDiff(changes));
+        fs.renameSync(tmp, target);
+        console.log(`Dry run: ${changes.length} entries would change. Diff written to ${target}.`);
+      } else {
+        console.log(`Updated ${changes.length} entries.`);
+      }
+    } finally {
+      journal.close();
+    }
   });
 
 program

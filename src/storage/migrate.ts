@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import { extractRefs, mergeRefs, normalizeTags, splitSummary } from '../core';
-import type { NewEntryInput } from '../core';
+import { checkSummary, extractRefs, mergeRefs, normalizeTags, splitSummary } from '../core';
+import type { Entry, EntryPatch, Kind, NewEntryInput } from '../core';
 import type { EntryRepository } from '../core/repository';
 import type { Config } from './config';
 import { CorruptJournalError, readLegacyEntriesSync } from './legacy-json';
@@ -18,7 +18,7 @@ type Sanitized = LegacyEntry & { nonStringMessage?: true };
 const MAX_MS = 2 ** 48 - 1;
 
 /** Fill defaults for a malformed item. Strings stay exactly as written. Nothing is dropped. */
-function sanitize(raw: unknown): Sanitized {
+export function sanitize(raw: unknown): Sanitized {
   const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
   const m = o.message;
   const base = {
@@ -123,4 +123,152 @@ export function importLegacy(
   });
   if (result.imported > 0) process.stderr.write(`gournal: imported ${result.imported} entries from entries.json\n`);
   return result;
+}
+
+export interface PlanItem {
+  index: number;
+  timestamp: string;
+  messageHash: string;
+  summary: string;
+  details?: string | null;
+  kind?: Kind;
+  tags?: string[];
+  project?: string;
+}
+
+export interface MigrationPlan {
+  format: 'gournal-migration-plan';
+  version: 1;
+  items: PlanItem[];
+}
+
+type PlanView = Pick<Entry, 'summary' | 'details' | 'project' | 'tags'>;
+
+export interface PlanChange {
+  entryId: string;
+  index: number;
+  /** The legacy timestamp as written. */
+  timestamp: string;
+  before: PlanView;
+  after: PlanView;
+}
+
+const KINDS: readonly string[] = ['done', 'blocker', 'next'];
+const view = (e: Entry): PlanView => ({ summary: e.summary, details: e.details, project: e.project, tags: e.tags });
+const sameList = (a: unknown[], b: unknown[]): boolean => a.length === b.length && a.every((x, i) => x === b[i]);
+
+interface Resolved { item: PlanItem; entryId: string; message: string; summary: string }
+
+/** Check the whole plan against entries.json and legacy_map. Throws on the first failure. Writes nothing. */
+function validatePlan(db: DatabaseSync, jsonPath: string, plan: MigrationPlan): Resolved[] {
+  if (typeof plan !== 'object' || plan === null || plan.format !== 'gournal-migration-plan'
+    || plan.version !== 1 || !Array.isArray(plan.items)) {
+    throw new Error('Not a gournal migration plan');
+  }
+  const legacy = readLegacyEntriesSync(jsonPath).map(sanitize);
+  const find = db.prepare(
+    'SELECT m.entry_id FROM legacy_map m JOIN entries e ON e.id = m.entry_id WHERE m.legacy_index = ? AND m.message_hash = ? AND m.timestamp = ?'
+  );
+  const seen = new Set<number>();
+  const out: Resolved[] = [];
+  for (const item of plan.items) {
+    const i = (item as PlanItem | null)?.index as number;
+    const mismatch = () => new Error(`Plan item ${i} does not match entries.json; nothing was written`);
+    if (typeof item !== 'object' || item === null || !Number.isInteger(i) || i < 0 || i >= legacy.length) throw mismatch();
+    const src = legacy[i];
+    if (item.timestamp !== src.timestamp || item.messageHash !== sha256(src.message)) throw mismatch();
+    const row = find.get(i, item.messageHash, src.timestamp) as { entry_id: string } | undefined;
+    if (!row) throw mismatch();
+    if (seen.has(i)) throw new Error(`Plan item ${i} appears more than once`);
+    seen.add(i);
+    if (typeof item.summary !== 'string') throw new Error(`Plan item ${i} summary must be a string`);
+    const check = checkSummary(item.summary, null, { allowSplit: false });
+    if (!check.ok) throw new Error(`Plan item ${i} ${check.error}`);
+    if (check.summary.length === 0) throw new Error(`Plan item ${i} summary is empty`);
+    if (item.kind !== undefined && !KINDS.includes(item.kind)) throw new Error(`Plan item ${i} kind is not valid`);
+    if (item.tags !== undefined && !(Array.isArray(item.tags) && item.tags.every((t) => typeof t === 'string'))) {
+      throw new Error(`Plan item ${i} tags must be an array of strings`);
+    }
+    if (item.project !== undefined && (typeof item.project !== 'string' || item.project.trim().length === 0)) {
+      throw new Error(`Plan item ${i} project must be a non-empty string`);
+    }
+    if (item.details !== undefined && item.details !== null && typeof item.details !== 'string') {
+      throw new Error(`Plan item ${i} details must be a string or null`);
+    }
+    if (item.details === null && check.summary !== src.message.trim()) {
+      throw new Error(`Plan item ${i} would lose text: details may only be cleared when the summary is the full message`);
+    }
+    out.push({ item, entryId: row.entry_id, message: src.message, summary: check.summary });
+  }
+  return out;
+}
+
+/**
+ * Apply a reviewed plan. First imports any new legacy items. Then it validates every item,
+ * and only then writes, in one transaction. It also re-applies the current aliases and ticket
+ * prefixes to every migrated entry. With dryRun it computes the changes and writes nothing.
+ */
+export function applyPlan(
+  db: DatabaseSync,
+  repo: EntryRepository,
+  config: Config,
+  jsonPath: string,
+  plan: MigrationPlan,
+  opts: { dryRun: boolean }
+): { changes: PlanChange[] } {
+  importLegacy(db, repo, config, jsonPath);
+  const resolved = validatePlan(db, jsonPath, plan);
+  const byEntry = new Map(resolved.map((r) => [r.entryId, r]));
+  const origin = new Map(
+    (db.prepare('SELECT legacy_index, timestamp, entry_id FROM legacy_map ORDER BY legacy_index DESC').all() as
+      { legacy_index: number; timestamp: string; entry_id: string }[])
+      .map((r) => [r.entry_id, r] as const)
+  );
+  const aliasProject = (p: string) => (Object.hasOwn(config.projectAliases, p) ? config.projectAliases[p] : p);
+
+  const planned: { change: PlanChange; patch: EntryPatch }[] = [];
+  for (const row of repo.list({ includeDeleted: true })) {
+    const r = byEntry.get(row.id);
+    if (!r && row.source !== 'migration') continue;
+    const wantTags = r?.item.tags ?? row.tags;
+    const norm = normalizeTags(wantTags, config.tagAliases, { ticketPrefixes: config.ticketPrefixes });
+    const wantProject = aliasProject(r?.item.project ?? row.project);
+    const newRefs = mergeRefs(row.refs, norm.refs);
+    const after: PlanView = {
+      summary: r ? r.summary : row.summary,
+      details: r && r.item.details !== undefined ? r.item.details : row.details,
+      project: wantProject,
+      tags: norm.tags,
+    };
+    const before = view(row);
+    const patch: EntryPatch = {};
+    if (after.summary !== before.summary) patch.summary = after.summary;
+    if (after.details !== before.details) patch.details = after.details;
+    if (after.project !== before.project) patch.project = after.project;
+    if (!sameList(after.tags, before.tags) || newRefs.length !== row.refs.length) patch.tags = wantTags;
+    if (r?.item.kind !== undefined && r.item.kind !== row.kind) patch.kind = r.item.kind;
+    if (Object.keys(patch).length === 0) continue;
+    const o = origin.get(row.id);
+    planned.push({ change: { entryId: row.id, index: o?.legacy_index ?? -1, timestamp: o?.timestamp ?? row.createdAt, before, after }, patch });
+  }
+
+  if (!opts.dryRun && planned.length > 0) {
+    repo.transaction(() => { for (const p of planned) repo.update(p.change.entryId, p.patch); });
+  }
+  return { changes: planned.map((p) => p.change) };
+}
+
+/** Markdown for a dry run: one section per change. */
+export function renderPlanDiff(changes: PlanChange[]): string {
+  const block = (label: string, v: PlanView): string => [
+    `**${label}**`,
+    '',
+    '```',
+    `summary: ${v.summary}`,
+    `details: ${v.details === null ? '(none)' : v.details}`,
+    `project: ${v.project}`,
+    `tags: ${v.tags.join(', ')}`,
+    '```',
+  ].join('\n');
+  return changes.map((c) => `### ${c.index} ${c.timestamp}\n\n${block('before', c.before)}\n\n${block('after', c.after)}\n`).join('\n');
 }
