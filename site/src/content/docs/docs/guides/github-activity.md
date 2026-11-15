@@ -48,7 +48,7 @@ See [`gournal sync`](/gournal/docs/reference/cli/sync/) for the options.
 Gournal stores four kinds of activity:
 
 1. Pull requests that you opened.
-2. Pull requests that you merged.
+2. Merge events of the pull requests that you opened. This includes a pull request that someone else merged. Gournal records no merge for a pull request of another person that you merged.
 3. Commits that you authored in your own pull requests.
 4. Reviews that you gave on pull requests of other people.
 
@@ -150,7 +150,7 @@ The `Also` line counts the activity in the period that is not linked to a done e
 
 ## Troubleshooting
 
-A sync warning has one line. The text in brackets below changes with the cause.
+A sync warning has one line. `REASON` in the lines below stands for the cause.
 
 ### Auto-sync warnings
 

@@ -76,7 +76,7 @@ The plan is a JSON file:
 5. If you give a new `summary` and no `details`, gournal puts the original message in `details`.
 6. Set `details` to `null` only when the summary holds the full original message.
 
-First, write the changes to a Markdown file. This changes nothing in the database:
+First, write the changes to a Markdown file. A dry run changes no entries. It can still import lines of `entries.json` that gournal has not imported yet:
 
 ```console
 $ gournal migrate --plan plan.json --dry-run --diff diff.md

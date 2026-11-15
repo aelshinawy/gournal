@@ -27,13 +27,13 @@ The `deviceId` is a stable id for this machine. Gournal makes it. Do not change 
 
 ## Project aliases
 
-An alias renames a project in reports and filters. The key is the name that gournal finds. The value is the name to use.
+An alias renames a project when gournal writes an entry and when you filter by `--project`. Existing entries keep the project name that gournal stored. A migration plan applies your current aliases again, but only to entries that came from `entries.json`. The key is the name that gournal finds. The value is the name to use.
 
 ```json
 { "projectAliases": { "billing-api": "billing" } }
 ```
 
-Gournal matches the key against the full repository name (`acme/billing-api`), then the repository name, then the folder name. Matching is not case sensitive. An alias also applies to old entries when you filter by `--project`. See [Projects and identity](/gournal/docs/start-here/core-concepts/#projects-and-identity).
+Gournal matches the key against the full repository name (`acme/billing-api`), then the repository name, then the folder name. Matching is not case sensitive. A filter by `--project` also finds old entries that have the old name. See [Projects and identity](/gournal/docs/start-here/core-concepts/#projects-and-identity).
 
 ## Tag aliases
 

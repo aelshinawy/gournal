@@ -92,14 +92,19 @@ The server reads `config.json` once for each process. Restart your MCP clients a
 
 A summary is one line of at most 120 characters. Put longer text in `details`. See [The summary rule](/gournal/docs/start-here/core-concepts/#the-summary-rule).
 
-The `add_entry` tool is strict. It rejects a long summary that has no `details`:
+The `add_entry` tool is strict. It rejects a summary that is too long and has no `details`. The error is one line:
 
 ```text
-summary is 174 chars, max 120. Put one line in summary
-and the rest in details.
+summary is 174 chars, max 120. Put one line in summary and the rest in details.
 ```
 
-The agent then shortens the summary or adds `details`. If the agent sends the same text again, gournal splits it. This works for 10 minutes after the first try. The text must be the same, or it must start with the same 60 characters. Gournal keeps the first sentence as the summary, shortens it to 120 characters with `...`, and saves the full text in `details`. The tool then adds this line to its answer:
+It rejects a summary with a line break and no `details` with a different error:
+
+```text
+summary must be one line, max 120. Put the rest in details.
+```
+
+When the call has `details`, gournal does not reject a long summary. It splits the summary. If the agent sends a rejected text again without `details`, gournal also splits it. This works for 10 minutes after the first try. The text must be the same, or it must start with the same 60 characters. When gournal splits a summary, it keeps the first sentence as the summary, shortens it to 120 characters with `...`, and saves the full text in `details`. The tool then adds this line to its answer:
 
 ```text
 Summary was too long and was split; full text is in details.
