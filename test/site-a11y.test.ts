@@ -55,6 +55,19 @@ describe('built pages', () => {
     expect(bad).toEqual([]);
   });
 
+  run('every table on the built reference overview has g-table--overview', () => {
+    const file = path.join(dist, 'docs/reference/index.html');
+    expect(fs.existsSync(file)).toBe(true);
+    const html = fs.readFileSync(file, 'utf8');
+    const tables = [...html.matchAll(/<table\b/g)];
+    expect(tables.length).toBeGreaterThan(0);
+    for (const m of tables) {
+      const before = html.slice(0, m.index);
+      const wrapper = before.slice(before.lastIndexOf('<div class="g-table'));
+      expect(wrapper).toMatch(/^<div class="[^"]*g-table--overview/);
+    }
+  });
+
   run('every code pre has tabindex 0', () => {
     const bad: string[] = [];
     let count = 0;

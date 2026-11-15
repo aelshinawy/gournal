@@ -36,16 +36,19 @@ test('two tables under one heading get distinct region names', () => {
   expect(result).toEqual(['Options table', 'Options table 2', 'Other table']);
 });
 
-test('a table with the reference overview header gets the overview class', () => {
+test('overview class comes from the page path, not the header', () => {
   const mod = path.join(plugins, 'rehype-table-region.mjs');
   const result = runModule(
     `import { rehypeTableRegion } from ${JSON.stringify(mod)};` +
       `const v = rehypeTableRegion()().element;` +
       `const classes = [];` +
-      `const ctx = (t) => ({ textContent: () => t, data: {}, wrapNode: (n, w) => classes.push(w.properties.className) });` +
-      `v.visit({ tagName: 'table' }, ctx('Task\\nCLI\\nMCP tool\\nAdd an entry'));` +
-      `v.visit({ tagName: 'table' }, ctx('OptionMeaning'));` +
+      `const ctx = (t, url) => ({ textContent: () => t, data: {}, fileURL: url && new URL(url), wrapNode: (n, w) => classes.push(w.properties.className) });` +
+      `const overview = 'file:///site/src/content/docs/docs/reference/index.md';` +
+      `const other = 'file:///site/src/content/docs/docs/reference/cli.md';` +
+      `v.visit({ tagName: 'table' }, ctx('OptionMeaning', overview));` +
+      `v.visit({ tagName: 'table' }, ctx('Task\\nCLI\\nMCP tool', other));` +
+      `v.visit({ tagName: 'table' }, ctx('Task\\nCLI\\nMCP tool'));` +
       `console.log(JSON.stringify(classes));`
   );
-  expect(result).toEqual([['g-table', 'g-table--overview'], ['g-table']]);
+  expect(result).toEqual([['g-table', 'g-table--overview'], ['g-table'], ['g-table']]);
 });
