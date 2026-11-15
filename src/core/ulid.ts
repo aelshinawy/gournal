@@ -1,6 +1,9 @@
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
 export function newId(nowMs?: number): string {
+  if (nowMs !== undefined && !(Number.isSafeInteger(nowMs) && nowMs >= 0)) {
+    throw new RangeError('nowMs must be a non-negative safe integer');
+  }
   let time = nowMs ?? Date.now();
   let timePart = '';
   for (let i = 0; i < 10; i++) {
