@@ -110,10 +110,11 @@ export function createServer(journal?: JournalLike): McpServer {
       const raw = args.summary ?? args.message;
       if (raw === undefined) return errorResult('summary is required');
       const now = Date.now();
-      const retry = isRetry(raw, now);
+      const text = raw.trim();
+      const retry = isRetry(text, now);
       const check = checkSummary(raw, args.details, { allowSplit: args.details !== undefined || retry });
       if (!check.ok) {
-        rejected.set(raw, now);
+        rejected.set(text, now);
         return errorResult(check.error);
       }
       const hints: string[] = [];
@@ -124,6 +125,21 @@ export function createServer(journal?: JournalLike): McpServer {
           if (known.has(tag)) continue;
           const close = closeTags(tag, [...known]);
           if (close.length) hints.push(`New tag "${tag}". Close existing tags: ${close.join(', ')}`);
+        }
+      }
+      // A bad resolves id never stops the entry. Drop it and report it.
+      const validResolves: string[] = [];
+      const dropped: string[] = [];
+      for (const id of args.resolves ?? []) {
+        try {
+          const target = repo.get(id);
+          if (!target) throw new Error(`No entry with id "${id}"`);
+          if ((target.kind !== 'blocker' && target.kind !== 'next') || target.status !== 'open') {
+            throw new Error('only an open blocker or next can be resolved');
+          }
+          validResolves.push(id);
+        } catch (err) {
+          dropped.push(`Could not resolve ${id}: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
       const entry = repo.add({
@@ -137,10 +153,10 @@ export function createServer(journal?: JournalLike): McpServer {
         source: 'mcp',
         tags: args.tags,
         refs: args.refs,
-        resolves: args.resolves,
+        resolves: validResolves,
       });
-      const lines = [`Entry ${shortId(entry.id)} added to ${entry.project}: ${entry.summary}`, ...hints];
-      if (check.summary !== raw.trim()) lines.push('Summary was too long and was split; full text is in details.');
+      const lines = [`Entry ${shortId(entry.id)} added to ${entry.project}: ${entry.summary}`, ...hints, ...dropped];
+      if (check.summary !== text) lines.push('Summary was too long and was split; full text is in details.');
       return textResult(lines.join('\n'));
     })
   );

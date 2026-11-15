@@ -8,6 +8,7 @@ jest.mock('../src/git');
 
 import { getProjectName } from '../src/git';
 import { createServer, SERVER_INSTRUCTIONS } from '../src/mcp';
+import type { NewEntryInput } from '../src/core';
 import { openJournal, type Journal } from '../src/storage/journal';
 
 const mockedGetProjectName = getProjectName as jest.MockedFunction<typeof getProjectName>;
@@ -17,6 +18,8 @@ let journal: Journal;
 let client: Client;
 
 const text = (r: any): string => r.content[0].text;
+const seed = (summary: string, o: Partial<NewEntryInput> = {}) =>
+  journal.repo.add({ summary, project: 'p', source: 'mcp', ...o });
 const call = (name: string, args: Record<string, unknown> = {}) => client.callTool({ name, arguments: args }) as Promise<any>;
 
 async function connect(j?: Journal) {
@@ -38,7 +41,16 @@ afterEach(() => {
   fs.rmSync(home, { recursive: true, force: true });
 });
 
-test('server sends the instructions', () => expect(client.getInstructions()).toBe(SERVER_INSTRUCTIONS));
+test('server sends the instructions', () => {
+  expect(client.getInstructions()).toBe(SERVER_INSTRUCTIONS);
+  expect(client.getInstructions()).toBe([
+    'Gournal is the user\'s work journal. Log each distinct piece of finished work with add_entry.',
+    'Always pass project. summary is one line, max 120 characters. Put longer text in details.',
+    'kind is done (default), blocker (something stops you), or next (a planned next step).',
+    'To close a blocker or next item, pass its id in resolves on the done entry, or call resolve_entry.',
+    'Reuse existing tags (list_tags). Ticket keys and PR numbers go in refs, not tags.',
+  ].join('\n'));
+});
 
 test('server reports the package version', () => {
   expect(client.getServerVersion()?.version).toBe(require('../package.json').version);
@@ -137,17 +149,25 @@ test('resolves closes an open blocker', async () => {
   expect(journal.repo.get(blocker.id)!.status).toBe('resolved');
 });
 
-test('resolves with an unknown id is a tool error and adds nothing', async () => {
+test('resolves with an unknown id still adds the entry and reports it', async () => {
   const r = await call('add_entry', { summary: 'fixed', project: 'p', resolves: ['ZZZZZZZZ'] });
-  expect(r.isError).toBe(true);
-  expect(text(r)).toContain('No entry with id');
-  expect(journal.repo.list()).toHaveLength(0);
+  expect(r.isError).toBeFalsy();
+  expect(text(r)).toContain('Could not resolve ZZZZZZZZ: No entry with id');
+  expect(journal.repo.list()).toHaveLength(1);
+});
+
+test('resolves keeps valid ids and drops a non-open one', async () => {
+  const blocker = seed('stuck', { kind: 'blocker', createdAt: '2026-07-13T10:00:00.000Z' });
+  const done = seed('finished', { createdAt: '2026-07-13T10:00:01.000Z' });
+  const r = await call('add_entry', { summary: 'fixed', project: 'p', resolves: [blocker.id.slice(-8), done.id.slice(-8)] });
+  expect(r.isError).toBeFalsy();
+  expect(text(r)).toContain(`Could not resolve ${done.id.slice(-8)}: only an open blocker or next can be resolved`);
+  expect(journal.repo.get(blocker.id)!.status).toBe('resolved');
 });
 
 test('update_entry, delete_entry, resolve_entry work by suffix', async () => {
-  await call('add_entry', { summary: 'one', project: 'p' });
-  await call('add_entry', { summary: 'blocked', kind: 'blocker', project: 'p' });
-  const [one, blocker] = journal.repo.list();
+  const one = seed('one', { createdAt: '2026-07-13T10:00:00.000Z' });
+  const blocker = seed('blocked', { kind: 'blocker', createdAt: '2026-07-13T10:00:01.000Z' });
 
   const u = await call('update_entry', { id: one.id.slice(-8), summary: 'one edited', tags: ['x'] });
   expect(u.isError).toBeFalsy();
@@ -177,6 +197,23 @@ test('update_entry rejects a long summary without details', async () => {
   expect(text(r)).toContain('max 120');
 });
 
+test('update_entry with a long summary plus details is split', async () => {
+  const e = seed('one');
+  const long = `${'word '.repeat(40)}end.`;
+  const r = await call('update_entry', { id: e.id.slice(-8), summary: long, details: 'given' });
+  expect(r.isError).toBeFalsy();
+  const got = journal.repo.get(e.id)!;
+  expect(got.summary.length).toBeLessThanOrEqual(120);
+  expect(got.details).toBe(`${long}\n\ngiven`);
+});
+
+test('retry matching ignores surrounding whitespace', async () => {
+  const long = 'q'.repeat(200);
+  await call('add_entry', { summary: `  ${long}  `, project: 'p' });
+  const r = await call('add_entry', { summary: long, project: 'p' });
+  expect(r.isError).toBeFalsy();
+});
+
 test('unknown ids and bad resolves return tool errors', async () => {
   for (const [name, args] of [
     ['update_entry', { id: 'NOPE1234', summary: 'x' }],
@@ -194,17 +231,17 @@ test('unknown ids and bad resolves return tool errors', async () => {
 });
 
 test('list_entries returns v2 entries newest first', async () => {
-  await call('add_entry', { summary: 'older', project: 'p' });
-  await call('add_entry', { summary: 'newer', project: 'p' });
+  seed('older', { createdAt: '2026-07-13T10:00:00.000Z' });
+  seed('newer', { createdAt: '2026-07-13T10:00:01.000Z' });
   const list = JSON.parse(text(await call('list_entries')));
   expect(list.map((e: any) => e.summary)).toEqual(['newer', 'older']);
   expect(list[0].id).toEqual(expect.any(String));
 });
 
 test('list_entries respects limit and project filter', async () => {
-  await call('add_entry', { summary: 'a', project: 'api' });
-  await call('add_entry', { summary: 'b', project: 'infra' });
-  await call('add_entry', { summary: 'c', project: 'api' });
+  seed('a', { project: 'api', createdAt: '2026-07-13T10:00:00.000Z' });
+  seed('b', { project: 'infra', createdAt: '2026-07-13T10:00:01.000Z' });
+  seed('c', { project: 'api', createdAt: '2026-07-13T10:00:02.000Z' });
   expect(JSON.parse(text(await call('list_entries', { limit: 1 }))).map((e: any) => e.summary)).toEqual(['c']);
   expect(JSON.parse(text(await call('list_entries', { project: 'api' }))).map((e: any) => e.summary)).toEqual(['c', 'a']);
 });
