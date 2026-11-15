@@ -20,6 +20,7 @@ import type { Journal } from '../../storage/journal';
 import { exportBundle, importBundle } from '../../storage/bundle';
 import { backupDbIfNeeded } from '../../storage/backup';
 import { gournalHome } from '../../storage/home';
+import { rebuildSearchIndex } from '../../storage/schema';
 import { importLegacy, applyPlan, renderPlanDiff } from '../../storage/migrate';
 import type { MigrationPlan } from '../../storage/migrate';
 
@@ -349,6 +350,22 @@ export function buildProgram(io: CliIo): Command {
       } finally {
         journal.close();
       }
+    });
+
+  const index = program.command('index').description('Maintain the search index');
+  index
+    .command('rebuild')
+    .description('Drop and recreate the full-text search index. Run it only when every gournal process uses a Node build with FTS5.')
+    .action(async () => {
+      await withJournal(({ db }) => {
+        try {
+          backupDbIfNeeded(db, path.join(io.home, 'gournal.db'));
+        } catch (err) {
+          process.stderr.write(`gournal: daily backup failed: ${(err as Error).message}\n`);
+        }
+        const { indexed } = rebuildSearchIndex(db);
+        io.out(chalk.green(`Search index rebuilt: ${indexed} entries.`));
+      });
     });
 
   program

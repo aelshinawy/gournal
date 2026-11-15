@@ -3,11 +3,12 @@ import os from 'os';
 import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
-import { hasFts5, resetSearchIndexNotice } from '../../src/storage/schema';
+import { hasFts5, resetSearchIndexNotice, rebuildSearchIndex, searchIndexLive } from '../../src/storage/schema';
 import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
 import { exportBundle, importBundle } from '../../src/storage/bundle';
 import { ftsTest } from '../fts5';
+import { runIn } from '../helpers/run-cli';
 
 // GOURNAL_DISABLE_FTS5=1 makes the detection function report "no FTS5", like an official Linux Node build.
 const FLAG = 'GOURNAL_DISABLE_FTS5';
@@ -150,4 +151,94 @@ test('opening an up-to-date database without FTS takes no write lock', () => {
     holder.exec('BEGIN IMMEDIATE');
     try { openDb(file).close(); } finally { holder.exec('ROLLBACK'); holder.close(); }
   });
+});
+
+// Builds the stray state: triggers present, entries_fts table absent. Needs FTS5 to create it.
+const makeStray = (): string => {
+  const d = openDb(file);
+  const id = createRepository(d, config, file).add({ summary: 'first row', ...base }).id;
+  d.exec('DROP TABLE entries_fts');
+  d.close();
+  return id;
+};
+
+ftsTest('stray triggers without the table are dropped on open', () => {
+  makeStray();
+  withoutFts(() => {
+    const db = openDb(file);
+    try {
+      expect(ftsTriggers(db)).toEqual([]);
+      expect(ftsTable(db)).toBe(false);
+      expect(() => createRepository(db, config, file).add({ summary: 'writes work', ...base })).not.toThrow();
+    } finally { db.close(); }
+  });
+});
+
+ftsTest('stray triggers are replaced by a full index when FTS5 exists', () => {
+  makeStray();
+  const db = openDb(file);
+  try {
+    expect(ftsTable(db)).toBe(true);
+    expect(ftsTriggers(db)).toEqual(['entries_fts_ad', 'entries_fts_ai', 'entries_fts_au']);
+    expect(searchIndexLive(db)).toBe(true);
+    expect(hits(db, 'first')).toHaveLength(1);
+    const repo = createRepository(db, config, file);
+    repo.add({ summary: 'second row', ...base });
+    expect(hits(db, 'second')).toHaveLength(1);
+  } finally { db.close(); }
+});
+
+ftsTest('a table without triggers stays alone on open', () => {
+  const d = openDb(file);
+  createRepository(d, config, file).add({ summary: 'alpha', ...base });
+  for (const t of ['entries_fts_ad', 'entries_fts_ai', 'entries_fts_au']) d.exec(`DROP TRIGGER ${t}`);
+  d.close();
+  const db = openDb(file);
+  try {
+    expect(ftsTable(db)).toBe(true);
+    expect(ftsTriggers(db)).toEqual([]);
+  } finally { db.close(); }
+});
+
+ftsTest('rebuild restores a live index over all rows', () => {
+  const d = openDb(file);
+  const repo = createRepository(d, config, file);
+  repo.add({ summary: 'old row', ...base });
+  for (const t of ['entries_fts_ad', 'entries_fts_ai', 'entries_fts_au']) d.exec(`DROP TRIGGER ${t}`);
+  repo.add({ summary: 'newer zebra', ...base });
+  repo.add({ summary: 'newest zebra', ...base });
+  expect(searchIndexLive(d)).toBe(false);
+  expect(rebuildSearchIndex(d)).toEqual({ indexed: 3 });
+  expect(searchIndexLive(d)).toBe(true);
+  expect(hits(d, 'zebra')).toHaveLength(2);
+  expect(repo.find({ text: 'zebra' })).toHaveLength(2);
+  d.close();
+});
+
+test('rebuild refuses without FTS5', async () => {
+  const msg = 'This Node build has no FTS5; the search index cannot be rebuilt.';
+  withoutFts(() => {
+    const db = openDb(file);
+    try { expect(() => rebuildSearchIndex(db)).toThrow(msg); } finally { db.close(); }
+  });
+  process.env[FLAG] = '1';
+  try {
+    const r = await runIn(dir, ['index', 'rebuild']);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain(msg);
+  } finally { restoreFlag(); }
+});
+
+ftsTest('the CLI rebuilds the index and prints the count', async () => {
+  const d = openDb(file);
+  createRepository(d, config, file).add({ summary: 'alpha', ...base });
+  d.close();
+  const r = await runIn(dir, ['index', 'rebuild']);
+  expect(r.status).toBe(0);
+  expect(r.stdout).toBe('Search index rebuilt: 1 entries.');
+});
+
+test('the rebuild help text carries the warning', async () => {
+  const r = await runIn(dir, ['index', 'rebuild', '--help']);
+  expect(r.stdout.replace(/\s+/g, ' ')).toContain('Run it only when every gournal process uses a Node build with FTS5.');
 });
