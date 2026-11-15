@@ -5,8 +5,12 @@ import { loadConfig } from '../../src/storage/config';
 import { gournalHome } from '../../src/storage/home';
 
 let dir: string;
+const savedHome = process.env.GOURNAL_HOME;
 beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cfg-')); });
-afterEach(() => { delete process.env.GOURNAL_HOME; fs.rmSync(dir, { recursive: true, force: true }); });
+afterEach(() => {
+  if (savedHome === undefined) delete process.env.GOURNAL_HOME; else process.env.GOURNAL_HOME = savedHome;
+  fs.rmSync(dir, { recursive: true, force: true });
+});
 
 test('loadConfig creates a stable deviceId', () => {
   const a = loadConfig(dir); const b = loadConfig(dir);
@@ -28,5 +32,36 @@ test('gournalHome honors GOURNAL_HOME', () => {
 });
 test('gournalHome falls back to HOME/.gournal', () => {
   delete process.env.GOURNAL_HOME;
-  expect(gournalHome()).toBe(path.join(process.env.HOME || process.env.USERPROFILE || '', '.gournal'));
+  expect(gournalHome()).toBe(path.join(process.env.HOME || process.env.USERPROFILE || os.homedir(), '.gournal'));
+});
+test('loadConfig persists filled keys and keeps the deviceId', () => {
+  const file = path.join(dir, 'config.json');
+  fs.writeFileSync(file, JSON.stringify({ deviceId: 'D1' }));
+  loadConfig(dir);
+  expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ deviceId: 'D1', projectAliases: {}, tagAliases: {}, ticketPrefixes: [] });
+  expect(fs.readdirSync(dir)).toEqual(['config.json']);
+});
+test('a concurrent first run keeps the deviceId that won', () => {
+  const file = path.join(dir, 'config.json');
+  const winner = { deviceId: 'WINNER', projectAliases: {}, tagAliases: {}, ticketPrefixes: [] };
+  const c = loadConfig(dir, { beforePublish: () => fs.writeFileSync(file, JSON.stringify(winner)) });
+  expect(c.deviceId).toBe('WINNER');
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).deviceId).toBe('WINNER');
+  expect(fs.readdirSync(dir)).toEqual(['config.json']);
+});
+test.each([
+  ['invalid JSON', '{nope'],
+  ['null', 'null'],
+  ['an array', '[]'],
+  ['a string', '"x"'],
+  ['a number', '5'],
+  ['non-string alias', JSON.stringify({ deviceId: 'D', tagAliases: { a: 1 } })],
+  ['bad ticketPrefixes', JSON.stringify({ deviceId: 'D', ticketPrefixes: 'ABC' })],
+  ['bad deviceId', JSON.stringify({ deviceId: 7 })],
+])('loadConfig refuses %s and leaves the file unchanged', (_n, content) => {
+  const file = path.join(dir, 'config.json');
+  fs.writeFileSync(file, content);
+  expect(() => loadConfig(dir)).toThrow(new RegExp(`Config ${file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} is not valid JSON object: .*gournal did not change it\\.`));
+  expect(fs.readFileSync(file, 'utf8')).toBe(content);
+  expect(fs.readdirSync(dir)).toEqual(['config.json']);
 });

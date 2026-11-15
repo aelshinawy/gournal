@@ -87,3 +87,39 @@ test('FTS stays in sync on insert, update of summary and details, and delete', (
   expect(search(db, 'rocket')).toEqual(['B']);
   db.close();
 });
+
+test('STRICT tables reject ISO text in an INTEGER timestamp column', () => {
+  const db = openDb(file);
+  expect(() => db.prepare("INSERT INTO entries (id, created_at, updated_at, device_id, summary) VALUES ('X', '2026-01-01T00:00:00Z', 1, 'D', 's')").run()).toThrow();
+  db.close();
+});
+test('every regular table is STRICT', () => {
+  const db = openDb(file);
+  const rows = db.prepare("SELECT name, strict FROM pragma_table_list WHERE schema = 'main' AND type = 'table' AND name IN ('entries','entry_tags','entry_refs','activity','links','legacy_map','sync_state','schema_version')").all() as any[];
+  expect(rows).toHaveLength(8);
+  expect(rows.every((r) => r.strict === 1)).toBe(true);
+  db.close();
+});
+test('activity dedupes with the default repo', () => {
+  const db = openDb(file);
+  const q = "INSERT OR IGNORE INTO activity (id, created_at, updated_at, device_id, type, occurred_at, external_id) VALUES (?, 1, 1, 'D', 'pr', 1, '12')";
+  db.prepare(q).run('A1'); db.prepare(q).run('A2');
+  expect(db.prepare('SELECT COUNT(*) AS n FROM activity').get()).toEqual({ n: 1 });
+  db.close();
+});
+test('links carries updated_at and device_id', () => {
+  const db = openDb(file);
+  const cols = db.prepare("SELECT name FROM pragma_table_info('links')").all().map((r: any) => r.name);
+  expect(cols).toEqual(expect.arrayContaining(['updated_at', 'device_id', 'deleted_at']));
+  db.close();
+});
+test('a database already at the current version opens without a write lock', () => {
+  openDb(file).close();
+  const holder = openDb(file);
+  holder.exec('BEGIN IMMEDIATE');
+  const second = openDb(file);
+  expect(second.prepare('SELECT version FROM schema_version').get()).toEqual({ version: 1 });
+  second.close();
+  holder.exec('ROLLBACK');
+  holder.close();
+});
