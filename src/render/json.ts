@@ -46,7 +46,7 @@ export const ActivitySchema = z.object({
 });
 export type ActivityJson = z.infer<typeof ActivitySchema>;
 
-const LinkedActivitySchema = z.record(z.string(), z.array(ActivitySchema).describe('Activity items linked to this entry.')).describe('GitHub activity that gournal linked to an entry in this report. The key is the entry id.');
+const LinkedActivitySchema = z.record(z.string(), z.array(ActivitySchema).describe('Activity items linked to this entry.'));
 
 export const StandupSchema = z.object({
   title: z.string().describe('Title of the period, for example Today (2026-11-15).'),
@@ -64,7 +64,7 @@ export const StandupSchema = z.object({
     ids: z.array(z.string()).describe('Short ids (last 8 characters) of the stale entries.'),
     days: z.number().describe('Age in days after which an open item counts as stale. It comes from the staleAfterDays setting.'),
   }).describe('Open blockers and next items that are older than the stale limit.'),
-  linkedActivity: LinkedActivitySchema,
+  linkedActivity: LinkedActivitySchema.describe('GitHub activity that gournal linked to a done entry in this report. The key is the entry id.'),
   also: z.object({
     activity: z.array(ActivitySchema).describe('GitHub activity of the period that is not linked to a done entry in this report.'),
     counts: z.object({
@@ -88,7 +88,7 @@ export const WorkLogSchema = z.object({
   })).describe('The days of the period, oldest first.'),
   count: z.number().describe('Number of entries in the period.'),
   projectCount: z.number().describe('Number of projects that have entries in the period.'),
-  linkedActivity: LinkedActivitySchema,
+  linkedActivity: LinkedActivitySchema.describe('GitHub activity that gournal linked to an entry in this report. The key is the entry id.'),
 });
 export type WorkLogJson = z.infer<typeof WorkLogSchema>;
 

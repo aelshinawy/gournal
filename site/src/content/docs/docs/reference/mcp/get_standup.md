@@ -101,7 +101,7 @@ Get a standup report. It covers today unless you choose a period. Done entries c
 | `stale.count` | `number` | yes | Number of stale open blockers and next items. |
 | `stale.ids` | `string[]` | yes | Short ids (last 8 characters) of the stale entries. |
 | `stale.days` | `number` | yes | Age in days after which an open item counts as stale. It comes from the staleAfterDays setting. |
-| `linkedActivity` | `object` | yes | GitHub activity that gournal linked to an entry in this report. The key is the entry id. |
+| `linkedActivity` | `object` | yes | GitHub activity that gournal linked to a done entry in this report. The key is the entry id. |
 | `linkedActivity.<key>` | `object[]` | yes | Activity items linked to this entry. |
 | `linkedActivity.<key>.id` | `string` | yes | Unique id of the activity item. |
 | `linkedActivity.<key>.createdAt` | `string` | yes | When gournal stored the item, as an ISO timestamp. |
