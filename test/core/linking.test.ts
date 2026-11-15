@@ -103,3 +103,30 @@ test('pr-match wins when one pair matches two rules', () => {
   const c = a({ type: 'commit', repo: 'acme/widgets', branch: 'feat/x', pr: 9, externalId: 'abc1234ff', occurredAt: at(2026, 11, 11, 10) });
   expect(run([entry], [c])).toEqual([{ entryId: entry.id, activityId: c.id, reason: 'pr-match' }]);
 });
+
+test('sha-match does not link into another repo when the entry has a repo', () => {
+  const entry = e({ createdAt: at(2026, 11, 11), repo: 'acme/widgets', refs: [{ type: 'commit', value: 'abc1234' }] });
+  expect(run([entry], [a({ type: 'commit', repo: 'acme/gears', externalId: 'abc1234ff' })])).toEqual([]);
+});
+
+test('sha-match links across repos when the entry has no repo', () => {
+  const entry = e({ createdAt: at(2026, 11, 11), refs: [{ type: 'commit', value: 'abc1234' }] });
+  const c = a({ type: 'commit', repo: 'acme/gears', externalId: 'abc1234ff' });
+  expect(run([entry], [c])).toEqual([{ entryId: entry.id, activityId: c.id, reason: 'sha-match' }]);
+});
+
+test('sha-match ignores a non-hex ref', () => {
+  const entry = e({ createdAt: at(2026, 11, 11), refs: [{ type: 'commit', value: 'zzzzzzz' }] });
+  expect(run([entry], [a({ type: 'commit', externalId: 'zzzzzzzff' })])).toEqual([]);
+});
+
+test('sha-match ignores case', () => {
+  const entry = e({ createdAt: at(2026, 11, 11), refs: [{ type: 'commit', value: 'ABC1234' }] });
+  expect(run([entry], [a({ type: 'commit', externalId: 'abc1234ff' })])).toHaveLength(1);
+});
+
+test('branch-window links at exactly 2 hours', () => {
+  const commit = a({ type: 'commit', repo: 'acme/widgets', branch: 'feat/x', occurredAt: at(2026, 11, 11, 10) });
+  const entry = e({ createdAt: at(2026, 11, 11, 12), repo: 'acme/widgets', branch: 'feat/x' });
+  expect(run([entry], [commit])).toHaveLength(1);
+});

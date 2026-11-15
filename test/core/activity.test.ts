@@ -30,3 +30,19 @@ test('summarizeLinked keeps the most advanced event per PR and counts commits', 
     commits: 3,
   });
 });
+
+test('summarizeLinked ranks events, not recency, and orders PRs by first occurrence', () => {
+  const list = [
+    a({ type: 'review', repo: 'acme/widgets', pr: 7, title: 'Seven', occurredAt: '2026-11-11T11:00:00.000Z' }),
+    a({ type: 'pr_opened', repo: 'acme/gears', pr: 3, title: 'Three', occurredAt: '2026-11-11T08:00:00.000Z' }),
+    a({ type: 'pr_merged', repo: 'acme/widgets', pr: 7, title: 'Seven', occurredAt: '2026-11-11T10:00:00.000Z' }),
+  ];
+  expect(summarizeLinked(list).prs).toEqual([
+    { repo: 'acme/gears', pr: 3, title: 'Three', event: 'opened' },
+    { repo: 'acme/widgets', pr: 7, title: 'Seven', event: 'merged' },
+  ]);
+});
+
+test('activityCounts repo keys ignore case', () => {
+  expect(activityCounts([a({ repo: 'Acme/Widgets' }), a({ repo: 'acme/widgets' })]).repos).toBe(1);
+});

@@ -66,7 +66,7 @@ export function matchLinks(input: { entries: Entry[]; activity: Activity[]; week
     }
   }
 
-  // 2. sha-match
+  // 2. sha-match. With a known repo the commit must be in it. With no repo, any repo matches.
   for (const e of entries) {
     for (const ref of e.refs) {
       if (ref.type !== 'commit') continue;
