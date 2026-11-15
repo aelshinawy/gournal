@@ -1,0 +1,7 @@
+{
+  "total_count": 2,
+  "items": [
+    { "number": 5, "title": "Add widget cache", "repository_url": "https://api.github.com/repos/acme/widgets", "user": { "login": "dev" } },
+    { "number": 2, "title": "Secret thing", "repository_url": "https://api.github.com/repos/blocked-org/vault", "user": { "login": "dev" } }
+  ]
+}

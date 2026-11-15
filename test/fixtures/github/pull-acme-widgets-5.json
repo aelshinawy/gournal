@@ -1,0 +1,13 @@
+{
+  "number": 5,
+  "title": "Add widget cache",
+  "state": "closed",
+  "draft": false,
+  "html_url": "https://github.com/acme/widgets/pull/5",
+  "created_at": "2026-11-02T09:00:00Z",
+  "merged_at": "2026-11-03T15:00:00Z",
+  "merged_by": { "login": "dev" },
+  "head": { "ref": "feat/x" },
+  "base": { "ref": "main" },
+  "user": { "login": "dev" }
+}
