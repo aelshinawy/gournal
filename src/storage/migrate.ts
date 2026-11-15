@@ -110,14 +110,14 @@ export function importLegacy(
     // Check again inside the lock: another process may have imported meanwhile.
     const known = loadKnown();
     const insert = db.prepare(
-      'INSERT INTO legacy_map (legacy_index, timestamp, message_hash, occurrence, entry_id) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO legacy_map (legacy_index, timestamp, message_hash, occurrence, entry_id, imported_at) VALUES (?, ?, ?, ?, ?, ?)'
     );
     let imported = 0;
     let alreadyPresent = 0;
     for (const k of keys) {
       if (known.has(mapKey(k.timestamp, k.messageHash, k.occurrence))) { alreadyPresent++; continue; }
       const entry = repo.add(mechanicalEntry(items[k.index], config, k.index));
-      insert.run(k.index, k.timestamp, k.messageHash, k.occurrence, entry.id);
+      insert.run(k.index, k.timestamp, k.messageHash, k.occurrence, entry.id, Date.parse(entry.updatedAt));
       imported++;
     }
     return { imported, alreadyPresent };

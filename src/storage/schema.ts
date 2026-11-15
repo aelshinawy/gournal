@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 // Timestamp columns are INTEGER epoch milliseconds. Tables are STRICT, so ISO text is rejected.
 // Repository code converts ISO strings to and from ms at its boundary.
@@ -114,7 +114,13 @@ CREATE TRIGGER IF NOT EXISTS entries_fts_au AFTER UPDATE ON entries BEGIN
 END;
 `;
 
-const MIGRATIONS: Record<number, string> = { 1: SCHEMA_V1 };
+// v2: legacy_map.imported_at is the updated_at (ms) of the entry when the legacy import made it.
+// An entry is pristine while its updated_at still equals imported_at. NULL means unknown, so not pristine.
+const SCHEMA_V2 = `
+ALTER TABLE legacy_map ADD COLUMN imported_at INTEGER;
+`;
+
+const MIGRATIONS: Record<number, string> = { 1: SCHEMA_V1, 2: SCHEMA_V2 };
 
 function readVersion(db: DatabaseSync): number {
   const t = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_version'").get();

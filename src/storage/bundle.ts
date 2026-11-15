@@ -21,6 +21,8 @@ export interface LegacyMapRow {
   messageHash: string;
   occurrence: number;
   entryId: string;
+  /** When the legacy import made the entry (ISO), or null when unknown. Optional on import. */
+  importedAt?: string | null;
 }
 
 export interface ImportResult { inserted: number; updated: number; skipped: number; deduplicated: number }
@@ -36,9 +38,10 @@ export function exportBundle(db: DatabaseSync, config: Config): Bundle {
       exportedAt: new Date().toISOString(),
       deviceId: config.deviceId,
       entries: hydrateRows(db, rows),
-      legacyMap: (db.prepare('SELECT legacy_index, timestamp, message_hash, occurrence, entry_id FROM legacy_map ORDER BY legacy_index, timestamp, occurrence').all() as
-        { legacy_index: number; timestamp: string; message_hash: string; occurrence: number; entry_id: string }[])
-        .map((r) => ({ legacyIndex: r.legacy_index, timestamp: r.timestamp, messageHash: r.message_hash, occurrence: r.occurrence, entryId: r.entry_id })),
+      legacyMap: (db.prepare('SELECT legacy_index, timestamp, message_hash, occurrence, entry_id, imported_at FROM legacy_map ORDER BY legacy_index, timestamp, occurrence').all() as
+        { legacy_index: number; timestamp: string; message_hash: string; occurrence: number; entry_id: string; imported_at: number | null }[])
+        .map((r) => ({ legacyIndex: r.legacy_index, timestamp: r.timestamp, messageHash: r.message_hash, occurrence: r.occurrence, entryId: r.entry_id,
+          importedAt: r.imported_at === null ? null : new Date(r.imported_at).toISOString() })),
     };
   } finally {
     try { db.exec('COMMIT'); } catch { /* ignore */ }
@@ -93,15 +96,17 @@ const invalidMapRow = (r: unknown): boolean => {
   if (typeof r !== 'object' || r === null || Array.isArray(r)) return true;
   const o = r as Record<string, unknown>;
   return !(Number.isInteger(o.legacyIndex) && (o.legacyIndex as number) >= 0 && isStr(o.timestamp) && isStr(o.messageHash)
-    && Number.isInteger(o.occurrence) && (o.occurrence as number) >= 0 && isStr(o.entryId));
+    && Number.isInteger(o.occurrence) && (o.occurrence as number) >= 0 && isStr(o.entryId)
+    && (o.importedAt === undefined || isNullOr(o.importedAt, isIso)));
 };
 
 const ms = (v: string | null): number | null => (v === null ? null : Date.parse(v));
 
 /**
  * Merge a bundle into the database by id. The later updatedAt wins. Values are written as given.
- * Then merge its legacy map. If one legacy line points to two live entries (one made by the
- * local import, one from the bundle), the later updatedAt stays live and the other is soft deleted.
+ * Then merge its legacy map. If one legacy line points to two entries (one made by the local
+ * import, one from the bundle), one copy wins and the other is soft deleted. The user's version
+ * wins over a raw re-import (see mergeLegacyMap).
  */
 export function importBundle(db: DatabaseSync, bundle: unknown): ImportResult {
   const b = bundle as Partial<Bundle> | null;
@@ -149,27 +154,36 @@ export function importBundle(db: DatabaseSync, bundle: unknown): ImportResult {
 
 function mergeLegacyMap(db: DatabaseSync, map: LegacyMapRow[], result: ImportResult): void {
   const entry = db.prepare('SELECT updated_at, deleted_at FROM entries WHERE id = ?');
-  const local = db.prepare('SELECT entry_id FROM legacy_map WHERE timestamp = ? AND message_hash = ? AND occurrence = ?');
-  const insert = db.prepare('INSERT INTO legacy_map (legacy_index, timestamp, message_hash, occurrence, entry_id) VALUES (?, ?, ?, ?, ?)');
-  const repoint = db.prepare('UPDATE legacy_map SET entry_id = ? WHERE timestamp = ? AND message_hash = ? AND occurrence = ?');
+  const local = db.prepare('SELECT entry_id, imported_at FROM legacy_map WHERE timestamp = ? AND message_hash = ? AND occurrence = ?');
+  const insert = db.prepare('INSERT INTO legacy_map (legacy_index, timestamp, message_hash, occurrence, entry_id, imported_at) VALUES (?, ?, ?, ?, ?, ?)');
+  const repoint = db.prepare('UPDATE legacy_map SET entry_id = ?, imported_at = ? WHERE timestamp = ? AND message_hash = ? AND occurrence = ?');
   const hide = db.prepare('UPDATE entries SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL');
   type E = { updated_at: number; deleted_at: number | null };
+  // Pristine: live, and unchanged since the legacy import made it. An unknown import time is not pristine.
+  const pristine = (e: E, importedAt: number | null): boolean => e.deleted_at === null && importedAt !== null && e.updated_at === importedAt;
   for (const r of map) {
     const theirs = entry.get(r.entryId) as E | undefined;
     if (!theirs) continue;
-    const known = local.get(r.timestamp, r.messageHash, r.occurrence) as { entry_id: string } | undefined;
-    if (!known) { insert.run(r.legacyIndex, r.timestamp, r.messageHash, r.occurrence, r.entryId); continue; }
+    const theirImported = r.importedAt == null ? null : Date.parse(r.importedAt);
+    const known = local.get(r.timestamp, r.messageHash, r.occurrence) as { entry_id: string; imported_at: number | null } | undefined;
+    if (!known) { insert.run(r.legacyIndex, r.timestamp, r.messageHash, r.occurrence, r.entryId, theirImported); continue; }
     if (known.entry_id === r.entryId) continue;
     const mine = entry.get(known.entry_id) as E | undefined;
-    if (!mine) { repoint.run(r.entryId, r.timestamp, r.messageHash, r.occurrence); continue; }
-    // Only two live entries are duplicates. A deleted one is the user's choice, so leave both alone.
-    if (mine.deleted_at !== null || theirs.deleted_at !== null) continue;
-    // The later updatedAt survives. On a tie the smaller id survives, so every device picks the same one.
-    const keepTheirs = theirs.updated_at > mine.updated_at || (theirs.updated_at === mine.updated_at && r.entryId < known.entry_id);
+    if (!mine) { repoint.run(r.entryId, theirImported, r.timestamp, r.messageHash, r.occurrence); continue; }
+    // A raw re-import never hides the user's edited or deleted copy. When both copies are
+    // alike (both pristine, or neither), the later updatedAt wins, then the smaller id, so every device picks the same one.
+    const minePristine = pristine(mine, known.imported_at);
+    const theirsPristine = pristine(theirs, theirImported);
+    const smallerTheirs = r.entryId < known.entry_id;
+    let keepTheirs: boolean;
+    if (minePristine !== theirsPristine) keepTheirs = minePristine;
+    else if (minePristine) keepTheirs = smallerTheirs;
+    else keepTheirs = theirs.updated_at > mine.updated_at || (theirs.updated_at === mine.updated_at && smallerTheirs);
     const [winner, loser] = keepTheirs ? [r.entryId, known.entry_id] : [known.entry_id, r.entryId];
+    // The winner keeps its state, live or deleted. A live loser is soft deleted, never erased.
     const now = Date.now();
     hide.run(now, now, loser);
-    if (keepTheirs) repoint.run(winner, r.timestamp, r.messageHash, r.occurrence);
+    if (keepTheirs) repoint.run(winner, theirImported, r.timestamp, r.messageHash, r.occurrence);
     result.deduplicated++;
   }
 }

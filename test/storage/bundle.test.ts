@@ -179,7 +179,7 @@ describe('legacy map in bundles', () => {
     const e = addLegacy(db, repo, 0);
     const bundle = exportBundle(db, config);
     expect(bundle.schemaVersion).toBe(1);
-    expect(bundle.legacyMap).toEqual([{ legacyIndex: 0, timestamp: '2026-07-01T00:00:00.000Z', messageHash: 'h0', occurrence: 0, entryId: e.id }]);
+    expect(bundle.legacyMap).toEqual([{ legacyIndex: 0, timestamp: '2026-07-01T00:00:00.000Z', messageHash: 'h0', occurrence: 0, entryId: e.id, importedAt: null }]);
   });
 
   test('a new key is inserted into legacy_map on import', () => {

@@ -16,7 +16,7 @@ test('openDb creates every table and records the schema version', () => {
   const db = openDb(file);
   const names = db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table')").all().map((r: any) => r.name);
   expect(names).toEqual(expect.arrayContaining(['entries', 'entry_tags', 'entry_refs', 'activity', 'links', 'legacy_map', 'sync_state', 'schema_version', 'entries_fts']));
-  expect(db.prepare('SELECT version FROM schema_version').get()).toEqual({ version: 1 });
+  expect(db.prepare('SELECT MAX(version) AS version FROM schema_version').get()).toEqual({ version: 2 });
   db.close();
 });
 test('openDb uses WAL and sets pragmas', () => {
@@ -34,7 +34,7 @@ test('openDb creates the folder', () => {
 test('migrateSchema is idempotent', () => {
   const db = openDb(file); db.close();
   const again = openDb(file);
-  expect(again.prepare('SELECT COUNT(*) AS n FROM schema_version').get()).toEqual({ n: 1 });
+  expect(again.prepare('SELECT COUNT(*) AS n FROM schema_version').get()).toEqual({ n: 2 });
   again.close();
 });
 test('refuses a file that is not a database', () => {
@@ -118,7 +118,7 @@ test('a database already at the current version opens without a write lock', () 
   const holder = openDb(file);
   holder.exec('BEGIN IMMEDIATE');
   const second = openDb(file);
-  expect(second.prepare('SELECT version FROM schema_version').get()).toEqual({ version: 1 });
+  expect(second.prepare('SELECT MAX(version) AS version FROM schema_version').get()).toEqual({ version: 2 });
   second.close();
   holder.exec('ROLLBACK');
   holder.close();
