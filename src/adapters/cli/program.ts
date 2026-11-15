@@ -12,8 +12,10 @@ import {
 import inquirer from 'inquirer';
 import fs from 'fs-extra';
 import path from 'path';
+import os from 'os';
 import { VERSION } from '../version';
 import { clearConfirmQuestion } from './prompts';
+import { execFileRunner, setupClaude, type CommandRunner } from '../setup';
 import { openJournal, exportBundle, importBundle, backupDbIfNeeded, gournalHome, hasFts5, rebuildSearchIndex, importLegacy, applyPlan, renderPlanDiff } from '../../storage';
 import type { Journal, MigrationPlan } from '../../storage';
 
@@ -25,6 +27,21 @@ export interface CliIo {
   isTTY: boolean;
   /** Test seam. The default runs the real gh. */
   gh?: GhRunner;
+  /** The user's home, for `setup claude`. `home` above is the gournal home. Default: os.homedir() at call time. */
+  userHome?: string;
+  /** Test seam for `setup claude`. The default asks with inquirer. */
+  confirm?: (message: string, def: boolean) => Promise<boolean>;
+  /** Test seam for `setup claude`. The default runs the claude CLI with execFile, no shell. */
+  exec?: CommandRunner;
+}
+
+async function inquirerConfirm(message: string, def: boolean): Promise<boolean> {
+  try {
+    const { confirm } = await inquirer.prompt([{ type: 'confirm', name: 'confirm', message, default: def }]);
+    return confirm as boolean;
+  } catch {
+    return false; // no terminal to ask: the answer is no
+  }
 }
 
 const KINDS: Kind[] = ['done', 'blocker', 'next'];
@@ -417,6 +434,23 @@ export function buildProgram(io: CliIo): Command {
       if (report.status === 'failed') throw new Error(report.warning ?? 'GitHub sync failed');
       const line = syncSummaryLine(report);
       io.out(report.status === 'partial' && report.warning ? `${line} ${report.warning}` : line);
+    });
+
+  const setup = program.command('setup').description('Set gournal up for another tool');
+  setup
+    .command('claude')
+    .description('Register the MCP server, install the skill, and optionally add a Stop hook for Claude Code')
+    .option('--uninstall', 'Remove what setup added')
+    .option('-y, --yes', 'Apply the MCP and skill steps without asking')
+    .option('--hook', 'Also add the Stop hook that reminds Claude to log work')
+    .action(async (options: { uninstall?: boolean; yes?: boolean; hook?: boolean }) => {
+      const code = await setupClaude({
+        out: io.out, err: io.err, isTTY: io.isTTY,
+        home: io.userHome ?? os.homedir(),
+        confirm: io.confirm ?? inquirerConfirm,
+        exec: io.exec ?? execFileRunner,
+      }, { uninstall: options.uninstall === true, yes: options.yes === true, hook: options.hook === true });
+      if (code !== 0) throw new CommanderError(code, 'gournal.setup', 'setup did not finish'); // setup already printed why
     });
 
   program
