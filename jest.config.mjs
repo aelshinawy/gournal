@@ -10,5 +10,8 @@ export default {
       '^(\\.{1,2}/.*)\\.js$': '$1'
     },
   testTimeout: 30000,
-  testMatch: ['**/*.test.ts']
+  testMatch: ['**/*.test.ts'],
+  // Git worktrees under .claude/ hold full copies of the test suite.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/.claude/'],
+  modulePathIgnorePatterns: ['<rootDir>/.claude/']
 };
