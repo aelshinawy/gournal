@@ -1,22 +1,70 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { readEntries, updateEntries } from './storage';
 import { getProjectName } from './git';
 import { generateStandupReport } from './report';
 import { generateCsvExport, generateMarkdownExport } from './export';
-import { filterByProject, filterByTags } from './util/entries.util';
 import { generateWorkLog } from './log';
 import { countBy } from './stats';
 import { VERSION } from './version';
 import { parseBound } from './util/date-bounds.util';
-import type { Entry } from './types';
+import { checkSummary, closeTags, normalizeTags, type Entry, type EntryPatch } from './core';
+import type { EntryRepository } from './core/repository';
+import type { Config } from './storage/config';
+import { openJournal } from './storage/journal';
+import { toLegacy } from './legacy-view';
 import type { ReportOptions } from './types/report-config';
 
-const textResult = (text: string) => ({ content: [{ type: 'text' as const, text }] });
+export const SERVER_INSTRUCTIONS = [
+  'Gournal is the user\'s work journal. Log each distinct piece of finished work with add_entry.',
+  'Always pass project. summary is one line, max 120 characters. Put longer text in details.',
+  'kind is done (default), blocker (something stops you), or next (a planned next step).',
+  'To close a blocker or next item, pass its id in resolves on the done entry, or call resolve_entry.',
+  'Reuse existing tags (list_tags). Ticket keys and PR numbers go in refs, not tags.',
+].join('\n');
 
-export function createServer(): McpServer {
-  const server = new McpServer({ name: 'gournal', version: VERSION });
+const RETRY_WINDOW_MS = 10 * 60 * 1000;
+const RETRY_PREFIX = 60;
+
+type JournalLike = { repo: EntryRepository; config: Config };
+
+const textResult = (text: string) => ({ content: [{ type: 'text' as const, text }] });
+const errorResult = (text: string) => ({ isError: true as const, content: [{ type: 'text' as const, text }] });
+const shortId = (id: string) => id.slice(-8);
+
+export function createServer(journal?: JournalLike): McpServer {
+  const server = new McpServer({ name: 'gournal', version: VERSION }, { instructions: SERVER_INSTRUCTIONS });
+
+  let opened: JournalLike | undefined = journal;
+  const getJournal = (): JournalLike => {
+    if (!opened) {
+      const j = openJournal();
+      process.once('exit', () => { try { j.close(); } catch { /* ignore */ } });
+      opened = j;
+    }
+    return opened;
+  };
+
+  // Rejected summary to the time of rejection. Lives as long as the server.
+  const rejected = new Map<string, number>();
+  const isRetry = (summary: string, now: number): boolean => {
+    for (const [text, at] of rejected) if (now - at > RETRY_WINDOW_MS) rejected.delete(text);
+    const head = (s: string) => Array.from(s).slice(0, RETRY_PREFIX).join('');
+    for (const text of rejected.keys()) {
+      if (summary === text || summary.startsWith(head(text))) return true;
+    }
+    return false;
+  };
+
+  /** Run a handler. Any throw becomes a tool error, never a protocol error. */
+  const guarded = <A>(fn: (args: A, j: JournalLike) => ReturnType<typeof textResult> | ReturnType<typeof errorResult>) =>
+    async (args: A) => {
+      try {
+        return fn(args, getJournal());
+      } catch (err) {
+        return errorResult(err instanceof Error ? err.message : String(err));
+      }
+    };
 
   const isoDate = z.string().refine(v => {
     try {
@@ -29,27 +77,135 @@ export function createServer(): McpServer {
     message: 'must be a valid ISO date/timestamp',
   });
 
+  const refSchema = z.object({
+    type: z.enum(['pr', 'jira', 'commit', 'url']),
+    value: z.string().min(1),
+    repo: z.string().optional(),
+  });
+
   server.registerTool(
     'add_entry',
     {
       title: 'Add journal entry',
-      description: 'Add a new gournal journal entry. Pass `project` explicitly whenever you know it, the server process\'s own working directory is not a reliable signal for which project the calling agent is actually in, unlike the CLI where cwd matches. Falls back to git-detecting the server\'s own cwd only when `project` is omitted.',
+      description: 'Add a new gournal journal entry. Pass `project` explicitly whenever you know it, the server process\'s own working directory is not a reliable signal for which project the calling agent is actually in, unlike the CLI where cwd matches. Falls back to git-detecting the server\'s own cwd only when `project` is omitted. The summary must be one line of at most 120 characters. Put longer text in `details`.',
       inputSchema: {
-        message: z.string().min(1).describe('What got done, one concise summary line'),
+        summary: z.string().optional().describe('One line, max 120 characters. Put longer text in `details`.'),
+        message: z.string().optional().describe('Deprecated alias for summary'),
+        details: z.string().optional().describe('Longer text for this entry'),
+        kind: z.enum(['done', 'blocker', 'next']).optional().describe('done (default), blocker, or next'),
         project: z.string().optional().describe('Project/repo name to tag this entry with; pass it explicitly rather than relying on server cwd detection'),
-        tags: z.array(z.string()).optional().describe('Optional tags for this entry'),
+        repo: z.string().optional().describe('Repository name'),
+        branch: z.string().optional().describe('Git branch'),
+        agent: z.string().optional().describe('Name of the calling agent'),
+        tags: z.array(z.string()).optional().describe('Optional tags for this entry. Reuse existing tags (list_tags).'),
+        refs: z.array(refSchema).optional().describe('References such as PRs and ticket keys'),
+        resolves: z.array(z.string()).optional().describe('Ids of open blocker or next entries that this entry closes'),
       },
     },
-    async ({ message, project, tags }) => {
-      const entry: Entry = {
-        timestamp: new Date().toISOString(),
-        message,
-        project: project ?? getProjectName(),
-        tags: tags ?? [],
-      };
-      await updateEntries(e => [...e, entry]);
-      return textResult(`Entry added to ${entry.project}: ${message}`);
-    }
+    guarded((args: {
+      summary?: string; message?: string; details?: string; kind?: 'done' | 'blocker' | 'next';
+      project?: string; repo?: string; branch?: string; agent?: string; tags?: string[];
+      refs?: { type: 'pr' | 'jira' | 'commit' | 'url'; value: string; repo?: string }[]; resolves?: string[];
+    }, { repo, config }) => {
+      const raw = args.summary ?? args.message;
+      if (raw === undefined) return errorResult('summary is required');
+      const now = Date.now();
+      const retry = isRetry(raw, now);
+      const check = checkSummary(raw, args.details, { allowSplit: args.details !== undefined || retry });
+      if (!check.ok) {
+        rejected.set(raw, now);
+        return errorResult(check.error);
+      }
+      const hints: string[] = [];
+      if (args.tags?.length) {
+        const known = new Set(repo.allTags());
+        const { tags } = normalizeTags(args.tags, config.tagAliases, { ticketPrefixes: config.ticketPrefixes });
+        for (const tag of tags) {
+          if (known.has(tag)) continue;
+          const close = closeTags(tag, [...known]);
+          if (close.length) hints.push(`New tag "${tag}". Close existing tags: ${close.join(', ')}`);
+        }
+      }
+      const entry = repo.add({
+        summary: check.summary,
+        details: check.details,
+        kind: args.kind,
+        project: args.project ?? getProjectName(),
+        repo: args.repo,
+        branch: args.branch,
+        agent: args.agent,
+        source: 'mcp',
+        tags: args.tags,
+        refs: args.refs,
+        resolves: args.resolves,
+      });
+      const lines = [`Entry ${shortId(entry.id)} added to ${entry.project}: ${entry.summary}`, ...hints];
+      if (check.summary !== raw.trim()) lines.push('Summary was too long and was split; full text is in details.');
+      return textResult(lines.join('\n'));
+    })
+  );
+
+  server.registerTool(
+    'update_entry',
+    {
+      title: 'Update journal entry',
+      description: 'Update fields of an existing entry. `id` is the full id or the last 8 characters.',
+      inputSchema: {
+        id: z.string().min(1),
+        summary: z.string().optional().describe('One line, max 120 characters. Put longer text in `details`.'),
+        details: z.string().optional(),
+        kind: z.enum(['done', 'blocker', 'next']).optional(),
+        project: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        refs: z.array(refSchema).optional(),
+      },
+    },
+    guarded((args: {
+      id: string; summary?: string; details?: string; kind?: 'done' | 'blocker' | 'next'; project?: string;
+      tags?: string[]; refs?: { type: 'pr' | 'jira' | 'commit' | 'url'; value: string; repo?: string }[];
+    }, { repo }) => {
+      const patch: EntryPatch = {};
+      if (args.summary !== undefined) {
+        const check = checkSummary(args.summary, args.details, { allowSplit: args.details !== undefined });
+        if (!check.ok) return errorResult(check.error);
+        patch.summary = check.summary;
+        if (check.details !== null) patch.details = check.details;
+      } else if (args.details !== undefined) {
+        patch.details = args.details;
+      }
+      if (args.kind !== undefined) patch.kind = args.kind;
+      if (args.project !== undefined) patch.project = args.project;
+      if (args.tags !== undefined) patch.tags = args.tags;
+      if (args.refs !== undefined) patch.refs = args.refs;
+      const entry = repo.update(args.id, patch);
+      return textResult(`Entry ${shortId(entry.id)} updated: ${entry.summary}`);
+    })
+  );
+
+  server.registerTool(
+    'delete_entry',
+    {
+      title: 'Delete journal entry',
+      description: 'Soft delete an entry. It can be restored.',
+      inputSchema: { id: z.string().min(1) },
+    },
+    guarded(({ id }: { id: string }, { repo }) => {
+      const entry = repo.softDelete(id);
+      return textResult(`Entry ${shortId(entry.id)} deleted: ${entry.summary}\nrestore with gournal restore ${shortId(entry.id)}`);
+    })
+  );
+
+  server.registerTool(
+    'resolve_entry',
+    {
+      title: 'Resolve blocker or next entry',
+      description: 'Mark an open blocker or next entry as resolved. Optionally pass `by`, the id of the entry that resolved it.',
+      inputSchema: { id: z.string().min(1), by: z.string().optional() },
+    },
+    guarded(({ id, by }: { id: string; by?: string }, { repo }) => {
+      const entry = repo.resolve(id, by);
+      return textResult(`Entry ${shortId(entry.id)} resolved: ${entry.summary}`);
+    })
   );
 
   server.registerTool(
@@ -64,15 +220,15 @@ export function createServer(): McpServer {
         limit: z.number().int().positive().max(500).default(50).describe('Max entries to return, newest first (default 50, max 500)'),
       },
     },
-    async ({ project, from, to, limit }) => {
-      const fromBound = from ? parseBound(from, 'from') : undefined;
-      const toBound = to ? parseBound(to, 'to') : undefined;
-      let entries = filterByProject(await readEntries(), project);
-      if (fromBound) entries = entries.filter(e => e.timestamp >= fromBound);
-      if (toBound) entries = entries.filter(e => e.timestamp <= toBound);
-      entries = [...entries].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, limit);
-      return textResult(JSON.stringify(entries, null, 2));
-    }
+    guarded(({ project, from, to, limit }: { project?: string; from?: string; to?: string; limit: number }, { repo }) => {
+      const entries = repo.list({
+        project,
+        from: from ? parseBound(from, 'from') : undefined,
+        to: to ? parseBound(to, 'to') : undefined,
+      });
+      const newest: Entry[] = entries.reverse().slice(0, limit);
+      return textResult(JSON.stringify(newest, null, 2));
+    })
   );
 
   server.registerTool(
@@ -87,11 +243,11 @@ export function createServer(): McpServer {
         project: z.string().optional().describe('Filter by project name'),
       },
     },
-    async ({ yesterday, week, month, project }) => {
-      const entries = filterByProject(await readEntries(), project);
+    guarded(({ yesterday, week, month, project }: { yesterday?: boolean; week?: boolean; month?: boolean; project?: string }, { repo }) => {
+      const entries = repo.list({ project }).map(e => toLegacy(e));
       const options: ReportOptions = { yesterday, week, month };
       return textResult(generateStandupReport(entries, options));
-    }
+    })
   );
 
   server.registerTool(
@@ -107,12 +263,11 @@ export function createServer(): McpServer {
         tags: z.array(z.string()).optional().describe('Filter to entries containing all of these tags'),
       },
     },
-    async ({ yesterday, week, month, project, tags }) => {
-      let entries = filterByProject(await readEntries(), project);
-      entries = filterByTags(entries, tags);
+    guarded(({ yesterday, week, month, project, tags }: { yesterday?: boolean; week?: boolean; month?: boolean; project?: string; tags?: string[] }, { repo }) => {
+      const entries = repo.list({ project, tags }).map(e => toLegacy(e));
       const options: ReportOptions = { yesterday, week, month };
       return textResult(generateWorkLog(entries, options));
-    }
+    })
   );
 
   server.registerTool(
@@ -124,11 +279,10 @@ export function createServer(): McpServer {
         project: z.string().optional().describe('Filter by project name'),
       },
     },
-    async ({ project }) => {
-      const entries = filterByProject(await readEntries(), project);
-      const counts = countBy(entries.flatMap(e => e.tags));
+    guarded(({ project }: { project?: string }, { repo }) => {
+      const counts = countBy(repo.list({ project }).flatMap(e => e.tags));
       return textResult(JSON.stringify(counts.map(([tag, count]) => ({ tag, count })), null, 2));
-    }
+    })
   );
 
   server.registerTool(
@@ -138,11 +292,10 @@ export function createServer(): McpServer {
       description: 'List distinct projects with entry counts across the whole gournal journal.',
       inputSchema: {},
     },
-    async () => {
-      const entries = await readEntries();
-      const counts = countBy(entries.map(e => e.project));
+    guarded((_args: Record<string, never>, { repo }) => {
+      const counts = countBy(repo.list().map(e => e.project));
       return textResult(JSON.stringify(counts.map(([project, count]) => ({ project, count })), null, 2));
-    }
+    })
   );
 
   server.registerTool(
@@ -155,17 +308,17 @@ export function createServer(): McpServer {
         project: z.string().optional().describe('Filter by project name'),
       },
     },
-    async ({ format, project }) => {
-      const entries = filterByProject(await readEntries(), project);
-      const output = format === 'csv' ? generateCsvExport(entries) : generateMarkdownExport(entries);
-      return textResult(output);
-    }
+    guarded(({ format, project }: { format: 'md' | 'csv'; project?: string }, { repo }) => {
+      const entries = repo.list({ project }).map(e => toLegacy(e, { withDetails: true }));
+      return textResult(format === 'csv' ? generateCsvExport(entries) : generateMarkdownExport(entries));
+    })
   );
 
   return server;
 }
 
 export async function startMcpServer(): Promise<void> {
+  // The journal opens on first tool use and closes on process exit.
   const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
