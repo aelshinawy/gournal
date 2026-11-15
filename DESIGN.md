@@ -1,37 +1,37 @@
 ---
 name: gournal
-description: A command-line work journal. Warm paper and ink, serif reading text, mono for every command, one rust accent.
+description: A command-line work journal. Muted Dracula: lavender paper and ink, serif reading text, mono for every command, one violet accent (palette chosen by Ahmed, 2026-11-15).
 colors:
-  rust: "#b8461f"
-  rust-text: "#8f3414"
-  rust-wash: "#f4e1d4"
-  on-rust: "#fffaf2"
-  paper: "#faf6ee"
-  paper-raised: "#f3ede0"
-  paper-sunk: "#eee6d5"
-  code-paper: "#f1eadb"
-  ink: "#1d1a15"
-  ink-soft: "#473f33"
-  ink-muted: "#675e4e"
-  ink-faint: "#655c49"
-  rule: "#ddd3be"
-  rule-strong: "#c4b79b"
-  focus-blue: "#1d5fa8"
-  night-rust: "#e8885c"
-  night-rust-text: "#f2a67f"
-  night-rust-wash: "#33201a"
-  night-paper: "#17140f"
-  night-paper-raised: "#201c15"
-  night-paper-sunk: "#110f0b"
-  night-code-paper: "#1d1912"
-  night-ink: "#f1eadc"
-  night-ink-soft: "#d0c6b2"
-  night-ink-muted: "#a89f8a"
-  night-rule: "#342e23"
-  night-rule-strong: "#4d4535"
-  night-focus-blue: "#7db4f0"
-  terminal-plate: "#1d1912"
-  terminal-ink: "#f1eadc"
+  violet: "#5b45b8"
+  violet-text: "#4f3aa6"
+  violet-wash: "#e7e1f7"
+  on-violet: "#ffffff"
+  paper: "#f7f6fb"
+  paper-raised: "#eeedf6"
+  paper-sunk: "#e6e4f0"
+  code-paper: "#ebe9f4"
+  ink: "#1e1d29"
+  ink-soft: "#3d3b52"
+  ink-muted: "#5f5c80"
+  ink-faint: "#67648a"
+  rule: "#d8d6e6"
+  rule-strong: "#bdb9d3"
+  focus-blue: "#1f6f93"
+  night-violet: "#a98be6"
+  night-violet-text: "#b9a0f0"
+  night-violet-wash: "#332c4a"
+  night-paper: "#1f2029"
+  night-paper-raised: "#272938"
+  night-paper-sunk: "#191a22"
+  night-code-paper: "#17181f"
+  night-ink: "#ecebf3"
+  night-ink-soft: "#cfcfe0"
+  night-ink-muted: "#9a9fc2"
+  night-rule: "#353749"
+  night-rule-strong: "#4a4d66"
+  night-focus-blue: "#7fd6ea"
+  terminal-plate: "#17181f"
+  terminal-ink: "#ecebf3"
 typography:
   display:
     fontFamily: "Newsreader Variable, Georgia, Iowan Old Style, Times New Roman, serif"
@@ -83,15 +83,15 @@ spacing:
   "9": "7rem"
 components:
   button-primary:
-    backgroundColor: "{colors.rust}"
-    textColor: "{colors.on-rust}"
+    backgroundColor: "{colors.violet}"
+    textColor: "{colors.on-violet}"
     typography: "{typography.label}"
     rounded: "{rounded.md}"
     padding: "0 1.5rem"
     height: "2.75rem"
   button-primary-hover:
-    backgroundColor: "{colors.rust-text}"
-    textColor: "{colors.on-rust}"
+    backgroundColor: "{colors.violet-text}"
+    textColor: "{colors.on-violet}"
   button-secondary:
     backgroundColor: "transparent"
     textColor: "{colors.ink}"
@@ -108,8 +108,8 @@ components:
     typography: "{typography.code}"
     rounded: "{rounded.md}"
   install-plate-copied:
-    backgroundColor: "{colors.rust}"
-    textColor: "{colors.on-rust}"
+    backgroundColor: "{colors.violet}"
+    textColor: "{colors.on-violet}"
   terminal-plate:
     backgroundColor: "{colors.terminal-plate}"
     textColor: "{colors.terminal-ink}"
@@ -121,8 +121,8 @@ components:
     rounded: "{rounded.md}"
     padding: "1rem"
   sidebar-current:
-    backgroundColor: "{colors.rust}"
-    textColor: "{colors.on-rust}"
+    backgroundColor: "{colors.violet}"
+    textColor: "{colors.on-violet}"
     rounded: "{rounded.sm}"
 ---
 
@@ -132,27 +132,27 @@ components:
 
 **Creative North Star: "The Annotated Notebook"**
 
-Gournal looks like a developer's field notebook that an editor has marked up. The ground is warm paper. The text is dark ink in a reading serif. Every command, file path, and line of output is set in a mono face, because those are the things a reader types or reads in a terminal. One rust color works as the editor's pencil: it marks the current place, the primary action, and the lines that matter.
+Gournal looks like a developer's field notebook that an editor has marked up. The ground is cool lavender paper in light and deep navy-violet in dark. The text is dark ink in a reading serif. Every command, file path, and line of output is set in a mono face, because those are the things a reader types or reads in a terminal. One violet color works as the editor's pencil: it marks the current place, the primary action, and the lines that matter.
 
 The system has two surfaces. The docs (Starlight, Read mode) keep Starlight's structure and take only color and type from the tokens. The homepage (Persuade mode) uses the same tokens in a ledger: a margin column that explains and a specimen column that shows real output. The jump between them must feel like one site.
 
 Depth comes from tone and hairlines, not from shadows. The one dark object on a light page is the terminal plate, which holds the real recording.
 
 **Key Characteristics:**
-- Warm paper ground in light, warm near-black in dark. Both are tinted, never neutral gray.
+- Lavender paper ground in light, deep navy-violet in dark, from a muted Dracula palette. Both are tinted, never neutral gray.
 - Serif for reading and display, sans for UI labels, mono for code and output only.
-- One accent (rust). It never decorates. It marks.
+- One accent (violet). It never decorates. It marks.
 - 1px hairline rules and boxes. No drop shadows anywhere.
 - Real product output as the main visual material.
 
 ## Colors
 
-A restrained palette: tinted paper and ink neutrals plus one rust accent. Dark theme keys start with `night-`. The theme flips on `[data-theme]`, and on the OS preference when no `data-theme` is set (site/src/styles/tokens.css).
+A restrained palette: tinted paper and ink neutrals plus one violet accent. Dark theme keys start with `night-`. The theme flips on `[data-theme]`, and on the OS preference when no `data-theme` is set (site/src/styles/tokens.css).
 
 ### Primary
-- **Editor's Rust** (rust / night-rust): the primary button, the current sidebar item, the active step number, the ledger's margin rule, proof brackets, and leader lines.
-- **Deep Rust Text** (rust-text / night-rust-text): links and accent text on paper. It holds 7.3:1 on paper in light and 9.2:1 in dark.
-- **Rust Wash** (rust-wash / night-rust-wash): the background of a marked line and of text selection. It carries ink text, never rust text.
+- **Editor's Violet** (violet / night-violet): the primary button, the current sidebar item, the active step number, the ledger's margin rule, proof brackets, and leader lines.
+- **Deep Violet Text** (violet-text / night-violet-text): links and accent text on paper. It holds 7.8:1 on paper in light and 7.2:1 in dark.
+- **Violet Wash** (violet-wash / night-violet-wash): the background of a marked line and of text selection. It carries ink text, never violet text.
 
 ### Neutral
 - **Notebook Paper** (paper / night-paper): the page ground.
@@ -161,18 +161,18 @@ A restrained palette: tinted paper and ink neutrals plus one rust accent. Dark t
 - **Code Paper** (code-paper / night-code-paper): inline code, code blocks, the install plate, specimens, the transcript.
 - **Ink** (ink / night-ink): headings and strong text.
 - **Soft Ink** (ink-soft / night-ink-soft): body text.
-- **Muted Ink** (ink-muted / night-ink-muted): captions, hints, timestamps, the dim lines of terminal output. It holds 5.9:1 in light and 7.0:1 in dark.
-- **Faint Ink** (ink-faint, dark #9a917c): borders and icons only.
+- **Muted Ink** (ink-muted / night-ink-muted): captions, hints, timestamps, the dim lines of terminal output. It holds 5.9:1 in light and 6.3:1 in dark.
+- **Faint Ink** (ink-faint, dark #868ab0): borders and icons only.
 - **Rule** and **Strong Rule** (rule, rule-strong): hairlines, section dividers, plate and box borders.
-- **Focus Blue** (focus-blue / night-focus-blue): the focus ring only. It is the one non-warm color, so focus is never mistaken for the accent.
+- **Focus Blue** (focus-blue / night-focus-blue): the focus ring only. It is a cyan, far from the violet accent, so focus is never mistaken for the accent.
 - **Terminal Plate** (terminal-plate, terminal-ink): the background and text of the VHS recording and its frame. They match the VHS theme in scripts/demo/standup.tape.
 
 ### Named Rules
-**The Pencil Rule.** Rust marks a place, an action, or a line. It is never a background field, a gradient, or an ornament.
+**The Pencil Rule.** Violet marks a place, an action, or a line. It is never a background field, a gradient, or an ornament.
 
 **The Faint Ink Rule.** Faint ink is under 4.5:1 on some surfaces. Never use it for text.
 
-**The Terminal Colors Rule.** Output colors on paper (Done green #3d6b2e, Blockers red #9c2f1c, Next amber #7a5a0c; in dark #b7c98f, #f0937a, #e9c47e) appear only inside code specimens and the transcript, and only to mirror the CLI's own colors.
+**The Terminal Colors Rule.** Output colors on paper (Done green #2c6e33, Blockers red #b23a3a, Next amber #7c6616; in dark #7fdc97, #f08080, #e3e39a) appear only inside code specimens and the transcript, and only to mirror the CLI's own colors.
 
 ## Typography
 
@@ -198,7 +198,7 @@ A restrained palette: tinted paper and ink neutrals plus one rust accent. Dark t
 
 ## Layout
 
-The homepage is a ledger. A container of max 76rem with a fluid gutter (clamp(1rem, 0.4rem + 3vw, 3rem)) holds a margin column (minmax(17rem, 4fr)) and a specimen column (8fr). A 1px rust rule divides them. Below 60rem the ledger stacks to one column and the rule goes away. The hero margin and the transcript are sticky at 60rem and wider.
+The homepage is a ledger. A container of max 76rem with a fluid gutter (clamp(1rem, 0.4rem + 3vw, 3rem)) holds a margin column (minmax(17rem, 4fr)) and a specimen column (8fr). A 1px violet rule divides them. Below 60rem the ledger stacks to one column and the rule goes away. The hero margin and the transcript are sticky at 60rem and wider.
 
 Sections are divided by a 1px rule and padded clamp(3rem, 2rem + 5vw, 7rem). Spacing follows the 4px-based scale (0.25rem to 7rem). Feature tiles sit in three columns divided by hairlines at 60rem and wider, become specimen-beside-text rows from 40rem to 60rem, and stack below 40rem.
 
@@ -219,35 +219,35 @@ Corners are gently rounded: 4px for inline code, sidebar items, and small marks;
 
 ### Buttons
 - **Shape:** 8px radius, 2.75rem tall, label type.
-- **Primary:** rust fill with on-rust text. Hover deepens to rust-text.
+- **Primary:** violet fill with on-violet text. Hover deepens to violet-text.
 - **Secondary:** transparent with a 1px ink border and ink text. Hover fills with ink and turns the text to paper.
 - **Quiet:** transparent with a 1px strong-rule border. Hover darkens the border to ink.
 - **Focus:** a 2px focus-blue outline with a 3px offset on every control.
 
 ### Install plate
-- **Style:** a code-paper box with a strong-rule border. A rust `$`, the command in mono, and a Copy button divided by a hairline.
-- **States:** "Copied" fills the button with rust. "Selected" (no Clipboard API) uses rust wash and selects the command text. A status region announces both.
+- **Style:** a code-paper box with a strong-rule border. A violet `$`, the command in mono, and a Copy button divided by a hairline.
+- **States:** "Copied" fills the button with violet. "Selected" (no Clipboard API) uses violet wash and selects the command text. A status region announces both.
 
 ### Terminal plate
-- **Style:** the VHS recording in a terminal-plate box with a 14px radius and a strong-rule border. On wide screens, proof notes sit to its right, each with a 1px rust leader line.
+- **Style:** the VHS recording in a terminal-plate box with a 14px radius and a strong-rule border. On wide screens, proof notes sit to its right, each with a 1px violet leader line.
 - **Motion:** the video autoplays muted and loops. Under reduced motion the video is hidden and the poster image shows.
 
 ### Specimen
 - **Style:** a code-paper box with a hairline border that holds real output or a real call. It comes before the claim it proves.
 
 ### Navigation
-- **Homepage:** the mono site name with a rust `$` on the left, label-type links on the right, a hairline below. Links wrap under the name on narrow screens. Each link has a 2.75rem tap height. External links carry a small drawn arrow.
-- **Docs:** Starlight's header and sidebar. The current sidebar item is a rust fill with on-rust text.
+- **Homepage:** the mono site name with a violet `$` on the left, label-type links on the right, a hairline below. Links wrap under the name on narrow screens. Each link has a 2.75rem tap height. External links carry a small drawn arrow.
+- **Docs:** Starlight's header and sidebar. The current sidebar item is a violet fill with on-violet text.
 
 ### Proof transcript (signature)
-A real standup set as text on code paper. Each How it works step is a button. Pressing, focusing, or hovering a step marks the lines it made: a rust-wash fill and a 1.5px rust bracket in the gutter that draws down from its top (clip-path, 220ms, ease-out). Below 60rem only the pressed step shows its command and text. Without script, no line is marked and the hint is hidden.
+A real standup set as text on code paper. Each How it works step is a button. Pressing, focusing, or hovering a step marks the lines it made: a violet-wash fill and a 1.5px violet bracket in the gutter that draws down from its top (clip-path, 220ms, ease-out). Below 60rem only the pressed step shows its command and text. Without script, no line is marked and the hint is hidden.
 
 ## Do's and Don'ts
 
 ### Do:
 - **Do** take every color, size, and space from the `--g-*` tokens in tokens.css.
 - **Do** show real gournal output, recorded or typed from a fixture, as the main proof. Label sample data as sample data.
-- **Do** keep rust for marks and actions (the Pencil Rule).
+- **Do** keep violet for marks and actions (the Pencil Rule).
 - **Do** give every motion a reduced-motion state, and keep content visible with no script.
 - **Do** keep phone pages free of sideways scroll. Wide code scrolls inside its box.
 

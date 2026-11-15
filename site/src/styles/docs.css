@@ -98,7 +98,7 @@ h1#_top {
   color: var(--g-ink);
 }
 
-/* Sidebar: UI sans, quiet group labels, rust current item. */
+/* Sidebar: UI sans, quiet group labels, violet current item. */
 .sidebar-content {
   font-family: var(--g-font-ui);
 }

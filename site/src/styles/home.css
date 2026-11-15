@@ -1,17 +1,17 @@
 /*
  * Homepage. A proof sheet for one real standup: the margin explains, the specimen column shows.
- * Uses only the --g-* tokens from tokens.css. Rust is the proofreader's pencil.
+ * Uses only the --g-* tokens from tokens.css. Violet is the proofreader's pencil.
  */
 
 /* Plate colors for the terminal recording. They match the VHS theme in scripts/demo/standup.tape. */
 :root {
-  --h-plate: #1d1912;
-  --h-plate-ink: #f1eadc;
-  --h-plate-rule: #4d4535;
+  --h-plate: #17181f;
+  --h-plate-ink: #ecebf3;
+  --h-plate-rule: #4a4d66;
   /* The plate is dark in both themes, so controls on it use the dark-theme focus and accent values. */
-  --h-plate-focus: #7db4f0;
-  --h-plate-accent: #e8885c;
-  --h-plate-ink-strong: #fffaf2;
+  --h-plate-focus: #7fd6ea;
+  --h-plate-accent: #a98be6;
+  --h-plate-ink-strong: #ffffff;
   --h-wrap: 76rem;
   --h-gutter: clamp(1rem, 0.4rem + 3vw, 3rem);
   --h-ease: var(--g-ease-out);
@@ -132,7 +132,7 @@ p {
   padding-inline: var(--h-gutter);
 }
 
-/* The ledger: a margin column and a specimen column, divided by one rust hairline. */
+/* The ledger: a margin column and a specimen column, divided by one violet hairline. */
 .g-ledger {
   display: grid;
   gap: var(--g-space-6);
@@ -686,43 +686,43 @@ p {
 }
 
 .t-grn {
-  color: #3d6b2e;
+  color: #2c6e33;
   font-weight: 700;
 }
 
 .t-red {
-  color: #9c2f1c;
+  color: #b23a3a;
   font-weight: 700;
 }
 
 .t-yel {
-  color: #7a5a0c;
+  color: #7c6616;
   font-weight: 700;
 }
 
 :root[data-theme='dark'] .t-grn {
-  color: #b7c98f;
+  color: #7fdc97;
 }
 
 :root[data-theme='dark'] .t-red {
-  color: #f0937a;
+  color: #f08080;
 }
 
 :root[data-theme='dark'] .t-yel {
-  color: #e9c47e;
+  color: #e3e39a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) .t-grn {
-    color: #b7c98f;
+    color: #7fdc97;
   }
 
   :root:not([data-theme]) .t-red {
-    color: #f0937a;
+    color: #f08080;
   }
 
   :root:not([data-theme]) .t-yel {
-    color: #e9c47e;
+    color: #e3e39a;
   }
 }
 
