@@ -1,5 +1,5 @@
 ---
-title: Configuration
+title: Customize with config.json
 description: Edit config.json to set aliases, ticket prefixes, the week start, and GitHub sync settings.
 ---
 
@@ -45,7 +45,7 @@ An alias maps an old tag to the tag to use. The key is the tag in lowercase.
 
 ## Ticket prefixes
 
-A tag such as `bill-12` looks like a ticket. Gournal turns it into a ticket ref (`BILL-12`) only when its prefix is in `ticketPrefixes`. A tag such as `pr-42` always becomes a pull request ref. See [Tags and refs](/gournal/docs/start-here/core-concepts/#tags-and-refs).
+A tag such as `bill-12` becomes a ticket ref only when its prefix is in `ticketPrefixes`. See [Tags and refs](/gournal/docs/start-here/core-concepts/#tags-and-refs).
 
 ```json
 { "ticketPrefixes": ["BILL", "PLAT"] }
@@ -61,9 +61,7 @@ Config /Users/you/.gournal/config.json is not valid JSON object: alias chain at 
 
 ## Reports and sync
 
-1. `weekStartsOn`: the first day of the week, from 0 (Sunday) to 6. The default is 1 (Monday). The option `--week` uses it.
-2. `staleAfterDays`: the age after which an open blocker or next item counts as stale. The default is 14.
-3. `github.autoSync`, `github.autoSyncMinutes`, `github.initialSyncDays`, and `github.owners`: see [GitHub activity](/gournal/docs/guides/github-activity/).
+The keys `weekStartsOn` and `staleAfterDays` change the reports. The keys under `github` change the sync. See [Configuration keys](/gournal/docs/reference/configuration/) for the types and defaults, and [GitHub activity](/gournal/docs/guides/github-activity/) for the sync.
 
 A bad value for `weekStartsOn`, `staleAfterDays`, or a `github` key falls back to its default. Gournal prints one warning for each message:
 

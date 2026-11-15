@@ -83,4 +83,4 @@ The text result holds the `tags` list as JSON.
 
 - [Projects](/gournal/docs/reference/projects/)
 - [Add an entry](/gournal/docs/reference/add/)
-- [Configuration](/gournal/docs/guides/configuration/)
+- [Customize with config.json](/gournal/docs/guides/configuration/)

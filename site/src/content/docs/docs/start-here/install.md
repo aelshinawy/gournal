@@ -30,16 +30,25 @@ Gournal prints its version number. Your number can be different. If your shell s
 
 ## Sign in to GitHub (optional)
 
-GitHub sync uses the `gh` CLI. Gournal stores no token. `gh` keeps your sign-in.
-
-1. Install `gh` from [cli.github.com](https://cli.github.com).
-2. Run `gh auth login`.
+GitHub sync uses the `gh` CLI. Install `gh` and run `gh auth login`. See [Before you start](/gournal/docs/guides/github-activity/#before-you-start) in the GitHub activity guide.
 
 Skip this step if you do not want GitHub activity in your standups. Everything else works without `gh`.
 
 ## Where gournal keeps data
 
 Gournal keeps its data in `~/.gournal`. Set the `GOURNAL_HOME` environment variable to use a different folder. See [Environment variables](/gournal/docs/reference/environment/).
+
+## Upgrade
+
+Run `npm install -g gournal` again to get the newest version. If you upgrade from version 0.6 or older, see [Migrating from 0.x](/gournal/docs/guides/migrating-from-0x/).
+
+## Uninstall
+
+1. Remove the Claude Code setup: `gournal setup claude --uninstall`. See [Claude Code setup](/gournal/docs/guides/claude-code-setup/#undo-it).
+2. Remove the package: `npm uninstall -g gournal`.
+3. Optional: delete the data folder, `~/.gournal` (or the folder in `GOURNAL_HOME`). This deletes your journal, your settings, and your backups. Export a bundle first if you want a copy. See [Data safety and backups](/gournal/docs/guides/data-safety-and-backups/#bundles).
+
+Steps 1 and 2 keep your journal. Run step 1 before step 2, because `gournal setup claude --uninstall` needs the `gournal` command.
 
 ## Next step
 

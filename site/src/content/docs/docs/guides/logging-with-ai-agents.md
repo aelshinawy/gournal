@@ -21,24 +21,7 @@ Run one command. It registers the MCP server and installs the skill. It can also
 gournal setup claude
 ```
 
-See [Claude Code setup](/gournal/docs/guides/claude-code-setup/) for what the command changes. For another MCP client, register the server yourself. Use this command in Claude Code:
-
-```bash
-claude mcp add --scope user gournal -- gournal mcp
-```
-
-Or add the server to the MCP configuration of your client, for example `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "gournal": {
-      "command": "gournal",
-      "args": ["mcp"]
-    }
-  }
-}
-```
+See [Claude Code setup](/gournal/docs/guides/claude-code-setup/) for what the command changes, the Stop hook, and how to undo it.
 
 The server sends instructions to the client when it connects. The instructions tell the agent to log each distinct piece of finished work, to pass `project` and `cwd`, and to keep the summary to one line. The server opens the journal when the agent first uses a tool.
 
@@ -68,7 +51,7 @@ Gournal fills the project, the repository, and the branch of an entry in this or
 4. The working directory of the server process. Gournal uses it only when the call has no `project`.
 5. The project `uncategorized`.
 
-A directory that is not in a git repository gives the project `uncategorized`. A project alias in `config.json` renames the project. See [Core concepts](/gournal/docs/start-here/core-concepts/#projects-and-identity).
+A directory that is not in a git repository gives the project `uncategorized`. Git older than 2.31 gives `uncategorized` too, and gournal records no repository or branch. A project alias in `config.json` renames the project. See [Core concepts](/gournal/docs/start-here/core-concepts/#projects-and-identity).
 
 Example: this call has `project` and `cwd`. Gournal takes the repository and the branch from `cwd`.
 
@@ -90,7 +73,7 @@ The server reads `config.json` once for each process. Restart your MCP clients a
 
 ## The summary rule
 
-A summary is one line of at most 120 characters. Put longer text in `details`. See [The summary rule](/gournal/docs/start-here/core-concepts/#the-summary-rule).
+A summary is one line of at most 120 characters. Put longer text in `details`. See [The summary rule](/gournal/docs/start-here/core-concepts/#the-summary-rule) and [`add_entry`](/gournal/docs/reference/add/) for when gournal splits a long summary.
 
 The `add_entry` tool is strict. It rejects a summary that is too long and has no `details`. The error is one line:
 
@@ -104,40 +87,38 @@ It rejects a summary with a line break and no `details` with a different error:
 summary must be one line, max 120. Put the rest in details.
 ```
 
-When the call has `details`, gournal does not reject a long summary. It splits the summary. If the agent sends a rejected text again without `details`, gournal also splits it. This works for 10 minutes after the first try. The text must be the same, or it must start with the same 60 characters. When gournal splits a summary, it keeps the first sentence as the summary, shortens it to 120 characters with `...`, and saves the full text in `details`. The tool then adds this line to its answer:
+When gournal splits a summary, the tool adds this line to its answer:
 
 ```text
 Summary was too long and was split; full text is in details.
 ```
 
-## Kinds
+## Kinds, tags, and refs
 
-An entry has a kind. The default kind is `done`.
+The agent sets `kind` to `done`, `blocker`, or `next`. It closes an open item with `resolves` on a `done` entry, or with [`resolve_entry`](/gournal/docs/reference/resolve/). A bad id in `resolves` never stops the entry. Gournal drops that id, adds the entry, and tells the agent about the bad id. See [Kinds and carry-forward](/gournal/docs/start-here/core-concepts/#kinds-and-carry-forward).
 
-1. `done`: finished work.
-2. `blocker`: something that stops the work.
-3. `next`: a planned step.
-
-A `blocker` or `next` entry stays open until someone closes it. The agent closes it in one of two ways:
-
-- It adds a `done` entry and passes the id of the open entry in `resolves`.
-- It calls [`resolve_entry`](/gournal/docs/reference/resolve/).
-
-The id is the full id or the last 8 characters. A bad id in `resolves` never stops the entry. Gournal drops that id, adds the entry, and tells the agent about the bad id. See [Kinds and carry-forward](/gournal/docs/start-here/core-concepts/#kinds-and-carry-forward).
-
-## Tags and refs
-
-Ticket keys, PR numbers, and commit hashes go in `refs`. Tags are free labels. Before the agent adds a tag, it can call [`list_tags`](/gournal/docs/reference/tags/) to reuse a tag that exists. When a new tag is close to an existing tag, the answer of `add_entry` names the close tags.
-
-Refs also drive [links to GitHub activity](/gournal/docs/guides/github-activity/#how-activity-links-to-entries).
+Ticket keys, PR numbers, and commit hashes go in `refs`, not in tags. Before the agent adds a tag, it can call [`list_tags`](/gournal/docs/reference/tags/) to reuse a tag that exists. When a new tag is close to an existing tag, the answer of `add_entry` names the close tags. See [Tags and refs](/gournal/docs/start-here/core-concepts/#tags-and-refs).
 
 ## The Stop hook
 
-An agent can forget to log. The Stop hook is a safety net. It is off by default. Turn it on with `gournal setup claude --hook`.
+An agent can forget to log. The Stop hook asks Claude once to log a session that edited files and logged nothing. It is off by default. Turn it on with `gournal setup claude --hook`. See [The Stop hook command](/gournal/docs/guides/claude-code-setup/#the-stop-hook-command) for the exact behavior.
 
-When a Claude Code session ends its turn, the hook reads the transcript of the session. It asks Claude to log in one case: the session edited files, and the session did not call `add_entry` or run `gournal add`. The hook asks only once for each session. The hook never opens the journal database.
+## Use another MCP client
 
-See [Claude Code setup](/gournal/docs/guides/claude-code-setup/#the-stop-hook-command) for the exact behavior.
+`gournal mcp` starts the MCP server on stdio. Any MCP client can start it. The package installs the `gournal` command, so the client needs no path. Add the server to the MCP configuration of your client. Most clients use the `mcpServers` shape, for example in `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "gournal": {
+      "command": "gournal",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+The server writes only MCP messages to stdout. It writes notes to stderr. The server sends its instructions to the client when it connects, so the agent gets the logging rules without the skill. The skill is a Claude Code feature. For another client, copy the rules from [The skill](#the-skill) into the instructions of your agent. Restart the client after you change its configuration. See [`gournal mcp`](/gournal/docs/reference/mcp-server/).
 
 ## Read your journal from an agent
 

@@ -64,7 +64,7 @@ export default defineConfig({
         },
         {
           label: 'Resources',
-          items: ['docs/resources/changelog', 'docs/resources/faq']
+          items: ['docs/resources/changelog', 'docs/resources/faq', 'docs/resources/troubleshooting']
         }
       ]
     })

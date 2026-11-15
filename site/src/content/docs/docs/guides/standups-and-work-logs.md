@@ -17,7 +17,7 @@ Both reports take the same period options. The default is today.
 | `-m, --month` | The first day of this month up to now. |
 | `--from <date>`, `--to <date>` | Any range. |
 
-The week starts on Monday. Set `weekStartsOn` in `config.json` to change this. See [Configuration](/gournal/docs/guides/configuration/).
+The week starts on Monday. Set `weekStartsOn` in `config.json` to change this. See [Customize with config.json](/gournal/docs/guides/configuration/).
 
 A date such as `2026-07-15` means the whole local day. An ISO timestamp is also allowed. `--from` and `--to` override `--yesterday`, `--week`, and `--month`. With only `--from`, the range ends now. With only `--to`, the range starts at the start of that day.
 
@@ -140,7 +140,7 @@ Use the standup for a report to your team. Use the log to see what happened and 
 
 ## Export
 
-`gournal export` writes entries to Markdown (the default), CSV, or a bundle. The output goes to the terminal. Add `-o <file>` to write a file.
+`gournal export` writes entries as a report you can share. See [`gournal export`](/gournal/docs/reference/export/) for the formats and options. The output goes to the terminal. Add `-o <file>` to write a file.
 
 ```console
 $ gournal export -t bugfix
@@ -156,6 +156,6 @@ gournal export --from 2026-07-01 --to 2026-07-31 -o july.md
 gournal export -f csv -p billing-api -o entries.csv
 ```
 
-The filters `--project`, `--tags`, `--from`, and `--to` narrow Markdown and CSV output. A bundle always has every entry. See [Data safety and backups](/gournal/docs/guides/data-safety-and-backups/) for bundles.
+For a full backup, use a bundle. See [Data safety and backups](/gournal/docs/guides/data-safety-and-backups/#bundles).
 
 An agent uses the MCP tools [`get_standup`](/gournal/docs/reference/standup/), [`get_work_log`](/gournal/docs/reference/work-log/), and [`export_entries`](/gournal/docs/reference/export/) for the same reports. `export_entries` returns the newest 200 entries by default. Pass `limit` or `from` and `to` to get more.

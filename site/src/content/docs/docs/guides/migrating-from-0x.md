@@ -46,7 +46,7 @@ Old entries often have project names and tags that you want to change. Set alias
 }
 ```
 
-See [Configuration](/gournal/docs/guides/configuration/).
+See [Customize with config.json](/gournal/docs/guides/configuration/).
 
 ## Migration plans
 
@@ -86,7 +86,7 @@ Dry run: 1 entries would change. Diff written to diff.md.
 The diff shows each entry before and after:
 
 ````text
-### 0 2026-07-16T02:24:26.205Z
+### Example plan
 
 **before**
 

@@ -30,17 +30,9 @@ Skill: installed.
 Stop hook: not enabled (add --hook to enable it).
 ```
 
-The command does up to three things:
+This example ran on a machine with no `claude` CLI, so gournal printed the command for you to run. Restart Claude Code after setup. Then run `claude mcp list`. The list must show `gournal`.
 
-1. It registers the gournal MCP server with Claude Code.
-2. It writes a skill file that tells Claude when to log work.
-3. It can add a Stop hook. With `--yes`, gournal adds the hook only when you pass `--hook`. Without `--yes`, gournal asks.
-
-This example ran on a machine with no `claude` CLI. When `claude` is installed, gournal runs the `claude mcp add` command for you. When it is missing, gournal prints the command, and you run it yourself.
-
-Restart Claude Code after setup. Then run `claude mcp list`. The list must show `gournal`. In Claude Code, the `/mcp` command also lists the connected servers.
-
-Without `--yes`, gournal shows each change and asks first. See [Claude Code setup](/gournal/docs/guides/claude-code-setup/) and [`gournal setup claude`](/gournal/docs/reference/setup-claude/).
+See [Claude Code setup](/gournal/docs/guides/claude-code-setup/) for what the command changes, the Stop hook, and how to undo it.
 
 ## 3. Add entries
 
@@ -79,7 +71,7 @@ The standup lists what you finished today, grouped by project. It also lists ope
 
 ## 5. Sync GitHub activity (optional)
 
-Sign in with `gh auth login` first. Then run this command.
+Sign in to `gh` first. See [Before you start](/gournal/docs/guides/github-activity/#before-you-start). Then run this command.
 
 ```console
 $ gournal sync
@@ -88,7 +80,7 @@ Synced GitHub activity since Oct 16: 2 new, 0 updated, 2 links.
 
 This example used one sample pull request, so your numbers are different. The first sync covers the last 30 days. Later syncs start where the last sync stopped.
 
-If you are not signed in, gournal tells you why it stopped. For example, `gh` is not signed in, and you must run `gh auth login`.
+If a sync fails, gournal tells you why. See [Troubleshooting](/gournal/docs/resources/troubleshooting/).
 
 Now run the standup again. Gournal linked the pull request and its commit to the entry, because the entry and the pull request share a repository and a branch, the entry is within 2 hours of the activity, and no other done entry fits. An older pull request does not link by this rule, and it shows in the standup under `Also`. See [Links](/gournal/docs/start-here/core-concepts/#links).
 

@@ -10,7 +10,7 @@ Gournal keeps your entries on your machine. This page explains where they live, 
 All data is in the gournal home folder. The default is `~/.gournal`. Set `GOURNAL_HOME` to change it.
 
 1. `gournal.db`: the SQLite database that holds your entries and your GitHub activity. It uses write-ahead logging, so two more files, `gournal.db-wal` and `gournal.db-shm`, can exist beside it.
-2. `config.json`: your settings. See [Configuration](/gournal/docs/guides/configuration/).
+2. `config.json`: your settings. See [Customize with config.json](/gournal/docs/guides/configuration/).
 3. `backups/`: the backups.
 4. `entries.json`: the file of old versions. Gournal never writes to it. See [Migrating from 0.x](/gournal/docs/guides/migrating-from-0x/).
 
@@ -35,7 +35,7 @@ $ gournal import bundle.json
 Imported: 0 new, 0 updated, 3 unchanged, 0 duplicates merged.
 ```
 
-`gournal import` adds new entries, updates changed ones, and skips unchanged ones. See [`gournal export`](/gournal/docs/reference/export/) and [`gournal import`](/gournal/docs/reference/import/).
+`gournal import` adds new entries, updates changed ones, and skips unchanged ones. See [`gournal export`](/gournal/docs/reference/export/) for the formats and [`gournal import`](/gournal/docs/reference/import/).
 
 ## Restore from a backup
 

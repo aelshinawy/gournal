@@ -70,7 +70,7 @@ Gournal picks the project in this order:
 1. A name that you map in `projectAliases`.
 2. The repository name, for example `billing-api` for `acme/billing-api`.
 3. The name of the folder that holds the repository.
-4. `uncategorized`, when the directory is not in a git repository.
+4. `uncategorized`, when the directory is not in a git repository, or when Git is older than 2.31 or missing. Gournal then records no repository or branch.
 
 A git worktree maps to its main repository, so all worktrees of a repo share one project. This mapping needs a common Git directory that is named `.git`. The `origin` remote name still comes first. A worktree of a bare repository uses the name of its own folder only as the fallback.
 
@@ -80,7 +80,7 @@ Project aliases rename a project. They match the full repository name, then the 
 { "projectAliases": { "billing-api": "billing" } }
 ```
 
-Gournal reads `~/.gournal/config.json`. See [Configuration](/gournal/docs/guides/configuration/).
+Gournal reads `~/.gournal/config.json`. See [Customize with config.json](/gournal/docs/guides/configuration/).
 
 An agent that uses the MCP server passes its working directory as `cwd`, so gournal can find the right project. See [Logging with AI agents](/gournal/docs/guides/logging-with-ai-agents/).
 

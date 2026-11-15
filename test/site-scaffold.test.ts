@@ -21,7 +21,8 @@ const SINGLE_PAGES = [
   'reference/configuration',
   'reference/environment',
   'resources/changelog',
-  'resources/faq'
+  'resources/faq',
+  'resources/troubleshooting'
 ];
 
 test('package tarball stays dist only', () => {
