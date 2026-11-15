@@ -2,6 +2,7 @@ import { spawnSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import chalk from 'chalk';
 import { runCli } from '../src/adapters/cli/program';
 import { runIn } from './helpers/run-cli';
 
@@ -26,8 +27,27 @@ describe('in-process runner', () => {
   });
   test('runCli does not call process.exit and does not set process.exitCode', async () => {
     const before = process.exitCode;
-    await runCli(['node', 'gournal', '--version'], { home, out: () => {}, err: () => {} });
+    const exit = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+    try {
+      await runCli(['node', 'gournal', '--version'], { home, out: () => {}, err: () => {} });
+      await runCli(['node', 'gournal', 'nope'], { home, out: () => {}, err: () => {} });
+      expect(exit).not.toHaveBeenCalled();
+    } finally {
+      exit.mockRestore();
+    }
     expect(process.exitCode).toBe(before);
+  });
+  test('runIn output has no ANSI even when chalk colour is on', async () => {
+    const level = chalk.level;
+    chalk.level = 3;
+    try {
+      const r = await runIn(home, ['add', 'colour check']);
+      expect(r.stdout).toContain('Entry added!');
+      expect(r.stdout).not.toMatch(/\u001b\[/);
+      expect(chalk.level).toBe(3);
+    } finally {
+      chalk.level = level;
+    }
   });
   test('version matches package.json', async () =>
     expect((await runIn(home, ['--version'])).stdout.trim()).toBe(require('../package.json').version));
