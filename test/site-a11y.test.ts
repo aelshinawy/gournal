@@ -51,7 +51,8 @@ describe('built pages', () => {
         if (!ok) bad.push(path.relative(dist, f));
       }
     }
-    expect(tables).toBeGreaterThan(0);
+    // Exact count: add a table to a page and update this number.
+    expect(tables).toBe(43);
     expect(bad).toEqual([]);
   });
 
@@ -60,12 +61,20 @@ describe('built pages', () => {
     expect(fs.existsSync(file)).toBe(true);
     const html = fs.readFileSync(file, 'utf8');
     const tables = [...html.matchAll(/<table\b/g)];
-    expect(tables.length).toBeGreaterThan(0);
+    expect(tables.length).toBe(5);
     for (const m of tables) {
       const before = html.slice(0, m.index);
       const wrapper = before.slice(before.lastIndexOf('<div class="g-table'));
       expect(wrapper).toMatch(/^<div class="[^"]*g-table--overview/);
     }
+  });
+
+  run('content tables fill their wrapper (display: table, width 100%)', () => {
+    const css = fs.readFileSync(path.join(__dirname, '../site/src/styles/docs.css'), 'utf8');
+    const rule = css.match(/\.sl-markdown-content \.g-table table\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toMatch(/display:\s*table\s*;/);
+    expect(rule![1]).toMatch(/width:\s*100%/);
   });
 
   run('every code pre has tabindex 0', () => {
