@@ -11,7 +11,7 @@ import {
   EntryListSchema, EntryResultSchema, ProjectCountsSchema, StandupSchema, TagCountsSchema, WorkLogSchema,
   entriesMarkdown, entryJson, exportCsv, exportMarkdown, standupJson, standupMarkdown, workLogJson, workLogMarkdown,
 } from '../../render';
-import { openJournal } from '../../storage/journal';
+import { openJournal } from '../../storage';
 import { standupModel, workLogModel } from '../reports';
 
 export const SERVER_INSTRUCTIONS = [
@@ -98,8 +98,6 @@ export function createServer(deps: ServerDeps = {}): McpServer {
         return errorResult(err instanceof Error ? err.message : String(err));
       }
     };
-
-  const isoDate = z.string();
 
   const refSchema = z.object({
     type: z.enum(['pr', 'jira', 'commit', 'url']),
@@ -262,8 +260,8 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     yesterday: z.boolean().optional(),
     week: z.boolean().optional(),
     month: z.boolean().optional(),
-    from: isoDate.optional().describe('Start date (inclusive): a local day (YYYY-MM-DD) or an ISO timestamp'),
-    to: isoDate.optional().describe('End date (inclusive): a local day (YYYY-MM-DD) or an ISO timestamp'),
+    from: z.string().optional().describe('Start date (inclusive): a local day (YYYY-MM-DD) or an ISO timestamp'),
+    to: z.string().optional().describe('End date (inclusive): a local day (YYYY-MM-DD) or an ISO timestamp'),
     project: z.string().optional().describe('Filter by project name'),
     repo: z.string().optional().describe('Filter by repository (owner/name)'),
     tags: tagsInput,
@@ -287,8 +285,8 @@ export function createServer(deps: ServerDeps = {}): McpServer {
         kind: z.array(KIND).optional().describe('One or more of done, blocker, next'),
         status: z.enum(['open', 'resolved']).optional(),
         source: z.enum(['cli', 'mcp', 'migration']).optional(),
-        from: isoDate.optional().describe('Lower bound (inclusive): a local day or an ISO timestamp'),
-        to: isoDate.optional().describe('Upper bound (inclusive): a local day or an ISO timestamp'),
+        from: z.string().optional().describe('Lower bound (inclusive): a local day or an ISO timestamp'),
+        to: z.string().optional().describe('Upper bound (inclusive): a local day or an ISO timestamp'),
         limit: z.number().int().min(1).max(500).default(FIND_DEFAULT_LIMIT).describe('Max entries to return (default 50, max 500)'),
         order: z.enum(['asc', 'desc']).default('desc').describe('desc is newest first (default)'),
         includeDeleted: z.boolean().optional(),
@@ -309,8 +307,8 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       inputSchema: {
         project: z.string().optional().describe('Filter to a single project name'),
         tags: tagsInput,
-        from: isoDate.optional().describe('ISO timestamp lower bound (inclusive)'),
-        to: isoDate.optional().describe('ISO timestamp upper bound (inclusive)'),
+        from: z.string().optional().describe('ISO timestamp lower bound (inclusive)'),
+        to: z.string().optional().describe('ISO timestamp upper bound (inclusive)'),
         limit: z.number().int().positive().max(500).default(50).describe('Max entries to return, newest first (default 50, max 500)'),
       },
     },
@@ -387,17 +385,20 @@ export function createServer(deps: ServerDeps = {}): McpServer {
         format: z.enum(['md', 'csv']).default('md'),
         project: z.string().optional().describe('Filter by project name'),
         tags: tagsInput,
-        from: isoDate.optional().describe('Start date (inclusive): a local day or an ISO timestamp'),
-        to: isoDate.optional().describe('End date (inclusive): a local day or an ISO timestamp'),
+        from: z.string().optional().describe('Start date (inclusive): a local day or an ISO timestamp'),
+        to: z.string().optional().describe('End date (inclusive): a local day or an ISO timestamp'),
         limit: z.number().int().min(1).max(2000).default(EXPORT_DEFAULT_LIMIT).describe('Max entries (default 200, max 2000). The newest are kept.'),
       },
     },
     guarded(({ format, project, tags, from, to, limit }: { format: 'md' | 'csv'; project?: string; tags?: string[]; from?: string; to?: string; limit: number }, { repo }) => {
-      const newest = repo.find({ project, tags, from, to, order: 'desc', limit });
-      const entries = [...newest].reverse();
+      // Fetch one extra entry to tell "exactly limit" from "more than limit".
+      const found = repo.find({ project, tags, from, to, order: 'desc', limit: limit + 1 });
+      const truncated = found.length > limit;
+      const entries = found.slice(0, limit).reverse();
       const body = format === 'csv' ? exportCsv(entries) : exportMarkdown(entries);
-      const notice = entries.length === limit ? `\n(Showing the newest ${limit} entries. Pass limit or from/to for more.)` : '';
-      return textResult(body + notice);
+      const content = [{ type: 'text' as const, text: body }];
+      if (truncated) content.push({ type: 'text' as const, text: `(Showing the newest ${limit} entries. Pass limit or from/to for more.)` });
+      return { content };
     })
   );
 

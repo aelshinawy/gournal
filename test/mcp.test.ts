@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import chalk from 'chalk';
+import { format } from 'date-fns';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
@@ -489,7 +490,7 @@ test('get_standup returns sections in JSON and markdown', async () => {
 test('get_standup carries an older open blocker forward even with from', async () => {
   seed('Old blocker', { kind: 'blocker', createdAt: daysAgo(3) });
   seed('Did a thing');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = format(new Date(), 'yyyy-MM-dd');
   const r = await call('get_standup', { from: today });
   expect(r.structuredContent.blockers.map((e: any) => e.summary)).toEqual(['Old blocker']);
   expect(r.structuredContent.done[0].entries.map((e: any) => e.summary)).toEqual(['Did a thing']);
@@ -522,15 +523,25 @@ test('list_tags and list_projects return structured counts', async () => {
   expect((await call('list_projects')).structuredContent.projects).toEqual([{ project: 'api', count: 1 }]);
 });
 
-test('export_entries caps at 200 by default, keeps the newest, and says so', async () => {
+test('export_entries caps at 200 by default, keeps the newest, and puts the notice in a second block', async () => {
   for (let i = 1; i <= 201; i++) seed(`Row ${String(i).padStart(3, '0')}`, { createdAt: new Date(Date.UTC(2026, 6, 13, 0, 0, i)).toISOString() });
-  const out = text(await call('export_entries', { format: 'csv' }));
-  const rows = out.split('\n');
+  const r = await call('export_entries', { format: 'csv' });
+  expect(r.content).toHaveLength(2);
+  const rows = r.content[0].text.split('\n');
+  expect(rows).toHaveLength(201);
   expect(rows[0]).toContain('timestamp');
-  expect(out).not.toContain('Row 001');
+  expect(r.content[0].text).not.toContain('Showing the newest');
+  expect(r.content[0].text).not.toContain('Row 001');
   expect(rows[1]).toContain('Row 002');
-  expect(out).toContain('Row 201');
-  expect(out.endsWith('\n(Showing the newest 200 entries. Pass limit or from/to for more.)')).toBe(true);
+  expect(rows[200]).toContain('Row 201');
+  expect(r.content[1].text).toBe('(Showing the newest 200 entries. Pass limit or from/to for more.)');
+});
+
+test('export_entries with exactly the limit shows no notice', async () => {
+  for (let i = 1; i <= 200; i++) seed(`Row ${i}`, { createdAt: new Date(Date.UTC(2026, 6, 13, 0, 0, i)).toISOString() });
+  const r = await call('export_entries', { format: 'csv' });
+  expect(r.content).toHaveLength(1);
+  expect(r.content[0].text.split('\n')).toHaveLength(201);
 });
 
 test('export_entries has no notice below the limit and accepts tags, from, to, and limit', async () => {
@@ -540,9 +551,11 @@ test('export_entries has no notice below the limit and accepts tags, from, to, a
   expect(out).toContain('A');
   expect(out).not.toContain('B');
   expect(out).not.toContain('Showing the newest');
-  const capped = text(await call('export_entries', { limit: 1 }));
-  expect(capped).toContain('(Showing the newest 1 entries. Pass limit or from/to for more.)');
+  const cappedResult = await call('export_entries', { limit: 1 });
+  const capped = text(cappedResult);
+  expect(cappedResult.content[1].text).toContain('Showing the newest 1 entries');
   expect(capped).toContain('B');
+  expect(capped).not.toContain('Showing');
 });
 
 describe('ANSI', () => {
