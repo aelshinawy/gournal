@@ -1,26 +1,30 @@
 import fs from 'fs';
 import path from 'path';
-import { newId } from '../core';
+import { newId, normalizeConfig, type Config } from '../core';
 
-export interface Config {
-  deviceId: string;
-  projectAliases: Record<string, string>;
-  tagAliases: Record<string, string>;
-  ticketPrefixes: string[];
-}
+export type { Config };
 
 export interface LoadConfigHooks {
   /** Test seam. Runs after the read and before the new file is published. */
   beforePublish?: () => void;
+  /** Receives config warnings. Default: stderr, once per distinct message per process. */
+  warn?: (msg: string) => void;
+}
+
+const warned = new Set<string>();
+function defaultWarn(msg: string): void {
+  if (warned.has(msg)) return;
+  warned.add(msg);
+  process.stderr.write(`gournal: ${msg}\n`);
+}
+
+/** Only the Phase 1 keys are written. New settings stay out of the file. */
+function persisted(raw: Record<string, unknown>, c: Config): Record<string, unknown> {
+  return { ...raw, deviceId: c.deviceId, projectAliases: c.projectAliases, tagAliases: c.tagAliases, ticketPrefixes: c.ticketPrefixes };
 }
 
 function invalid(file: string, reason: string): Error {
   return new Error(`Config ${file} is not valid JSON object: ${reason}. Fix or delete it; gournal did not change it.`);
-}
-
-function isStringMap(v: unknown): v is Record<string, string> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-    && Object.values(v).every((x) => typeof x === 'string');
 }
 
 function readRaw(file: string): Record<string, unknown> {
@@ -36,49 +40,23 @@ function readRaw(file: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
-/** Validate and fill. Returns the config and whether the file needs to be rewritten. */
-function normalize(file: string, raw: Record<string, unknown>): { config: Config; changed: boolean } {
-  if (raw.deviceId !== undefined && (typeof raw.deviceId !== 'string' || !raw.deviceId)) {
-    throw invalid(file, 'deviceId must be a non-empty string');
-  }
-  for (const key of ['projectAliases', 'tagAliases'] as const) {
-    if (raw[key] !== undefined && !isStringMap(raw[key])) throw invalid(file, `${key} must be an object of strings`);
-    const map = (raw[key] ?? {}) as Record<string, string>;
-    for (const [k, v] of Object.entries(map)) {
-      if (v !== k && Object.hasOwn(map, v)) throw invalid(file, `alias chain at "${k}"`);
-    }
-  }
-  const tp = raw.ticketPrefixes;
-  if (tp !== undefined && !(Array.isArray(tp) && tp.every((x) => typeof x === 'string'))) {
-    throw invalid(file, 'ticketPrefixes must be an array of strings');
-  }
-  const config: Config = {
-    deviceId: (raw.deviceId as string | undefined) ?? newId(),
-    projectAliases: (raw.projectAliases as Record<string, string> | undefined) ?? {},
-    tagAliases: (raw.tagAliases as Record<string, string> | undefined) ?? {},
-    ticketPrefixes: (tp as string[] | undefined) ?? [],
-  };
-  const changed = raw.deviceId === undefined || raw.projectAliases === undefined
-    || raw.tagAliases === undefined || raw.ticketPrefixes === undefined;
-  return { config, changed };
-}
-
 function tempPath(file: string): string {
   return path.join(path.dirname(file), `.config.${process.pid}.${newId()}.tmp`);
 }
 
 export function loadConfig(home: string, hooks: LoadConfigHooks = {}): Config {
   const file = path.join(home, 'config.json');
+  const warn = hooks.warn ?? defaultWarn;
   fs.mkdirSync(home, { recursive: true });
 
   if (fs.existsSync(file)) {
     const raw = readRaw(file);
-    const { config, changed } = normalize(file, raw);
+    const { config, changed } = normalizeConfig(file, raw, warn);
     if (changed) {
       // Existing file: atomic replace. The deviceId is already on disk, so it stays stable.
       const tmp = tempPath(file);
       try {
-        fs.writeFileSync(tmp, JSON.stringify({ ...raw, ...config }, null, 2) + '\n', 'utf8');
+        fs.writeFileSync(tmp, JSON.stringify(persisted(raw, config), null, 2) + '\n', 'utf8');
         fs.renameSync(tmp, file);
       } finally {
         fs.rmSync(tmp, { force: true });
@@ -88,17 +66,17 @@ export function loadConfig(home: string, hooks: LoadConfigHooks = {}): Config {
   }
 
   // First run. Publish with a hard link: it fails if another process created the file first.
-  const { config } = normalize(file, {});
+  const { config } = normalizeConfig(file, {}, warn);
   const tmp = tempPath(file);
   try {
-    fs.writeFileSync(tmp, JSON.stringify(config, null, 2) + '\n', 'utf8');
+    fs.writeFileSync(tmp, JSON.stringify(persisted({}, config), null, 2) + '\n', 'utf8');
     hooks.beforePublish?.();
     try {
       fs.linkSync(tmp, file);
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
       // Another process won. Use the deviceId it wrote.
-      return normalize(file, readRaw(file)).config;
+      return normalizeConfig(file, readRaw(file), warn).config;
     }
     return config;
   } finally {

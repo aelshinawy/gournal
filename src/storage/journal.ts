@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import type { DatabaseSync } from 'node:sqlite';
-import type { EntryRepository } from '../core/repository';
-import { loadConfig, type Config } from './config';
+import type { EntryRepository } from '../core';
+import type { Config } from '../core';
+import { loadConfig } from './config';
 import { openDb } from './db';
 import { gournalHome } from './home';
 import { importLegacy } from './migrate';

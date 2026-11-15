@@ -1,13 +1,5 @@
+import type { Query } from './query';
 import type { Entry, EntryPatch, NewEntryInput } from './types';
-
-export interface ListQuery {
-  project?: string;
-  tags?: string[];
-  from?: string;
-  to?: string;
-  limit?: number;
-  includeDeleted?: boolean;
-}
 
 export interface EntryRepository {
   /**
@@ -27,8 +19,14 @@ export interface EntryRepository {
   softDeleteAll(): number;
   /** Newest non-deleted entry with this deviceId. */
   latestForDevice(): Entry | null;
-  /** Oldest first. Non-deleted unless includeDeleted. */
-  list(q?: ListQuery): Entry[];
+  /** Entries that match the query. Oldest first unless order is desc. Non-deleted unless includeDeleted. */
+  find(q?: Query): Entry[];
+  /** Tag counts over the entries that match the query (no limit). Count desc, then tag asc. */
+  tagCounts(q?: Query): { tag: string; count: number }[];
+  /** Project counts over the entries that match the query (no limit). Count desc, then project asc. */
+  projectCounts(q?: Query): { project: string; count: number }[];
+  /** 'fts' when text search uses the FTS5 index, 'like' when it falls back to substring match. */
+  searchMode(): 'fts' | 'like';
   allTags(): string[];
   getState(key: string): string | null;
   setState(key: string, value: string): void;

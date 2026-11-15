@@ -179,9 +179,9 @@ test('a failing update rolls everything back', () => {
   const orig = repo.update.bind(repo);
   let calls = 0;
   repo.update = (id, patch) => { if (++calls === 2) throw new Error('boom'); return orig(id, patch); };
-  const before = repo.list();
+  const before = repo.find();
   expect(() => apply(plan(item(A, 0), item(B, 1)))).toThrow('boom');
-  expect(repo.list()).toEqual(before);
+  expect(repo.find()).toEqual(before);
 });
 
 test('an unchanged multi-tag entry is untouched', () => {
@@ -213,10 +213,10 @@ describe('plans never lose the original text', () => {
   });
 
   test('an explicit details string that loses the message is rejected and nothing is written', () => {
-    const before = repo.list({ includeDeleted: true });
+    const before = repo.find({ includeDeleted: true });
     expect(() => apply(plan(item(A, 0, { summary: 'Shipped ranking' }), item(B, 1, { summary: 'Short', details: 'unrelated' })))).toThrow(
       'Plan item 1 would lose text: summary plus details must contain the original message');
-    expect(repo.list({ includeDeleted: true })).toEqual(before);
+    expect(repo.find({ includeDeleted: true })).toEqual(before);
   });
 
   test('an explicit details string that holds the message is accepted', () => {

@@ -1,9 +1,11 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { hasLineBreak, mergeRefs, newId, normalizeTags, summaryLength, MAX_SUMMARY } from '../core';
-import type { Entry, EntryPatch, Kind, NewEntryInput, Ref } from '../core';
-import type { EntryRepository, ListQuery } from '../core/repository';
+import { hasLineBreak, mergeRefs, newId, normalizeTags, resolveProjectAlias, resolveQuery, summaryLength, MAX_SUMMARY } from '../core';
+import type { Entry, EntryPatch, Kind, NewEntryInput, Query, Ref } from '../core';
+import type { EntryRepository } from '../core';
 import { backupDbIfNeeded } from './backup';
-import type { Config } from './config';
+import { searchIndexLive } from './schema';
+import { ftsMatchExpression, likePattern } from './search';
+import type { Config } from '../core';
 import { hydrateRows, replaceRefs as replaceRefRows, replaceTags as replaceTagRows } from './entry-rows';
 import type { Row } from './entry-rows';
 
@@ -34,7 +36,7 @@ const noEntry = (input: string): Error => new Error(`No entry with id "${input}"
 
 export function createRepository(db: DatabaseSync, config: Config, dbPath: string): EntryRepository {
   const normalize = (tags: string[]) => normalizeTags(tags, config.tagAliases, { ticketPrefixes: config.ticketPrefixes });
-  const aliasProject = (p: string): string => (Object.hasOwn(config.projectAliases, p) ? config.projectAliases[p] : p);
+  const aliasProject = (p: string): string => resolveProjectAlias(p, config.projectAliases);
 
   // True while this repository holds an open transaction. Nested writes then join it.
   let inTransaction = false;
@@ -105,6 +107,46 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
     const ms = Date.parse(value);
     if (Number.isNaN(ms)) throw new Error(`Invalid ${what}: "${value}"`);
     return ms;
+  }
+
+  /** One WHERE clause for find and the counts. Order and limit come back for find only. */
+  function buildWhere(q: Query): { where: string; vals: (string | number)[]; order: 'ASC' | 'DESC'; limit?: number } {
+    const r = resolveQuery(q, config.projectAliases);
+    const where: string[] = [];
+    const vals: (string | number)[] = [];
+    if (!r.includeDeleted) where.push('entries.deleted_at IS NULL');
+    if (r.projects) {
+      where.push(`entries.project COLLATE NOCASE IN (${r.projects.map(() => '?').join(', ')})`);
+      vals.push(...r.projects);
+    }
+    if (r.repo !== undefined) { where.push('entries.repo = ? COLLATE NOCASE'); vals.push(r.repo); }
+    if (r.kind) { where.push(`entries.kind IN (${r.kind.map(() => '?').join(', ')})`); vals.push(...r.kind); }
+    if (r.status !== undefined) { where.push('entries.status = ?'); vals.push(r.status); }
+    if (r.source !== undefined) { where.push('entries.source = ?'); vals.push(r.source); }
+    for (const tag of r.tags ?? []) {
+      // Same normalization as add. A ticket-shaped tag is stored as a ref, so no tag can match it.
+      const [norm] = normalize([tag]).tags;
+      if (norm === undefined) { where.push('0'); continue; }
+      where.push('EXISTS (SELECT 1 FROM entry_tags ft WHERE ft.entry_id = entries.id AND ft.tag = ?)');
+      vals.push(norm);
+    }
+    if (r.fromMs !== undefined) { where.push('entries.created_at >= ?'); vals.push(r.fromMs); }
+    if (r.toMs !== undefined) { where.push('entries.created_at <= ?'); vals.push(r.toMs); }
+    if (r.terms && r.terms.length === 0) {
+      where.push('0');
+    } else if (r.terms) {
+      if (searchIndexLive(db)) {
+        const expr = ftsMatchExpression(r.terms);
+        if (expr === '') where.push('0');
+        else { where.push('entries.rowid IN (SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?)'); vals.push(expr); }
+      } else {
+        for (const term of r.terms) {
+          where.push("(entries.summary || char(10) || coalesce(entries.details, '')) LIKE ? ESCAPE '\\'");
+          vals.push(likePattern(term));
+        }
+      }
+    }
+    return { where: where.length ? where.join(' AND ') : '1', vals, order: r.order === 'desc' ? 'DESC' : 'ASC', limit: r.limit };
   }
 
   return {
@@ -206,24 +248,27 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
       return row ? hydrate([row])[0] : null;
     },
 
-    list(q: ListQuery = {}) {
-      const where: string[] = [];
-      const vals: (string | number)[] = [];
-      if (!q.includeDeleted) where.push('deleted_at IS NULL');
-      if (q.project !== undefined) { where.push('project = ?'); vals.push(aliasProject(q.project)); }
-      for (const tag of q.tags ?? []) {
-        // Same normalization as add. A ticket-shaped tag is stored as a ref, so no tag can match it.
-        const [norm] = normalize([tag]).tags;
-        if (norm === undefined) { where.push('0'); continue; }
-        where.push('EXISTS (SELECT 1 FROM entry_tags t WHERE t.entry_id = entries.id AND t.tag = ?)');
-        vals.push(norm);
-      }
-      if (q.from !== undefined) { where.push('created_at >= ?'); vals.push(parseTime(q.from, 'from')); }
-      if (q.to !== undefined) { where.push('created_at <= ?'); vals.push(parseTime(q.to, 'to')); }
-      let sql = `SELECT * FROM entries${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY created_at, id`;
-      if (q.limit !== undefined && Number.isInteger(q.limit) && q.limit > 0) { sql += ' LIMIT ?'; vals.push(q.limit); }
+    find(q: Query = {}) {
+      const { where, vals, order, limit } = buildWhere(q);
+      let sql = `SELECT entries.* FROM entries WHERE ${where} ORDER BY created_at ${order}, id ${order}`;
+      if (limit !== undefined) { sql += ' LIMIT ?'; vals.push(limit); }
       return hydrate(db.prepare(sql).all(...vals) as unknown as Row[]);
     },
+
+    tagCounts(q: Query = {}) {
+      const { where, vals } = buildWhere(q);
+      return db.prepare(`SELECT t.tag AS tag, COUNT(DISTINCT entries.id) AS count FROM entries
+        JOIN entry_tags t ON t.entry_id = entries.id WHERE ${where} GROUP BY t.tag ORDER BY count DESC, t.tag ASC`)
+        .all(...vals) as { tag: string; count: number }[];
+    },
+
+    projectCounts(q: Query = {}) {
+      const { where, vals } = buildWhere(q);
+      return db.prepare(`SELECT project, COUNT(*) AS count FROM entries WHERE ${where}
+        GROUP BY project ORDER BY count DESC, project ASC`).all(...vals) as { project: string; count: number }[];
+    },
+
+    searchMode: () => (searchIndexLive(db) ? 'fts' : 'like'),
 
     allTags() {
       return (db.prepare(`SELECT DISTINCT t.tag FROM entry_tags t JOIN entries e ON e.id = t.entry_id

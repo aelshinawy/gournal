@@ -1,4 +1,4 @@
-import { wrapEmitWarning } from '../src/suppress-warnings';
+import { wrapEmitWarning } from '../src/adapters/suppress-warnings';
 
 const make = () => {
   const calls: unknown[][] = [];

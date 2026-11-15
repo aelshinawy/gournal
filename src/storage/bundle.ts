@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { summaryLength, MAX_SUMMARY } from '../core';
 import type { Entry } from '../core';
-import type { Config } from './config';
+import type { Config } from '../core';
 import { hydrateRows, replaceRefs, replaceTags } from './entry-rows';
 import type { Row } from './entry-rows';
 

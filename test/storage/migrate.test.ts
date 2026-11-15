@@ -34,7 +34,7 @@ const legacyB = { timestamp: '2026-07-29T10:00:00.000Z', message: 'Second entry'
 test('migrates every legacy entry exactly once with no text lost', () => {
   writeLegacy([legacyA]);
   expect(importLegacy(db, repo, config, jsonPath)).toEqual({ imported: 1, alreadyPresent: 0 });
-  const [e] = repo.list();
+  const [e] = repo.find();
   expect(e).toMatchObject({ summary: 'Shipped SBDC-1748 (PR #327).', source: 'migration', kind: 'done',
     createdAt: '2026-07-28T14:35:23.997Z', tags: ['performance'], project: 'tcb' });
   expect(e.refs).toEqual(expect.arrayContaining([{ type: 'jira', value: 'SBDC-1748' }, { type: 'pr', value: '327' }]));
@@ -51,7 +51,7 @@ test('legacy_map stores the timestamp as written, the sha256 of the message, and
     [0, legacyA.timestamp, sha(legacyA.message), 0],
     [1, legacyB.timestamp, sha(legacyB.message), 0],
   ]);
-  expect(rows[0].entry_id).toBe(repo.list()[0].id);
+  expect(rows[0].entry_id).toBe(repo.find()[0].id);
 });
 
 test('second import is a no-op', () => {
@@ -59,7 +59,7 @@ test('second import is a no-op', () => {
   importLegacy(db, repo, config, jsonPath);
   stderr.mockClear();
   expect(importLegacy(db, repo, config, jsonPath)).toEqual({ imported: 0, alreadyPresent: 1 });
-  expect(repo.list()).toHaveLength(1);
+  expect(repo.find()).toHaveLength(1);
   expect(errText()).toBe('');
 });
 
@@ -68,7 +68,7 @@ test('late writes are imported', () => {
   importLegacy(db, repo, config, jsonPath);
   writeLegacy([legacyA, legacyB]);
   expect(importLegacy(db, repo, config, jsonPath)).toEqual({ imported: 1, alreadyPresent: 1 });
-  expect(repo.list()).toHaveLength(2);
+  expect(repo.find()).toHaveLength(2);
 });
 
 test('an old undo that shortened the file imports nothing and deletes nothing', () => {
@@ -76,14 +76,14 @@ test('an old undo that shortened the file imports nothing and deletes nothing', 
   importLegacy(db, repo, config, jsonPath);
   writeLegacy([legacyA]);
   expect(importLegacy(db, repo, config, jsonPath)).toEqual({ imported: 0, alreadyPresent: 1 });
-  expect(repo.list()).toHaveLength(2);
+  expect(repo.find()).toHaveLength(2);
   expect(mapRows()).toHaveLength(2);
 });
 
 test('duplicate legacy entries both migrate with occurrences 0 and 1', () => {
   writeLegacy([legacyB, legacyB]);
   expect(importLegacy(db, repo, config, jsonPath).imported).toBe(2);
-  expect(repo.list()).toHaveLength(2);
+  expect(repo.find()).toHaveLength(2);
   expect(mapRows().map((r) => r.occurrence)).toEqual([0, 1]);
   expect(importLegacy(db, repo, config, jsonPath)).toEqual({ imported: 0, alreadyPresent: 2 });
 });
@@ -114,7 +114,7 @@ describe('malformed items import with defaults', () => {
   test('blank message', () => {
     writeLegacy([{ timestamp: '2026-01-01T00:00:00.000Z', message: '   ', project: 'p', tags: [] }]);
     importLegacy(db, repo, config, jsonPath);
-    expect(repo.list()[0]).toMatchObject({ summary: '(no message)', details: null });
+    expect(repo.find()[0]).toMatchObject({ summary: '(no message)', details: null });
   });
   test('missing or non-string project becomes uncategorized', () => {
     writeLegacy([
@@ -122,7 +122,7 @@ describe('malformed items import with defaults', () => {
       { timestamp: '2026-01-02T00:00:00.000Z', message: 'b', project: 5, tags: [] },
     ]);
     importLegacy(db, repo, config, jsonPath);
-    expect(repo.list().map((e) => e.project)).toEqual(['uncategorized', 'uncategorized']);
+    expect(repo.find().map((e) => e.project)).toEqual(['uncategorized', 'uncategorized']);
   });
   test('non-array tags become empty and non-string tags are kept as strings', () => {
     writeLegacy([
@@ -131,13 +131,13 @@ describe('malformed items import with defaults', () => {
       { timestamp: '2026-01-03T00:00:00.000Z', message: 'c', project: 'p' },
     ]);
     importLegacy(db, repo, config, jsonPath);
-    expect(repo.list().map((e) => e.tags)).toEqual([[], ['ok', '3', 'true'], []]);
+    expect(repo.find().map((e) => e.tags)).toEqual([[], ['ok', '3', 'true'], []]);
   });
   test('invalid timestamp uses import time, warns once, and keeps the written key', () => {
     writeLegacy([{ timestamp: 'not a date', message: 'a', project: 'p', tags: [] }]);
     const before = Date.now();
     importLegacy(db, repo, config, jsonPath);
-    const [e] = repo.list();
+    const [e] = repo.find();
     expect(Date.parse(e.createdAt)).toBeGreaterThanOrEqual(before);
     expect(errText()).toContain('gournal: legacy entry 0 has an invalid timestamp; using import time\n');
     expect(mapRows()[0].timestamp).toBe('not a date');
@@ -146,13 +146,13 @@ describe('malformed items import with defaults', () => {
   test('a non-string message keeps its value in details', () => {
     writeLegacy([{ timestamp: '2026-01-01T00:00:00.000Z', message: { a: [1, 2] }, project: 'p', tags: [] }]);
     importLegacy(db, repo, config, jsonPath);
-    expect(repo.list()[0]).toMatchObject({ summary: '(no message)', details: '{"a":[1,2]}' });
+    expect(repo.find()[0]).toMatchObject({ summary: '(no message)', details: '{"a":[1,2]}' });
   });
   test('a pre-1970 timestamp imports with the import time', () => {
     writeLegacy([{ timestamp: '0026-07-28T14:35:23.997Z', message: 'old', project: 'p', tags: [] }]);
     const before = Date.now();
     expect(importLegacy(db, repo, config, jsonPath).imported).toBe(1);
-    expect(Date.parse(repo.list()[0].createdAt)).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(repo.find()[0].createdAt)).toBeGreaterThanOrEqual(before);
     expect(errText()).toContain('legacy entry 0 has an invalid timestamp');
     expect(mapRows()[0].timestamp).toBe('0026-07-28T14:35:23.997Z');
   });
@@ -160,19 +160,19 @@ describe('malformed items import with defaults', () => {
     writeLegacy([{ timestamp: '+012000-01-01T00:00:00.000Z', message: 'far', project: 'p', tags: [] }]);
     const before = Date.now();
     expect(importLegacy(db, repo, config, jsonPath).imported).toBe(1);
-    expect(Date.parse(repo.list()[0].createdAt)).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(repo.find()[0].createdAt)).toBeGreaterThanOrEqual(before);
   });
   test('a missing timestamp and a non-object item still import', () => {
     writeLegacy([{ message: 'no ts', project: 'p', tags: [] }, null, 'str']);
     expect(importLegacy(db, repo, config, jsonPath).imported).toBe(3);
-    expect(repo.list()).toHaveLength(3);
+    expect(repo.find()).toHaveLength(3);
     expect(importLegacy(db, repo, config, jsonPath)).toEqual({ imported: 0, alreadyPresent: 3 });
   });
   test('an over-long message with no sentence break still imports with a valid summary', () => {
     const message = 'x'.repeat(500);
     writeLegacy([{ timestamp: '2026-01-01T00:00:00.000Z', message, project: 'p', tags: [] }]);
     importLegacy(db, repo, config, jsonPath);
-    const [e] = repo.list();
+    const [e] = repo.find();
     expect(Array.from(e.summary).length).toBeLessThanOrEqual(120);
     expect(e.details).toBe(message);
   });
@@ -201,7 +201,7 @@ test('a failure mid-import leaves zero entries and zero legacy_map rows', () => 
     return repo.add(input);
   } };
   expect(() => importLegacy(db, failing, config, jsonPath)).toThrow('boom');
-  expect(repo.list({ includeDeleted: true })).toHaveLength(0);
+  expect(repo.find({ includeDeleted: true })).toHaveLength(0);
   expect(mapRows()).toHaveLength(0);
   expect(importLegacy(db, repo, config, jsonPath).imported).toBe(5);
 });
@@ -217,7 +217,14 @@ test('migration applies projectAliases and tagAliases', () => {
   config.tagAliases['perf'] = 'performance';
   writeLegacy([{ timestamp: '2026-01-01T00:00:00.000Z', message: 'a', project: 'old-proj', tags: ['Perf'] }]);
   importLegacy(db, repo, config, jsonPath);
-  expect(repo.list()[0]).toMatchObject({ project: 'new-proj', tags: ['performance'] });
+  expect(repo.find()[0]).toMatchObject({ project: 'new-proj', tags: ['performance'] });
+});
+
+test('migration applies projectAliases case-insensitively', () => {
+  config.projectAliases['old-proj'] = 'New Proj';
+  writeLegacy([{ timestamp: '2026-01-01T00:00:00.000Z', message: 'a', project: 'OLD-PROJ', tags: [] }]);
+  importLegacy(db, repo, config, jsonPath);
+  expect(repo.find()[0].project).toBe('New Proj');
 });
 
 test('an old clear that rewrote entries.json to [] imports nothing and deletes nothing', () => {
@@ -225,7 +232,7 @@ test('an old clear that rewrote entries.json to [] imports nothing and deletes n
   importLegacy(db, repo, config, jsonPath);
   writeLegacy([]);
   expect(importLegacy(db, repo, config, jsonPath)).toEqual({ imported: 0, alreadyPresent: 0 });
-  expect(repo.list()).toHaveLength(2);
+  expect(repo.find()).toHaveLength(2);
   expect(mapRows()).toHaveLength(2);
 });
 

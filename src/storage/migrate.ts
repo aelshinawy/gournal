@@ -1,10 +1,10 @@
 import crypto from 'crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import { checkSummary, extractRefs, mergeRefs, normalizeTags, splitSummary } from '../core';
+import { checkSummary, extractRefs, mergeRefs, normalizeTags, resolveProjectAlias, splitSummary } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref } from '../core';
-import type { EntryRepository } from '../core/repository';
+import type { EntryRepository } from '../core';
 import { snapshotDb } from './backup';
-import type { Config } from './config';
+import type { Config } from '../core';
 import { CorruptJournalError, readLegacyEntriesSync } from './legacy-json';
 import type { LegacyEntry } from './legacy-json';
 
@@ -241,11 +241,11 @@ export function applyPlan(
       { legacy_index: number; timestamp: string; entry_id: string }[])
       .map((r) => [r.entry_id, r] as const)
   );
-  const aliasProject = (p: string) => (Object.hasOwn(config.projectAliases, p) ? config.projectAliases[p] : p);
+  const aliasProject = (p: string) => resolveProjectAlias(p, config.projectAliases);
 
   const planAll = (): { change: PlanChange; patch: EntryPatch }[] => {
     const planned: { change: PlanChange; patch: EntryPatch }[] = [];
-    for (const row of repo.list({ includeDeleted: true })) {
+    for (const row of repo.find({ includeDeleted: true })) {
       const r = byEntry.get(row.id);
       if (!r && row.source !== 'migration') continue;
       const wantTags = r?.item.tags ?? row.tags;
