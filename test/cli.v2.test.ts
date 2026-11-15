@@ -249,7 +249,7 @@ describe('gournal CLI reads on Query and renderers', () => {
     d.setHours(hour, 0, 0, 0);
     return d.toISOString();
   };
-  const seed = (items: { summary: string; kind?: 'done' | 'blocker' | 'next'; createdAt: string; details?: string }[]) => {
+  const seed = (items: { summary: string; kind?: 'done' | 'blocker' | 'next'; createdAt: string; details?: string; project?: string; tags?: string[] }[]) => {
     const j = openJournal(home);
     try {
       return items.map((i) => j.repo.add({ project: 'p', source: 'cli', ...i }));
@@ -278,8 +278,31 @@ describe('gournal CLI reads on Query and renderers', () => {
     fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ staleAfterDays: 1 }));
     seed([{ summary: 'Old blocker', kind: 'blocker', createdAt: daysAgo(2) }]);
     const r = plain((await run('standup')).stdout);
-    expect(r).toContain('Stale: 1 open item older than 1 days');
+    expect(r).toContain('Stale: 1 open item older than 1 day');
     expect(r).not.toContain('Blockers');
+  });
+
+  test('an open blocker older than --from still shows (carry-forward)', async () => {
+    seed([{ summary: 'Old blocker', kind: 'blocker', createdAt: daysAgo(5) }]);
+    const day = new Date();
+    day.setDate(day.getDate() - 2);
+    const from = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+    const r = plain((await run('standup', '--from', from)).stdout);
+    expect(r).toContain('Blockers');
+    expect(r).toContain('Old blocker');
+  });
+
+  test('the open query honours --project and --tags', async () => {
+    seed([
+      { summary: 'Alpha blocker', kind: 'blocker', createdAt: daysAgo(2), project: 'alpha', tags: ['red'] },
+      { summary: 'Beta blocker', kind: 'blocker', createdAt: daysAgo(2), project: 'beta', tags: ['blue'] },
+    ]);
+    const byProject = plain((await run('standup', '-p', 'alpha')).stdout);
+    expect(byProject).toContain('Alpha blocker');
+    expect(byProject).not.toContain('Beta blocker');
+    const byTag = plain((await run('standup', '-t', 'blue')).stdout);
+    expect(byTag).toContain('Beta blocker');
+    expect(byTag).not.toContain('Alpha blocker');
   });
 
   test('weekStartsOn 0 changes the weekly title', async () => {

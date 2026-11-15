@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { format, parseISO } from 'date-fns';
 import { isEmptyStandup, shortId } from '../core';
+import { plural } from './format';
 import type { Entry, StandupModel, StatsModel, WorkLogModel } from '../core';
 
 const NO_ENTRIES = (): string => chalk.yellow('\nNo entries found\n');
@@ -24,7 +25,7 @@ export function standupText(m: StandupModel): string {
   if (m.next.length > 0) sections.push(`  ${chalk.yellow.bold('Next')}\n${m.next.map(openItemLine).join('\n')}`);
   if (m.stale.count > 0) {
     const n = m.stale.count;
-    sections.push(chalk.gray(`  Stale: ${n} open item${n === 1 ? '' : 's'} older than ${m.stale.days} days (ids: ${m.stale.ids.join(', ')})`));
+    sections.push(chalk.gray(`  Stale: ${n} open ${plural(n, 'item', 'items')} older than ${m.stale.days} ${plural(m.stale.days, 'day', 'days')} (ids: ${m.stale.ids.join(', ')})`));
   }
   return `${chalk.bold(`\nStandup: ${m.title}\n\n`)}${sections.join('\n\n')}\n`;
 }
@@ -39,7 +40,7 @@ export function workLogText(m: WorkLogModel): string {
       `${chalk.blue(`[${e.project}]`)} ${e.tags.map((t) => chalk.magenta(`#${t}`)).join(' ')}`,
     ).join('\n'),
   ).join('\n\n');
-  const footer = `\n\n  ${m.count} entr${m.count === 1 ? 'y' : 'ies'} across ${m.projectCount} project${m.projectCount === 1 ? '' : 's'}.`;
+  const footer = `\n\n  ${m.count} ${plural(m.count, 'entry', 'entries')} across ${m.projectCount} ${plural(m.projectCount, 'project', 'projects')}.`;
   return `${header}${body}${chalk.gray(footer)}\n`;
 }
 
@@ -47,7 +48,7 @@ export function statsText(m: StatsModel): string {
   if (m.total === 0) return NO_ENTRIES();
   const header = chalk.bold('\nStats\n\n');
   const total = `  ${chalk.blue('Total entries:')} ${m.total}\n`;
-  const streak = `  ${chalk.blue('Current streak:')} ${m.streak} day${m.streak === 1 ? '' : 's'}\n\n`;
+  const streak = `  ${chalk.blue('Current streak:')} ${m.streak} ${plural(m.streak, 'day', 'days')}\n\n`;
   const projects = `  ${chalk.bold('By project')}\n` + m.byProject.map(([p, c]) => `    ${p}: ${c}`).join('\n') + '\n\n';
   const tags = m.byTag.length
     ? `  ${chalk.bold('By tag')}\n` + m.byTag.map(([t, c]) => `    #${t}: ${c}`).join('\n') + '\n'

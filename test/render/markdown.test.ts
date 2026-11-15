@@ -24,6 +24,11 @@ describe('markdown renderers', () => {
     ].join('\n'));
   });
 
+  test('stale line uses the singular day word for 1 day', () => {
+    const one = buildStandup({ period, done: [], open: [stale], now, staleAfterDays: 1 });
+    expect(standupMarkdown(one)).toContain('Stale: 1 open item older than 1 day: `IJKL9012`');
+  });
+
   test('standup markdown skips empty sections and handles empty', () => {
     const onlyDone = buildStandup({ period, done: [done], open: [], now, staleAfterDays: 14 });
     expect(standupMarkdown(onlyDone)).toBe(

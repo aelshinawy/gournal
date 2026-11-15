@@ -1,5 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { groupBy, isEmptyStandup, shortId } from '../core';
+import { plural } from './format';
 import type { Entry, StandupModel, WorkLogModel } from '../core';
 
 const NONE = 'No entries found.\n';
@@ -21,7 +22,7 @@ export function standupMarkdown(m: StandupModel): string {
   if (m.next.length > 0) lines.push('### Next', ...m.next.map(open), '');
   if (m.stale.count > 0) {
     const n = m.stale.count;
-    lines.push(`Stale: ${n} open item${n === 1 ? '' : 's'} older than ${m.stale.days} days: ${m.stale.ids.map((id) => `\`${id}\``).join(', ')}`, '');
+    lines.push(`Stale: ${n} open ${plural(n, 'item', 'items')} older than ${m.stale.days} ${plural(m.stale.days, 'day', 'days')}: ${m.stale.ids.map((id) => `\`${id}\``).join(', ')}`, '');
   }
   return lines.join('\n');
 }
@@ -36,7 +37,7 @@ export function workLogMarkdown(m: WorkLogModel): string {
     }
     lines.push('');
   }
-  lines.push(`${m.count} entr${m.count === 1 ? 'y' : 'ies'} across ${m.projectCount} project${m.projectCount === 1 ? '' : 's'}.`, '');
+  lines.push(`${m.count} ${plural(m.count, 'entry', 'entries')} across ${m.projectCount} ${plural(m.projectCount, 'project', 'projects')}.`, '');
   return lines.join('\n');
 }
 

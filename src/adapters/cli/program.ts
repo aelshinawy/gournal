@@ -191,7 +191,8 @@ export function buildProgram(io: CliIo): Command {
     .option('--repo <owner/name>', 'Filter by repository')
     .option('-t, --tags <tags>', 'Comma-separated tags')
     .action(async (options: PeriodCliOptions) => {
-      const base = buildQuery(options);
+      // buildQuery validates --from and --to. The period (resolvePeriod) owns the bounds, so drop them from the base query.
+      const base: Query = { ...buildQuery(options), from: undefined, to: undefined };
       await withJournal(({ repo, config }) => {
         const now = new Date();
         const period = resolvePeriod(options, now, config.weekStartsOn);
@@ -213,7 +214,8 @@ export function buildProgram(io: CliIo): Command {
     .option('--repo <owner/name>', 'Filter by repository')
     .option('-t, --tags <tags>', 'Comma-separated tags')
     .action(async (options: PeriodCliOptions) => {
-      const base = buildQuery(options);
+      // buildQuery validates --from and --to. The period (resolvePeriod) owns the bounds, so drop them from the base query.
+      const base: Query = { ...buildQuery(options), from: undefined, to: undefined };
       await withJournal(({ repo, config }) => {
         const period = resolvePeriod(options, new Date(), config.weekStartsOn);
         const entries = repo.find({ ...base, from: period.start.toISOString(), to: period.end.toISOString() });

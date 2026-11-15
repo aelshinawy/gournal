@@ -42,6 +42,12 @@ describe('terminal renderers', () => {
     expect(standupText(standup([]))).toBe(chalk.yellow('\nNo entries found\n'));
   });
 
+  test('stale line uses the singular day word for 1 day', () => {
+    const open = [makeEntry({ createdAt: subDays(now, 30), summary: 'Old thing', kind: 'next', status: 'open' })];
+    const plain = stripAnsi(standupText(buildStandup({ period: resolvePeriod({}, now, 1), done: [], open, now, staleAfterDays: 1 })));
+    expect(plain).toContain('Stale: 1 open item older than 1 day (ids:');
+  });
+
   test('standup adds Done, Blockers, Next, and Stale', () => {
     const open = [
       makeEntry({ createdAt: at(13, 9), summary: 'Stuck on CI', kind: 'blocker', status: 'open' }),
