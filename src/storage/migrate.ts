@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { checkSummary, extractRefs, mergeRefs, normalizeTags, splitSummary } from '../core';
-import type { Entry, EntryPatch, Kind, NewEntryInput } from '../core';
+import type { Entry, EntryPatch, Kind, NewEntryInput, Ref } from '../core';
 import type { EntryRepository } from '../core/repository';
 import type { Config } from './config';
 import { CorruptJournalError, readLegacyEntriesSync } from './legacy-json';
@@ -142,7 +142,7 @@ export interface MigrationPlan {
   items: PlanItem[];
 }
 
-type PlanView = Pick<Entry, 'summary' | 'details' | 'project' | 'tags'>;
+type PlanView = Pick<Entry, 'summary' | 'details' | 'kind' | 'project' | 'tags' | 'refs'>;
 
 export interface PlanChange {
   entryId: string;
@@ -154,7 +154,7 @@ export interface PlanChange {
 }
 
 const KINDS: readonly string[] = ['done', 'blocker', 'next'];
-const view = (e: Entry): PlanView => ({ summary: e.summary, details: e.details, project: e.project, tags: e.tags });
+const view = (e: Entry): PlanView => ({ summary: e.summary, details: e.details, kind: e.kind, project: e.project, tags: e.tags, refs: e.refs });
 const sameList = (a: unknown[], b: unknown[]): boolean => a.length === b.length && a.every((x, i) => x === b[i]);
 
 interface Resolved { item: PlanItem; entryId: string; message: string; summary: string }
@@ -171,10 +171,11 @@ function validatePlan(db: DatabaseSync, jsonPath: string, plan: MigrationPlan): 
   );
   const seen = new Set<number>();
   const out: Resolved[] = [];
-  for (const item of plan.items) {
+  for (const [position, item] of plan.items.entries()) {
+    if (typeof item !== 'object' || item === null) throw new Error(`Plan item ${position} is not an object`);
     const i = (item as PlanItem | null)?.index as number;
     const mismatch = () => new Error(`Plan item ${i} does not match entries.json; nothing was written`);
-    if (typeof item !== 'object' || item === null || !Number.isInteger(i) || i < 0 || i >= legacy.length) throw mismatch();
+    if (!Number.isInteger(i) || i < 0 || i >= legacy.length) throw mismatch();
     const src = legacy[i];
     if (item.timestamp !== src.timestamp || item.messageHash !== sha256(src.message)) throw mismatch();
     const row = find.get(i, item.messageHash, src.timestamp) as { entry_id: string } | undefined;
@@ -226,34 +227,49 @@ export function applyPlan(
   );
   const aliasProject = (p: string) => (Object.hasOwn(config.projectAliases, p) ? config.projectAliases[p] : p);
 
-  const planned: { change: PlanChange; patch: EntryPatch }[] = [];
-  for (const row of repo.list({ includeDeleted: true })) {
-    const r = byEntry.get(row.id);
-    if (!r && row.source !== 'migration') continue;
-    const wantTags = r?.item.tags ?? row.tags;
-    const norm = normalizeTags(wantTags, config.tagAliases, { ticketPrefixes: config.ticketPrefixes });
-    const wantProject = aliasProject(r?.item.project ?? row.project);
-    const newRefs = mergeRefs(row.refs, norm.refs);
-    const after: PlanView = {
-      summary: r ? r.summary : row.summary,
-      details: r && r.item.details !== undefined ? r.item.details : row.details,
-      project: wantProject,
-      tags: norm.tags,
-    };
-    const before = view(row);
-    const patch: EntryPatch = {};
-    if (after.summary !== before.summary) patch.summary = after.summary;
-    if (after.details !== before.details) patch.details = after.details;
-    if (after.project !== before.project) patch.project = after.project;
-    if (!sameList(after.tags, before.tags) || newRefs.length !== row.refs.length) patch.tags = wantTags;
-    if (r?.item.kind !== undefined && r.item.kind !== row.kind) patch.kind = r.item.kind;
-    if (Object.keys(patch).length === 0) continue;
-    const o = origin.get(row.id);
-    planned.push({ change: { entryId: row.id, index: o?.legacy_index ?? -1, timestamp: o?.timestamp ?? row.createdAt, before, after }, patch });
-  }
+  const planAll = (): { change: PlanChange; patch: EntryPatch }[] => {
+    const planned: { change: PlanChange; patch: EntryPatch }[] = [];
+    for (const row of repo.list({ includeDeleted: true })) {
+      const r = byEntry.get(row.id);
+      if (!r && row.source !== 'migration') continue;
+      const wantTags = r?.item.tags ?? row.tags;
+      const norm = normalizeTags(wantTags, config.tagAliases, { ticketPrefixes: config.ticketPrefixes });
+      const wantProject = r?.item.project ?? row.project;
+      const newRefs = mergeRefs(row.refs, norm.refs);
+      const tagsPatched = !sameList(norm.tags, row.tags) || newRefs.length !== row.refs.length;
+      const after: PlanView = {
+        summary: r ? r.summary : row.summary,
+        details: r && r.item.details !== undefined ? r.item.details : row.details,
+        kind: r?.item.kind ?? row.kind,
+        // The repository aliases the project once. The patch carries the raw value.
+        project: aliasProject(wantProject),
+        tags: norm.tags,
+        refs: tagsPatched ? newRefs : row.refs,
+      };
+      const before = view(row);
+      const patch: EntryPatch = {};
+      if (after.summary !== before.summary) patch.summary = after.summary;
+      if (after.details !== before.details) patch.details = after.details;
+      if (after.project !== before.project) patch.project = wantProject;
+      if (tagsPatched) patch.tags = wantTags;
+      if (after.kind !== before.kind) patch.kind = after.kind;
+      if (Object.keys(patch).length === 0) continue;
+      const o = origin.get(row.id);
+      planned.push({ change: { entryId: row.id, index: o?.legacy_index ?? -1, timestamp: o?.timestamp ?? row.createdAt, before, after }, patch });
+    }
+    return planned;
+  };
 
-  if (!opts.dryRun && planned.length > 0) {
-    repo.transaction(() => { for (const p of planned) repo.update(p.change.entryId, p.patch); });
+  let planned: { change: PlanChange; patch: EntryPatch }[];
+  if (opts.dryRun) {
+    planned = planAll();
+  } else {
+    // Plan from rows read inside the write lock, so a concurrent write is never overwritten with stale values.
+    planned = repo.transaction(() => {
+      const list = planAll();
+      for (const p of list) repo.update(p.change.entryId, p.patch);
+      return list;
+    });
   }
   return { changes: planned.map((p) => p.change) };
 }
@@ -266,8 +282,11 @@ export function renderPlanDiff(changes: PlanChange[]): string {
     '```',
     `summary: ${v.summary}`,
     `details: ${v.details === null ? '(none)' : v.details}`,
+    `kind: ${v.kind}`,
     `project: ${v.project}`,
     `tags: ${v.tags.join(', ')}`,
+    'refs:',
+    ...v.refs.map((r: Ref) => `  ${r.type}:${r.value}${r.repo ? ` (${r.repo})` : ''}`),
     '```',
   ].join('\n');
   return changes.map((c) => `### ${c.index} ${c.timestamp}\n\n${block('before', c.before)}\n\n${block('after', c.after)}\n`).join('\n');

@@ -198,11 +198,10 @@ program
   .option('--dry-run', 'Compute the changes and write nothing')
   .option('--diff <file>', 'Write the dry-run diff (markdown) to this file')
   .action((options: { plan?: string; dryRun?: boolean; diff?: string }) => {
-    if (options.dryRun && !options.diff) {
-      console.error('--dry-run needs --diff <file>');
-      process.exitCode = 1;
-      return;
-    }
+    const fail = (msg: string) => { console.error(msg); process.exitCode = 1; };
+    if (options.diff && !options.dryRun) return fail('--diff only applies with --dry-run');
+    if (options.dryRun && !options.plan) return fail('--dry-run needs --plan <file>');
+    if (options.dryRun && !options.diff) return fail('--dry-run needs --diff <file>');
     const jsonPath = path.join(gournalHome(), 'entries.json');
     const journal = openJournal();
     try {
@@ -211,13 +210,23 @@ program
         console.log(`Imported ${r.imported} entries (${r.alreadyPresent} already present).`);
         return;
       }
-      const plan = JSON.parse(fs.readFileSync(options.plan, 'utf8')) as MigrationPlan;
+      let plan: MigrationPlan;
+      try {
+        plan = JSON.parse(fs.readFileSync(options.plan, 'utf8')) as MigrationPlan;
+      } catch (err) {
+        if (err instanceof SyntaxError) return fail(`Plan file ${options.plan} is not valid JSON: ${err.message}`);
+        throw err;
+      }
       const { changes } = applyPlan(journal.db, journal.repo, journal.config, jsonPath, plan, { dryRun: !!options.dryRun });
       if (options.dryRun) {
         const target = options.diff as string;
         const tmp = path.join(path.dirname(path.resolve(target)), `.${path.basename(target)}.${process.pid}.tmp`);
-        fs.writeFileSync(tmp, renderPlanDiff(changes));
-        fs.renameSync(tmp, target);
+        try {
+          fs.writeFileSync(tmp, renderPlanDiff(changes));
+          fs.renameSync(tmp, target);
+        } finally {
+          fs.rmSync(tmp, { force: true });
+        }
         console.log(`Dry run: ${changes.length} entries would change. Diff written to ${target}.`);
       } else {
         console.log(`Updated ${changes.length} entries.`);

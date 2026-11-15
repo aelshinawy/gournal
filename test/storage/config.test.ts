@@ -65,3 +65,11 @@ test.each([
   expect(fs.readFileSync(file, 'utf8')).toBe(content);
   expect(fs.readdirSync(dir)).toEqual(['config.json']);
 });
+
+test.each(['projectAliases', 'tagAliases'])('%s with an alias chain is rejected', (key) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cfg-chain-'));
+  try {
+    fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ deviceId: 'D', [key]: { a: 'b', b: 'c' } }));
+    expect(() => loadConfig(home)).toThrow('alias chain at "a"');
+  } finally { fs.rmSync(home, { recursive: true, force: true }); }
+});

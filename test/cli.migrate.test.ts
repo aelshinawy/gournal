@@ -56,6 +56,29 @@ describe('gournal migrate', () => {
     expect(r.stderr).toContain('--dry-run needs --diff <file>');
   });
 
+  test('flag combinations are checked', () => {
+    const diff = run('migrate', '--diff', path.join(home, 'd.md'));
+    expect(diff.status).toBe(1);
+    expect(diff.stderr).toContain('--diff only applies with --dry-run');
+    const noPlan = run('migrate', '--dry-run', '--diff', path.join(home, 'd.md'));
+    expect(noPlan.status).toBe(1);
+    expect(noPlan.stderr).toContain('--dry-run needs --plan <file>');
+  });
+
+  test('a plan file that is not JSON fails cleanly', () => {
+    const p = path.join(home, 'bad.json');
+    fs.writeFileSync(p, '{nope');
+    const r = run('migrate', '--plan', p);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain(`Plan file ${p} is not valid JSON:`);
+  });
+
+  test('a failed diff write leaves no temp file', () => {
+    const r = run('migrate', '--plan', writePlan('x'), '--dry-run', '--diff', path.join(home, 'nodir', 'd.md'));
+    expect(r.status).toBe(1);
+    expect(fs.readdirSync(home).filter((n) => n.endsWith('.tmp'))).toEqual([]);
+  });
+
   test('a real run updates the summary', () => {
     const r = run('migrate', '--plan', writePlan('Reviewed summary'));
     expect(r.status).toBe(0);

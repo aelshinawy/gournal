@@ -141,3 +141,52 @@ test('renderPlanDiff shows before and after', () => {
   expect(md).toMatch(/before/);
   expect(md).toMatch(/after/);
 });
+
+test('a kind change appears in the diff', () => {
+  const { changes } = apply(plan(item(A, 0, { kind: 'blocker' })), true);
+  expect(changes[0].before.kind).toBe('done');
+  expect(changes[0].after.kind).toBe('blocker');
+  expect(renderPlanDiff(changes)).toContain('kind: blocker');
+});
+
+test('a ticket-prefix change shows the jira ref in after.refs', () => {
+  remake({ ...config, ticketPrefixes: ['SBDC'] });
+  const { changes } = apply(plan(), true);
+  expect(changes[0].before.refs).not.toContainEqual({ type: 'jira', value: 'SBDC-1749' });
+  expect(changes[0].after.refs).toContainEqual({ type: 'jira', value: 'SBDC-1749' });
+  expect(renderPlanDiff(changes)).toContain('jira:SBDC-1749');
+});
+
+test('after view equals the stored entry for every change on a real run', () => {
+  remake({ ...config, projectAliases: { a: 'b' }, ticketPrefixes: ['SBDC'] });
+  const { changes } = apply(plan(item(A, 0, { kind: 'next', tags: ['Alpha', 'sbdc-5'] })));
+  expect(changes).toHaveLength(2);
+  for (const c of changes) {
+    const e = repo.get(c.entryId)!;
+    expect({ summary: e.summary, details: e.details, kind: e.kind, project: e.project, tags: e.tags, refs: e.refs }).toEqual(c.after);
+  }
+});
+
+test('a duplicate plan index is rejected', () => {
+  expect(() => apply(plan(item(A, 0), item(A, 0)))).toThrow('Plan item 0 appears more than once');
+});
+
+test('a non-object plan item is rejected by position', () => {
+  expect(() => apply(plan(item(A, 0), 'x' as any))).toThrow('Plan item 1 is not an object');
+});
+
+test('a failing update rolls everything back', () => {
+  const orig = repo.update.bind(repo);
+  let calls = 0;
+  repo.update = (id, patch) => { if (++calls === 2) throw new Error('boom'); return orig(id, patch); };
+  const before = repo.list();
+  expect(() => apply(plan(item(A, 0), item(B, 1)))).toThrow('boom');
+  expect(repo.list()).toEqual(before);
+});
+
+test('an unchanged multi-tag entry is untouched', () => {
+  const e = repo.add({ summary: 's', source: 'migration', project: 'a', tags: ['x', 'y', 'z'] });
+  const { changes } = apply(plan());
+  expect(changes).toEqual([]);
+  expect(repo.get(e.id)!.updatedAt).toBe(e.updatedAt);
+});

@@ -43,6 +43,10 @@ function normalize(file: string, raw: Record<string, unknown>): { config: Config
   }
   for (const key of ['projectAliases', 'tagAliases'] as const) {
     if (raw[key] !== undefined && !isStringMap(raw[key])) throw invalid(file, `${key} must be an object of strings`);
+    const map = (raw[key] ?? {}) as Record<string, string>;
+    for (const [k, v] of Object.entries(map)) {
+      if (v !== k && Object.hasOwn(map, v)) throw invalid(file, `alias chain at "${k}"`);
+    }
   }
   const tp = raw.ticketPrefixes;
   if (tp !== undefined && !(Array.isArray(tp) && tp.every((x) => typeof x === 'string'))) {
