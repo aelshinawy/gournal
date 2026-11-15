@@ -65,4 +65,34 @@ describeBuilt('built homepage', () => {
     expect(video.indexOf('standup.webm')).toBeLessThan(video.indexOf('standup.mp4'));
     expect(html).toContain('Standup: Today');
   });
+  test('the head has the title, canonical link, social tags, and sitemap link', () => {
+    expect(html).toContain('<title>gournal: a command-line work journal</title>');
+    expect(html).toContain('<link rel="canonical" href="https://aelshinawy.github.io/gournal/"');
+    for (const prop of ['og:title', 'og:description', 'og:type', 'og:url', 'og:site_name']) {
+      expect(html).toMatch(new RegExp(`<meta property="${prop}" content="[^"]+"`));
+    }
+    expect(html).toMatch(/<meta name="twitter:card" content="[^"]+"/);
+    expect(html).toMatch(/<link rel="sitemap" href="\/gournal\/sitemap-index\.xml"/);
+    const desc = /<meta name="description" content="([^"]*)"/.exec(html)?.[1] ?? '';
+    expect(desc.length).toBeGreaterThan(0);
+    expect(desc.length).toBeLessThanOrEqual(160);
+    expect(html).toContain(`<meta property="og:description" content="${desc}"`);
+  });
+
+  test('the demo video has an accessible label', () => {
+    const video = /<video[^>]*>/.exec(html)?.[0] ?? '';
+    expect(video).toMatch(/\saria-label="[^"]+"/);
+  });
+
+  test('the page preloads a latin Newsreader font that the built CSS references', () => {
+    const tag = /<link[^>]*rel="preload"[^>]*>/.exec(html)?.[0] ?? '';
+    expect(tag).toMatch(/as="font"/);
+    expect(tag).toMatch(/type="font\/woff2"/);
+    expect(tag).toMatch(/\scrossorigin/);
+    const href = /href="([^"]+)"/.exec(tag)?.[1] ?? '';
+    expect(href).toMatch(/^\/gournal\/_astro\/newsreader-latin-wght-normal\..+\.woff2$/);
+    const astroDir = path.join(root, 'site/dist/_astro');
+    const css = fs.readdirSync(astroDir).filter((f) => f.endsWith('.css')).map((f) => fs.readFileSync(path.join(astroDir, f), 'utf8')).join('\n');
+    expect(css).toContain(href);
+  });
 });
