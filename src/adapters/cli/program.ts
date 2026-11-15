@@ -207,7 +207,7 @@ export function buildProgram(io: CliIo): Command {
     .option('-p, --project <project>', 'Show only entries of this project.')
     .option('--repo <owner/name>', 'Show only entries of this repository.')
     .option('-t, --tags <tags>', 'Show only entries with all of these tags. Separate tags with commas.')
-    .option('--activity', 'List every GitHub activity item that has no entry. Without this option, the report shows only counts.')
+    .option('--activity', 'List every GitHub activity item that is not linked to a done entry in this report. Without this option, the report shows only counts.')
     .action(async (options: PeriodCliOptions & { activity?: boolean }) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
       await withJournal(async (journal) => {

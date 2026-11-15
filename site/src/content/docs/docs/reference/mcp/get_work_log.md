@@ -54,7 +54,7 @@ Get a work log, grouped by day. It covers today unless you choose a period.
 | `days.entries.refs.repo` | `string` | no | Repository (owner/name) of the reference. |
 | `count` | `number` | yes | Number of entries in the period. |
 | `projectCount` | `number` | yes | Number of projects that have entries in the period. |
-| `linkedActivity` | `object` | yes | GitHub activity that gournal linked to an entry. The key is the entry id. |
+| `linkedActivity` | `object` | yes | GitHub activity that gournal linked to an entry in this report. The key is the entry id. |
 | `linkedActivity.<key>` | `object[]` | yes | Activity items linked to this entry. |
 | `linkedActivity.<key>.id` | `string` | yes | Unique id of the activity item. |
 | `linkedActivity.<key>.createdAt` | `string` | yes | When gournal stored the item, as an ISO timestamp. |

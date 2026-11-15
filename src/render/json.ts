@@ -46,7 +46,7 @@ export const ActivitySchema = z.object({
 });
 export type ActivityJson = z.infer<typeof ActivitySchema>;
 
-const LinkedActivitySchema = z.record(z.string(), z.array(ActivitySchema).describe('Activity items linked to this entry.')).describe('GitHub activity that gournal linked to an entry. The key is the entry id.');
+const LinkedActivitySchema = z.record(z.string(), z.array(ActivitySchema).describe('Activity items linked to this entry.')).describe('GitHub activity that gournal linked to an entry in this report. The key is the entry id.');
 
 export const StandupSchema = z.object({
   title: z.string().describe('Title of the period, for example Today (2026-11-15).'),
@@ -66,7 +66,7 @@ export const StandupSchema = z.object({
   }).describe('Open blockers and next items that are older than the stale limit.'),
   linkedActivity: LinkedActivitySchema,
   also: z.object({
-    activity: z.array(ActivitySchema).describe('GitHub activity of the period that no entry links to.'),
+    activity: z.array(ActivitySchema).describe('GitHub activity of the period that is not linked to a done entry in this report.'),
     counts: z.object({
       commits: z.number().describe('Number of commits.'),
       prsOpened: z.number().describe('Number of PRs opened.'),
@@ -74,7 +74,7 @@ export const StandupSchema = z.object({
       reviews: z.number().describe('Number of reviewed PRs.'),
       repos: z.number().describe('Number of repositories.'),
     }).describe('Counts of the unlinked activity.'),
-  }).nullable().describe('GitHub activity of the period that no entry covers, or null when there is none.'),
+  }).nullable().describe('GitHub activity of the period that is not linked to a done entry in this report, or null when there is none.'),
 });
 export type StandupJson = z.infer<typeof StandupSchema>;
 

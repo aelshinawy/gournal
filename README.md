@@ -207,7 +207,7 @@ Gournal links GitHub activity to your entries. Links are derived data. Gournal r
 Repo names are not case sensitive. Gournal shows linked activity under its entry in `standup` and `log`. A PR gets one line with its most advanced event (merged, opened, or reviewed). Commits get one line with a count.
 
 #### Also happened
-Activity that no entry links to shows in the standup as one line:
+Activity that is not linked to a done entry in the report shows in the standup as one line:
 
 ```
   Also: 2 PRs opened, 5 reviews in 3 repos (--activity to expand)

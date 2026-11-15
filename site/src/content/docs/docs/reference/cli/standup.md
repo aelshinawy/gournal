@@ -22,7 +22,7 @@ Show a standup report for today, or for the period that you choose. The report l
 | `-p, --project <project>` | Show only entries of this project. |  |
 | `--repo <owner/name>` | Show only entries of this repository. |  |
 | `-t, --tags <tags>` | Show only entries with all of these tags. Separate tags with commas. |  |
-| `--activity` | List every GitHub activity item that has no entry. Without this option, the report shows only counts. |  |
+| `--activity` | List every GitHub activity item that is not linked to a done entry in this report. Without this option, the report shows only counts. |  |
 
 ## Examples
 
