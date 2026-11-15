@@ -213,3 +213,10 @@ test('add dedupes resolves', () => {
   expect(() => repo.add({ summary: 'fix', ...base, resolves: [b.id, b.id] })).not.toThrow();
   expect(repo.get(b.id)?.status).toBe('resolved');
 });
+
+test('add and update reject an empty summary', () => {
+  expect(() => repo.add({ summary: '   ', ...base })).toThrow('summary is empty');
+  const e = repo.add({ summary: 'ok', ...base });
+  expect(() => repo.update(e.id, { summary: '' })).toThrow('summary is empty');
+  expect(repo.get(e.id)!.summary).toBe('ok');
+});

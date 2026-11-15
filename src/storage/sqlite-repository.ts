@@ -18,6 +18,7 @@ const MIN_SUFFIX = 6;
 let backupWarned = false;
 
 function checkSummary(summary: string): void {
+  if (summary.trim().length === 0) throw new Error('summary is empty');
   if (summaryLength(summary) > MAX_SUMMARY) throw new Error(`summary is over ${MAX_SUMMARY} characters`);
 }
 

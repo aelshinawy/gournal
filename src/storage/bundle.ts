@@ -16,14 +16,20 @@ export interface Bundle {
 export interface ImportResult { inserted: number; updated: number; skipped: number }
 
 export function exportBundle(db: DatabaseSync, config: Config): Bundle {
-  const rows = db.prepare('SELECT * FROM entries ORDER BY created_at, id').all() as unknown as Row[];
-  return {
-    format: 'gournal-bundle',
-    schemaVersion: 1,
-    exportedAt: new Date().toISOString(),
-    deviceId: config.deviceId,
-    entries: hydrateRows(db, rows),
-  };
+  // One read transaction gives a consistent snapshot of entries, tags, and refs.
+  db.exec('BEGIN');
+  try {
+    const rows = db.prepare('SELECT * FROM entries ORDER BY created_at, id').all() as unknown as Row[];
+    return {
+      format: 'gournal-bundle',
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      deviceId: config.deviceId,
+      entries: hydrateRows(db, rows),
+    };
+  } finally {
+    try { db.exec('COMMIT'); } catch { /* ignore */ }
+  }
 }
 
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
@@ -33,7 +39,12 @@ const SOURCES = ['cli', 'mcp', 'migration'];
 const REF_TYPES = ['pr', 'jira', 'commit', 'url'];
 
 const isStr = (v: unknown): v is string => typeof v === 'string';
-const isIso = (v: unknown): v is string => isStr(v) && !Number.isNaN(Date.parse(v));
+// Strict: only canonical UTC ISO strings (as toISOString writes them) are valid.
+const isIso = (v: unknown): v is string => {
+  if (!isStr(v)) return false;
+  const t = Date.parse(v);
+  return !Number.isNaN(t) && new Date(t).toISOString() === v;
+};
 const isNullOr = (v: unknown, ok: (x: unknown) => boolean): boolean => v === null || ok(v);
 
 /** Return the name of the first invalid field, or null when the entry is valid. */
@@ -56,7 +67,7 @@ function invalidField(e: unknown): string | null {
   if (!isNullOr(o.branch, isStr)) return 'branch';
   if (!isStr(o.source) || !SOURCES.includes(o.source)) return 'source';
   if (!isNullOr(o.agent, isStr)) return 'agent';
-  if (!Array.isArray(o.tags) || !o.tags.every(isStr)) return 'tags';
+  if (!Array.isArray(o.tags) || !o.tags.every(isStr) || new Set(o.tags).size !== o.tags.length) return 'tags';
   if (!Array.isArray(o.refs) || !o.refs.every((r) => {
     if (typeof r !== 'object' || r === null) return false;
     const x = r as Record<string, unknown>;

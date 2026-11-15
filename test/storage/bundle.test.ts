@@ -81,19 +81,45 @@ test('a failed import writes nothing', () => {
   expect(ftsHits(db, 'existing')).toEqual([before[0].id]);
 });
 
-test('a database error mid-import rolls everything back', () => {
+test('a database error mid-import rolls back earlier inserts', () => {
   repo.add({ summary: 'existing', ...base });
   const before = repo.list({ includeDeleted: true });
+  db.exec("CREATE TRIGGER boom BEFORE INSERT ON entries WHEN new.summary = 'boom' BEGIN SELECT RAISE(ABORT, 'boom'); END");
   const src = open('c.db');
   try {
     src.r.add({ summary: 'fresh', ...base });
     const good = exportBundle(src.d, config).entries[0];
-    // Same id twice in a row is fine; a duplicate tag violates the primary key on entry_tags.
-    const dup = { ...good, id: '01ARZ3NDEKTSV4RRFFQ69G5FAV', tags: ['t', 't'] };
-    expect(() => importBundle(db, { format: 'gournal-bundle', schemaVersion: 1, entries: [good, dup] })).toThrow();
+    const boom = { ...good, id: '01ARZ3NDEKTSV4RRFFQ69G5FAV', summary: 'boom' };
+    expect(() => importBundle(db, { format: 'gournal-bundle', schemaVersion: 1, entries: [good, boom] })).toThrow('boom');
   } finally { src.d.close(); }
   expect(repo.list({ includeDeleted: true })).toEqual(before);
   expect(ftsHits(db, 'fresh')).toEqual([]);
+  expect(db.prepare('SELECT COUNT(*) AS n FROM entry_tags').get()).toEqual({ n: 0 });
+});
+
+const goodEntry = () => ({ id: '01ARZ3NDEKTSV4RRFFQ69G5FAV', createdAt: '2020-01-01T00:00:00.000Z', updatedAt: '2020-01-01T00:00:00.000Z',
+  deletedAt: null, deviceId: 'd', summary: 's', details: null, kind: 'done', status: null, resolvedAt: null,
+  resolvedByEntryId: null, project: 'p', repo: null, branch: null, source: 'cli', agent: null, tags: [], refs: [] });
+const wrap = (entries: unknown[]) => ({ format: 'gournal-bundle', schemaVersion: 1, entries });
+
+test('summary limit counts code points: 120 emoji pass, 121 fail', () => {
+  expect(importBundle(db, wrap([{ ...goodEntry(), summary: '\u{1F600}'.repeat(120) }])).inserted).toBe(1);
+  expect(() => importBundle(db, wrap([{ ...goodEntry(), id: '01ARZ3NDEKTSV4RRFFQ69G5FAW', summary: '\u{1F600}'.repeat(121) }])))
+    .toThrow('Bundle entry 0 is invalid: summary');
+});
+
+test('the same id twice in one bundle skips the second copy', () => {
+  const e = goodEntry();
+  expect(importBundle(db, wrap([e, { ...e, summary: 'second' }]))).toEqual({ inserted: 1, updated: 0, skipped: 1 });
+  expect(repo.get(e.id)!.summary).toBe('s');
+});
+
+test('a newer entry for a locally soft-deleted id clears deleted_at', () => {
+  const e = repo.add({ summary: 'gone', ...base });
+  repo.softDelete(e.id);
+  const live = { ...exportBundle(db, config).entries[0], deletedAt: null, updatedAt: new Date(Date.now() + 60000).toISOString() };
+  expect(importBundle(db, wrap([live])).updated).toBe(1);
+  expect(repo.get(e.id)!.deletedAt).toBeNull();
 });
 
 test('an imported entry is searchable through entries_fts', () => {
@@ -122,7 +148,9 @@ test('preserves device id, timestamps and values exactly', () => {
 
 test.each([
   ['id', { id: 'short' }], ['id', { id: '01ARZ3NDEKTSV4RRFFQ69G5FAU' }], ['createdAt', { createdAt: 'nope' }],
-  ['updatedAt', { updatedAt: 5 }], ['deletedAt', { deletedAt: 'x' }], ['resolvedAt', { resolvedAt: 'x' }],
+  ['updatedAt', { updatedAt: 5 }], ['createdAt', { createdAt: '1' }], ['createdAt', { createdAt: 'Jan 5 2020' }],
+  ['createdAt', { createdAt: '2020-01-01T00:00:00' }], ['deletedAt', { deletedAt: '2020-01-01T00:00:00' }],
+  ['resolvedAt', { resolvedAt: 'Jan 5 2020' }], ['tags', { tags: ['a', 'a'] }], ['deletedAt', { deletedAt: 'x' }], ['resolvedAt', { resolvedAt: 'x' }],
   ['kind', { kind: 'oops' }], ['status', { status: 'weird' }], ['source', { source: 'web' }],
   ['summary', { summary: '' }], ['summary', { summary: 'x'.repeat(121) }], ['tags', { tags: 'a' }], ['tags', { tags: [1] }],
   ['refs', { refs: [{ type: 'bad', value: 'v' }] }], ['refs', { refs: [{ type: 'pr', value: 1 }] }],
