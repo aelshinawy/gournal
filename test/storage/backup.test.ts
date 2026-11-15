@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
+import { ftsTest } from '../fts5';
 import { backupDbIfNeeded } from '../../src/storage/backup';
 
 let dir: string; let file: string; let db: DatabaseSync;
@@ -43,7 +44,7 @@ test('backup is a readable database with the same entry count', () => {
   expect(copy.prepare('SELECT count(*) c FROM entries').get()).toEqual({ c: 1 });
   copy.close();
 });
-test('backup copy returns correct FTS results (rowids survive)', () => {
+ftsTest('backup copy returns correct FTS results (rowids survive)', () => {
   const dest = backupDbIfNeeded(db, file, new Date(2026, 10, 15))!;
   const copy = openDb(dest);
   const hits = copy.prepare('SELECT e.id FROM entries_fts f JOIN entries e ON e.rowid = f.rowid WHERE entries_fts MATCH ?').all('zebra');

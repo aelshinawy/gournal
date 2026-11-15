@@ -2,9 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
 import { BACKUP_PATTERN } from './backup';
-import { migrateSchema } from './schema';
+import { ensureSearchIndex, migrateSchema } from './schema';
 
-export { migrateSchema, SCHEMA_VERSION } from './schema';
+export { ensureSearchIndex, migrateSchema, SCHEMA_VERSION } from './schema';
 
 export class CorruptDatabaseError extends Error {
   readonly path: string;
@@ -45,6 +45,7 @@ export function openDb(dbPath: string): DatabaseSync {
     db.prepare('PRAGMA journal_mode = WAL').get();
     db.exec('PRAGMA foreign_keys = ON');
     migrateSchema(db);
+    ensureSearchIndex(db);
   } catch (err) {
     try { db.close(); } catch { /* ignore */ }
     if (isCorruption(err)) throw new CorruptDatabaseError(dbPath, latestBackup(dbPath));

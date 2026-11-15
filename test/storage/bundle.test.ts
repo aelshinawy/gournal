@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
+import { hasFts5, ftsTest } from '../fts5';
 import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
 import { exportBundle, importBundle } from '../../src/storage/bundle';
@@ -24,6 +25,8 @@ afterEach(() => { db.close(); fs.rmSync(home, { recursive: true, force: true });
 const base = { project: 'p', source: 'cli' as const };
 const ftsHits = (d: DatabaseSync, q: string) =>
   (d.prepare('SELECT e.id FROM entries_fts f JOIN entries e ON e.rowid = f.rowid WHERE entries_fts MATCH ? ORDER BY e.id').all(q) as { id: string }[]).map((r) => r.id);
+// With no FTS5 there is no index to read. The FTS assertions are skipped and the rest of the test still runs.
+const expectFts = (d: DatabaseSync, q: string, ids: string[]) => { if (hasFts5) expect(ftsHits(d, q)).toEqual(ids); };
 
 test('round-trips all entries including deleted', () => {
   repo.add({ summary: 'one', tags: ['x'], refs: [{ type: 'pr', value: '12', repo: 'o/r' }], ...base });
@@ -45,8 +48,8 @@ test('later updatedAt wins on import and replaces tags and refs', () => {
   const next = { ...bundle.entries[0], summary: 'new', tags: ['b', 'Not-Normalized'], refs: [], updatedAt: new Date(Date.parse(e.updatedAt) + 1000).toISOString() };
   expect(importBundle(db, { ...bundle, entries: [next] })).toEqual({ inserted: 0, updated: 1, skipped: 0, deduplicated: 0 });
   expect(repo.get(e.id)).toEqual(next);
-  expect(ftsHits(db, 'new')).toEqual([e.id]);
-  expect(ftsHits(db, 'old')).toEqual([]);
+  expectFts(db, 'new', [e.id]);
+  expectFts(db, 'old', []);
 });
 
 test('older and equal updatedAt are skipped', () => {
@@ -77,8 +80,8 @@ test('a failed import writes nothing', () => {
       .toThrow('Bundle entry 1 is invalid: kind');
   } finally { src.d.close(); }
   expect(repo.list({ includeDeleted: true })).toEqual(before);
-  expect(ftsHits(db, 'fresh')).toEqual([]);
-  expect(ftsHits(db, 'existing')).toEqual([before[0].id]);
+  expectFts(db, 'fresh', []);
+  expectFts(db, 'existing', [before[0].id]);
 });
 
 test('a database error mid-import rolls back earlier inserts', () => {
@@ -93,7 +96,7 @@ test('a database error mid-import rolls back earlier inserts', () => {
     expect(() => importBundle(db, { format: 'gournal-bundle', schemaVersion: 1, entries: [good, boom] })).toThrow('boom');
   } finally { src.d.close(); }
   expect(repo.list({ includeDeleted: true })).toEqual(before);
-  expect(ftsHits(db, 'fresh')).toEqual([]);
+  expectFts(db, 'fresh', []);
   expect(db.prepare('SELECT COUNT(*) AS n FROM entry_tags').get()).toEqual({ n: 0 });
 });
 
@@ -122,7 +125,7 @@ test('a newer entry for a locally soft-deleted id clears deleted_at', () => {
   expect(repo.get(e.id)!.deletedAt).toBeNull();
 });
 
-test('an imported entry is searchable through entries_fts', () => {
+ftsTest('an imported entry is searchable through entries_fts', () => {
   const src = open('c.db');
   let entry;
   try {
@@ -130,8 +133,8 @@ test('an imported entry is searchable through entries_fts', () => {
   } finally { src.d.close(); }
   const bundle = { format: 'gournal-bundle', schemaVersion: 1, exportedAt: new Date().toISOString(), deviceId: 'd', entries: [entry] };
   importBundle(db, bundle);
-  expect(ftsHits(db, 'zebracorn')).toEqual([entry.id]);
-  expect(ftsHits(db, 'quokka')).toEqual([entry.id]);
+  expectFts(db, 'zebracorn', [entry.id]);
+  expectFts(db, 'quokka', [entry.id]);
 });
 
 test('preserves device id, timestamps and values exactly', () => {
