@@ -17,6 +17,17 @@ Drop and recreate the full-text search index. It takes today's backup first, if 
 gournal index rebuild
 ```
 
+## Examples
+
+### CLI
+
+Rebuild the search index. The command prints the number of entries that it indexed.
+
+```console
+$ gournal index rebuild
+Search index rebuilt: 6 entries.
+```
+
 ## Related
 
 - [Search entries](/gournal/docs/reference/search/)

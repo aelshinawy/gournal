@@ -37,6 +37,48 @@ List every tag in use, with the number of entries for each tag. Call this before
 | `tags.tag` | `string` | yes | Tag name. |
 | `tags.count` | `number` | yes | Number of entries with this tag. |
 
+## Examples
+
+### CLI
+
+List every tag with its number of entries. The most used tags come first.
+
+```console
+$ gournal tags
+#invoices  2
+#ui  2
+#a11y  1
+#bugfix  1
+#testing  1
+#webhooks  1
+```
+
+### MCP
+
+List the tags of one project before you add an entry. Reuse these names.
+
+```json
+{
+  "project": "billing-api"
+}
+```
+
+The structured result:
+
+```json
+{
+  "tags": [
+    { "tag": "invoices", "count": 2 },
+    { "tag": "bugfix", "count": 1 },
+    { "tag": "docs", "count": 1 },
+    { "tag": "testing", "count": 1 },
+    { "tag": "webhooks", "count": 1 }
+  ]
+}
+```
+
+The text result holds the `tags` list as JSON.
+
 ## Related
 
 - [Projects](/gournal/docs/reference/projects/)

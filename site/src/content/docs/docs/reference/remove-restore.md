@@ -51,6 +51,69 @@ Delete an entry. The entry stays in the database, so you can restore it with the
 
 This tool returns structured output. The shape is the [Entry result](/gournal/docs/reference/output-shapes/#entry-result).
 
+## Examples
+
+### CLI
+
+#### gournal undo
+
+Remove the last entry that you added on this device. The command prints the id that restores it.
+
+```console
+$ gournal add "Draft the release notes for 2.4" -t docs
+✓ Entry added! (1QGS52KG)
+
+$ gournal undo
+✓ Removed: Draft the release notes for 2.4 (restore with gournal restore 1QGS52KG)
+```
+
+#### gournal restore
+
+Bring back an entry that you removed. Pass the short id that `undo` printed.
+
+```console
+$ gournal restore 1QGS52KG
+✓ Restored: Draft the release notes for 2.4
+```
+
+### MCP
+
+Delete an entry. The entry stays in the database. The text result tells you the command that restores it.
+
+```json
+{
+  "id": "1QGS52KG"
+}
+```
+
+The text result:
+
+```text
+Entry 1QGS52KG deleted: Draft the release notes for 2.4
+restore with gournal restore 1QGS52KG
+```
+
+The structured result has the same shape as the `add_entry` result. The `deletedAt` field holds the time of the deletion.
+
+```json
+{
+  "entry": {
+    "id": "01M7G81WDZ12AE5Q5X1QGS52KG",
+    "createdAt": "2026-11-15T18:38:29.311Z",
+    "updatedAt": "2026-11-15T18:39:12.024Z",
+    "deletedAt": "2026-11-15T18:39:12.024Z",
+    "summary": "Draft the release notes for 2.4",
+    "kind": "done",
+    "project": "billing-api",
+    "tags": [
+      "docs"
+    ],
+    "refs": "..."
+  },
+  "notes": []
+}
+```
+
 ## Related
 
 - [Edit an entry](/gournal/docs/reference/edit/)

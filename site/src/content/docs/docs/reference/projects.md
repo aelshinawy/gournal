@@ -35,6 +35,45 @@ This tool takes no input.
 | `projects.project` | `string` | yes | Project name. |
 | `projects.count` | `number` | yes | Number of entries in this project. |
 
+## Examples
+
+### CLI
+
+List every project with its number of entries.
+
+```console
+$ gournal projects
+billing-api  3
+web-app  2
+```
+
+### MCP
+
+List every project with its number of entries. The tool takes no input.
+
+```json
+{}
+```
+
+The structured result:
+
+```json
+{
+  "projects": [
+    {
+      "project": "billing-api",
+      "count": 4
+    },
+    {
+      "project": "web-app",
+      "count": 2
+    }
+  ]
+}
+```
+
+The text result holds the `projects` list as JSON.
+
 ## Related
 
 - [Tags](/gournal/docs/reference/tags/)
