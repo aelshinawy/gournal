@@ -20,8 +20,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('site-pr-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -39,7 +39,9 @@ jobs:
       - run: npm run docs:gen
       - name: Check generated pages are current
         run: |
-          if ! git diff --exit-code; then
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Changed or untracked files:"
+            git status --porcelain
             echo "::error::Generated reference pages are out of date. Run npm run docs:gen and commit the result."
             exit 1
           fi
