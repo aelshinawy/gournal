@@ -1,7 +1,11 @@
 type Json = Record<string, unknown>;
 
-export function isGournalHook(command: string): boolean {
-  return command.includes('gournal') && command.endsWith(' hook stop');
+const HOOK_SUFFIX = ' hook stop';
+
+/** A hook is gournal's when it ends with " hook stop" and either names gournal or is the command setup resolves now. */
+export function isGournalHook(command: string, current?: string): boolean {
+  if (!command.endsWith(HOOK_SUFFIX)) return false;
+  return command.slice(0, -HOOK_SUFFIX.length).includes('gournal') || command === current;
 }
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -14,12 +18,12 @@ function stopGroups(settings: Json): unknown[] {
 }
 
 /** The commands of the gournal hooks in settings, in order. */
-export function gournalHookCommands(settings: Json): string[] {
+export function gournalHookCommands(settings: Json, current?: string): string[] {
   const out: string[] = [];
   for (const group of stopGroups(settings)) {
     if (!isObj(group) || !Array.isArray(group.hooks)) continue;
     for (const h of group.hooks) {
-      if (isObj(h) && typeof h.command === 'string' && isGournalHook(h.command)) out.push(h.command);
+      if (isObj(h) && typeof h.command === 'string' && isGournalHook(h.command, current)) out.push(h.command);
     }
   }
   return out;
@@ -27,7 +31,7 @@ export function gournalHookCommands(settings: Json): string[] {
 
 /** Add the gournal Stop hook. Every other key and hook stays as it is. */
 export function addStopHook(settings: Json, command: string): { next: Json; changed: boolean } {
-  const existing = gournalHookCommands(settings);
+  const existing = gournalHookCommands(settings, command);
   if (existing.length === 1 && existing[0] === command) return { next: settings, changed: false };
   const next = clone(settings);
   if (existing.length > 0) {
@@ -35,7 +39,7 @@ export function addStopHook(settings: Json, command: string): { next: Json; chan
     for (const group of stopGroups(next)) {
       if (!isObj(group) || !Array.isArray(group.hooks)) continue;
       for (const h of group.hooks) {
-        if (isObj(h) && typeof h.command === 'string' && isGournalHook(h.command)) h.command = command;
+        if (isObj(h) && typeof h.command === 'string' && isGournalHook(h.command, command)) h.command = command;
       }
     }
     return { next, changed: true };
@@ -48,8 +52,8 @@ export function addStopHook(settings: Json, command: string): { next: Json; chan
 }
 
 /** Remove every gournal Stop hook. Drop the containers that this leaves empty. */
-export function removeStopHook(settings: Json): { next: Json; changed: boolean } {
-  if (gournalHookCommands(settings).length === 0) return { next: settings, changed: false };
+export function removeStopHook(settings: Json, current?: string): { next: Json; changed: boolean } {
+  if (gournalHookCommands(settings, current).length === 0) return { next: settings, changed: false };
   const next = clone(settings);
   const hooks = next.hooks as Json;
   const kept: unknown[] = [];
@@ -58,7 +62,7 @@ export function removeStopHook(settings: Json): { next: Json; changed: boolean }
       kept.push(group);
       continue;
     }
-    const rest = group.hooks.filter((h) => !(isObj(h) && typeof h.command === 'string' && isGournalHook(h.command)));
+    const rest = group.hooks.filter((h) => !(isObj(h) && typeof h.command === 'string' && isGournalHook(h.command, current)));
     if (rest.length === group.hooks.length) kept.push(group);
     else if (rest.length > 0) kept.push({ ...group, hooks: rest });
   }

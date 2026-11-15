@@ -87,6 +87,7 @@ export async function setupClaude(io: SetupIo, opts: SetupOptions): Promise<numb
   const serverArgs = [...cmd.args, 'mcp'];
   const hookCommand = [cmd.command, ...cmd.args, 'hook', 'stop'].map(shellQuote).join(' ');
   const addArgs = ['mcp', 'add', '--scope', 'user', SERVER, '--', cmd.command, ...serverArgs];
+  const backupFile = `${settingsFile}.gournal-backup`;
   const removeArgs = ['mcp', 'remove', '--scope', 'user', SERVER];
   const manualAdd = `claude ${shown(addArgs[0]!, addArgs.slice(1))}`;
   let status = 0;
@@ -117,17 +118,19 @@ export async function setupClaude(io: SetupIo, opts: SetupOptions): Promise<numb
     return 'failed';
   };
 
-  const registerMcp = async (): Promise<void> => {
+  const registerMcp = async (): Promise<'ok' | 'missing' | 'failed'> => {
     const res = await runClaude(addArgs);
     if (res === 'ok') io.out('MCP server: registered.');
     else if (res === 'missing') {
       io.out('MCP server: the claude CLI was not found. Run this command yourself:');
       io.out(`  ${manualAdd}`);
     } else status = 1;
+    return res;
   };
 
   const writeSettings = (read: Extract<SettingsRead, { kind: 'ok' }>, next: Json): void => {
-    if (read.exists) fs.copyFileSync(settingsFile, `${settingsFile}.gournal-backup`);
+    // Keep the first backup: it holds the file as it was before gournal.
+    if (read.exists && !fs.existsSync(backupFile)) fs.copyFileSync(settingsFile, backupFile);
     writeAtomic(settingsFile, JSON.stringify(next, null, 2) + '\n');
   };
 
@@ -142,13 +145,20 @@ export async function setupClaude(io: SetupIo, opts: SetupOptions): Promise<numb
       io.out('MCP server: already set up.');
     } else {
       io.out(`MCP server: gournal is registered as "${shown(reg.command, reg.args)}". Setup would use "${shown(cmd.command, serverArgs)}".`);
-      if (await io.confirm('Replace the existing gournal MCP registration?', false)) {
-        if ((await runClaude(removeArgs)) === 'ok') await registerMcp();
-        else {
-          io.out('MCP server: the claude CLI could not remove the old registration. Run these yourself:');
+      if (!io.isTTY) {
+        io.out('MCP server: kept the existing registration. Run setup in a terminal to replace it.');
+      } else if (await io.confirm('Replace the existing gournal MCP registration?', false)) {
+        const removed = await runClaude(removeArgs);
+        if (removed === 'ok') {
+          if ((await registerMcp()) === 'failed') {
+            io.out('MCP server: the old registration was removed. To restore it, run:');
+            io.out(`  claude mcp add --scope user ${SERVER} -- ${shown(reg.command, reg.args)}`);
+          }
+        } else if (removed === 'missing') {
+          io.out('MCP server: the claude CLI was not found. Run these yourself:');
           io.out(`  claude ${removeArgs.join(' ')}`);
           io.out(`  ${manualAdd}`);
-        }
+        } else status = 1;
       } else io.out('MCP server: kept the existing registration.');
     }
 
@@ -177,7 +187,7 @@ export async function setupClaude(io: SetupIo, opts: SetupOptions): Promise<numb
         const { next, changed } = addStopHook(read.settings, hookCommand);
         if (!changed) io.out('Stop hook: already set up.');
         else {
-          io.out(`Stop hook: add "${hookCommand}" to ${settingsFile} (backup: settings.json.gournal-backup).`);
+          io.out(`Stop hook: add "${hookCommand}" to ${settingsFile} (backup: ${backupFile}).`);
           if (await ask('Add the gournal Stop hook?', opts.hook)) {
             writeSettings(read, next);
             io.out('Stop hook: added.');
@@ -217,13 +227,13 @@ export async function setupClaude(io: SetupIo, opts: SetupOptions): Promise<numb
     io.err(`Stop hook: ${settingsFile} is not a valid JSON object. Gournal did not change it.`);
     status = 1;
   } else {
-    const { next, changed } = removeStopHook(read.settings);
+    const { next, changed } = removeStopHook(read.settings, hookCommand);
     if (!changed) io.out('Stop hook: not set up.');
     else {
-      io.out(`Stop hook: remove the gournal hook from ${settingsFile} (backup: settings.json.gournal-backup).`);
+      io.out(`Stop hook: remove the gournal hook from ${settingsFile} (backup: ${backupFile}).`);
       if (await ask('Remove the gournal Stop hook?', true)) {
         writeSettings(read, next);
-        io.out('Stop hook: removed.');
+        io.out(`Stop hook: removed. The original file is kept at ${backupFile}.`);
       } else io.out('Stop hook: kept.');
     }
   }

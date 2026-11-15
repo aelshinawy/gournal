@@ -258,3 +258,56 @@ test('the setup claude command is wired into the CLI (non-TTY without --yes exit
   expect(r.stderr).toContain('--yes');
   expect(fs.existsSync(path.join(os.homedir(), '.claude'))).toBe(false);
 });
+
+// Fix round 1
+
+const differentReg = () =>
+  fs.writeFileSync(path.join(home, '.claude.json'),
+    JSON.stringify({ mcpServers: { gournal: { type: 'stdio', command: 'node', args: ['/old/cli.js', 'mcp'] } } }));
+
+test('non-TTY with --yes keeps a different registration without prompting', async () => {
+  differentReg();
+  const io = makeIo({ isTTY: false, answer: true });
+  expect(await run({}, io)).toBe(0);
+  expect(calls).toEqual([]);
+  expect(confirmAnswers).toEqual([]);
+  expect(out).toContain('MCP server: kept the existing registration. Run setup in a terminal to replace it.');
+});
+
+test('a pinned hook command without "gournal" in its path is found again', async () => {
+  const appDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'pinned-app-')));
+  const pinned = path.join(appDir, 'cli.js');
+  fs.writeFileSync(pinned, '');
+  const io = () => makeIo({ env: { argv1: pinned, execPath: '/opt/node/bin/node', path: '' } });
+  await run({ hook: true }, io());
+  await run({ hook: true }, io());
+  expect(readSettings().hooks.Stop).toHaveLength(1);
+  await run({ uninstall: true }, io());
+  expect(readSettings().hooks).toBeUndefined();
+  fs.rmSync(appDir, { recursive: true, force: true });
+});
+
+test('a failed removal of the old registration exits 1', async () => {
+  differentReg();
+  expect(await run({}, makeIo({ answer: true, exec: fakeExec(2) }))).toBe(1);
+  expect(err.join('\n')).toContain('boom');
+});
+
+test('add failing after a good removal prints the old command', async () => {
+  differentReg();
+  const base = fakeExec();
+  const exec: CommandRunner = async (file, args) =>
+    args[1] === 'add' ? (calls.push([file, ...args]), { code: 2, stdout: '', stderr: 'boom' }) : base(file, args);
+  expect(await run({}, makeIo({ answer: true, exec }))).toBe(1);
+  expect(out.join('\n')).toContain('claude mcp add --scope user gournal -- node /old/cli.js mcp');
+});
+
+test('the first settings backup is kept and uninstall names it', async () => {
+  writeSettings({ model: 'pristine' });
+  const pristine = fs.readFileSync(settingsFile(), 'utf8');
+  await run({ hook: true });
+  out.length = 0;
+  await run({ uninstall: true });
+  expect(fs.readFileSync(`${settingsFile()}.gournal-backup`, 'utf8')).toBe(pristine);
+  expect(out.join('\n')).toContain(`${settingsFile()}.gournal-backup`);
+});
