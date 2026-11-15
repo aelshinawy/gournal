@@ -9,7 +9,7 @@ import { generateCsvExport, generateMarkdownExport } from './export';
 import { generateWorkLog } from './log';
 import { VERSION } from './adapters/version';
 import { parseBound } from './core';
-import { checkSummary, closeTags, normalizeTags, type Entry, type EntryPatch } from './core';
+import { checkSummary, closeTags, normalizeTags, shortId, type Entry, type EntryPatch } from './core';
 import type { EntryRepository } from './core/repository';
 import type { Config, RepoIdentity } from './core';
 import { openJournal } from './storage/journal';
@@ -33,7 +33,6 @@ type JournalLike = { repo: EntryRepository; config: Config };
 const textResult = (text: string) => ({ content: [{ type: 'text' as const, text }] });
 const errorResult = (text: string) => ({ isError: true as const, content: [{ type: 'text' as const, text }] });
 type ToolResult = ReturnType<typeof textResult> | ReturnType<typeof errorResult>;
-const shortId = (id: string) => id.slice(-8);
 
 export interface ServerDeps {
   journal?: JournalLike;

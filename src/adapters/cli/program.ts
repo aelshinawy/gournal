@@ -6,7 +6,7 @@ import { generateWorkLog } from '../../log';
 import { generateStats } from '../../stats';
 import { generateCsvExport, generateMarkdownExport } from '../../export';
 import { startMcpServer } from '../../mcp';
-import { checkSummary } from '../../core';
+import { checkSummary, shortId } from '../../core';
 import type { Kind } from '../../core';
 import { toLegacy } from '../../legacy-view';
 import { format } from 'date-fns';
@@ -33,7 +33,6 @@ export interface CliIo {
 }
 
 const KINDS: Kind[] = ['done', 'blocker', 'next'];
-const shortId = (id: string): string => id.slice(-8);
 const splitList = (v?: string): string[] => (v ? v.split(',').map(x => x.trim()).filter(Boolean) : []);
 const stripNewline = (text: string): string => text.replace(/\n$/, '');
 

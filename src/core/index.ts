@@ -8,3 +8,6 @@ export * from './query';
 export * from './periods';
 export * from './group';
 export * from './identity';
+export * from './standup';
+export * from './worklog';
+export * from './stats';
