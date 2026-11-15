@@ -115,7 +115,3 @@ export async function updateEntries(
     opts
   );
 }
-
-export async function writeEntries(entries: Entry[], filePath = ENTRIES_PATH): Promise<void> {
-  await writeEntriesAtomic(entries, filePath);
-}

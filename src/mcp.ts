@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { readEntries, writeEntries } from './storage';
+import { readEntries, updateEntries } from './storage';
 import { getProjectName } from './git';
 import { generateStandupReport } from './report';
 import { generateCsvExport, generateMarkdownExport } from './export';
@@ -38,9 +38,7 @@ export function createServer(): McpServer {
         project: project ?? getProjectName(),
         tags: tags ?? [],
       };
-      const entries = await readEntries();
-      entries.push(entry);
-      await writeEntries(entries);
+      await updateEntries(e => [...e, entry]);
       return textResult(`Entry added to ${entry.project}: ${message}`);
     }
   );

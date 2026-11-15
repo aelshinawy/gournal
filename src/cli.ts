@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { readEntries, writeEntries } from './storage';
+import { readEntries, updateEntries } from './storage';
 import { getProjectName } from './git';
 import { generateStandupReport } from './report';
 import { generateWorkLog } from './log';
@@ -36,9 +36,7 @@ program
       tags: tags.split(',').filter(Boolean),
     };
     
-    const entries = await readEntries();
-    entries.push(entry);
-    await writeEntries(entries);
+    await updateEntries(e => [...e, entry]);
     console.log(chalk.green('✓ Entry added!'));
   });
 
@@ -55,7 +53,7 @@ program
         },
       ]);
       if (!confirm) return;
-      await writeEntries([]);
+      await updateEntries(() => []);
       console.log(chalk.green('✓ Entries cleared!'));
     });
 
@@ -68,8 +66,8 @@ program
         console.log(chalk.yellow('No entries to undo.'));
         return;
       }
-      const removed = entries.pop()!;
-      await writeEntries(entries);
+      const removed = entries[entries.length - 1];
+      await updateEntries(e => e.slice(0, -1));
       console.log(chalk.green(`✓ Removed: ${removed.message}`));
     });
 
@@ -195,4 +193,7 @@ program
     await startMcpServer();
   });
 
-program.parse(process.argv);
+program.parseAsync(process.argv).catch((err: Error) => {
+  console.error(chalk.red(err.message));
+  process.exitCode = 1;
+});

@@ -8,7 +8,7 @@ jest.mock('../src/export');
 jest.mock('../src/git');
 jest.mock('../src/log');
 
-import { readEntries, writeEntries } from '../src/storage';
+import { readEntries, updateEntries } from '../src/storage';
 import { getProjectName } from '../src/git';
 import { generateStandupReport } from '../src/report';
 import { generateCsvExport, generateMarkdownExport } from '../src/export';
@@ -16,7 +16,9 @@ import { generateWorkLog } from '../src/log';
 import { createServer } from '../src/mcp';
 
 const mockedReadEntries = readEntries as jest.MockedFunction<typeof readEntries>;
-const mockedWriteEntries = writeEntries as jest.MockedFunction<typeof writeEntries>;
+const mockedUpdateEntries = updateEntries as jest.MockedFunction<typeof updateEntries>;
+const { CorruptJournalError } = jest.requireActual('../src/storage');
+let written: Entry[] = [];
 const mockedGetProjectName = getProjectName as jest.MockedFunction<typeof getProjectName>;
 const mockedStandup = generateStandupReport as jest.MockedFunction<typeof generateStandupReport>;
 const mockedCsv = generateCsvExport as jest.MockedFunction<typeof generateCsvExport>;
@@ -42,6 +44,8 @@ describe('MCP server tools', () => {
     // fresh shallow copy each call: add_entry mutates the array it reads (same
     // as the real CLI path), a shared reference here would leak between tests
     mockedReadEntries.mockImplementation(() => Promise.resolve([...entries]));
+    written = [];
+    mockedUpdateEntries.mockImplementation(async fn => (written = fn([...entries])));
   });
 
   test('add_entry writes a new entry tagged with the passed project', async () => {
@@ -50,8 +54,7 @@ describe('MCP server tools', () => {
       name: 'add_entry',
       arguments: { message: 'Shipped the thing', project: 'gournal', tags: ['feature'] },
     });
-    expect(mockedWriteEntries).toHaveBeenCalledTimes(1);
-    const written = mockedWriteEntries.mock.calls[0][0];
+    expect(mockedUpdateEntries).toHaveBeenCalledTimes(1);
     expect(written).toHaveLength(entries.length + 1);
     expect(written[written.length - 1]).toMatchObject({
       message: 'Shipped the thing',
@@ -66,8 +69,15 @@ describe('MCP server tools', () => {
     mockedGetProjectName.mockReturnValue('detected-project');
     const client = await connectedClient();
     await client.callTool({ name: 'add_entry', arguments: { message: 'No project passed' } });
-    const written = mockedWriteEntries.mock.calls[0][0];
     expect(written[written.length - 1]).toMatchObject({ project: 'detected-project', tags: [] });
+  });
+
+  test('add_entry reports a corrupt journal as a tool error', async () => {
+    mockedUpdateEntries.mockRejectedValueOnce(new CorruptJournalError('/x/entries.json', null));
+    const client = await connectedClient();
+    const res = await client.callTool({ name: 'add_entry', arguments: { message: 'm', project: 'p' } });
+    expect(res.isError).toBe(true);
+    expect(JSON.stringify(res.content)).toContain('did not change');
   });
 
   test('list_entries calls readEntries and returns all entries', async () => {
