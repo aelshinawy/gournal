@@ -66,9 +66,10 @@ test('softDeleteAll hides every entry and returns the count', () => {
 });
 test('update changes fields and updated_at', () => {
   const e = repo.add({ summary: 's', ...base });
+  db.prepare('UPDATE entries SET updated_at = 1 WHERE id = ?').run(e.id);
   const u = repo.update(e.id, { summary: 't', tags: ['X'] });
   expect(u).toMatchObject({ summary: 't', tags: ['x'] });
-  expect(u.updatedAt >= e.updatedAt).toBe(true);
+  expect(u.updatedAt > new Date(1).toISOString()).toBe(true);
 });
 test('update on an unknown id throws', () => {
   expect(() => repo.update('missing-id', { summary: 'x' })).toThrow('No entry with id "missing-id"');
@@ -125,4 +126,90 @@ test('state round-trips', () => {
   repo.setState('k', 'v1');
   repo.setState('k', 'v2');
   expect(repo.getState('k')).toBe('v2');
+});
+
+const forceAmbiguous = () => {
+  const ins = (id: string) => db.prepare('INSERT INTO entries (id, created_at, updated_at, device_id, summary) VALUES (?, 1, 1, ?, ?)').run(id, 'D', 's');
+  ins('AAAAAAAAAA-SHARED1');
+  ins('BBBBBBBBBB-SHARED1');
+};
+
+test('a backup failure does not block the write and warns once', () => {
+  fs.writeFileSync(path.join(home, 'backups'), 'not a folder');
+  const spy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  try {
+    const e1 = repo.add({ summary: 'one', ...base });
+    repo.add({ summary: 'two', ...base });
+    expect(repo.get(e1.id)).toEqual(e1);
+    const lines = spy.mock.calls.map((c) => String(c[0])).filter((l) => l.startsWith('gournal: daily backup failed: '));
+    expect(lines).toHaveLength(1);
+  } finally { spy.mockRestore(); }
+});
+test('the first add on a fresh home creates one backup file', () => {
+  repo.add({ summary: 'one', ...base });
+  expect(fs.readdirSync(path.join(home, 'backups'))).toHaveLength(1);
+});
+test('update kind change resets status and resolved fields', () => {
+  const e = repo.add({ summary: 's', ...base });
+  const toBlocker = repo.update(e.id, { kind: 'blocker' });
+  expect(toBlocker).toMatchObject({ kind: 'blocker', status: 'open' });
+  const by = repo.add({ summary: 'by', ...base });
+  repo.resolve(e.id, by.id);
+  expect(repo.get(e.id)).toMatchObject({ status: 'resolved', resolvedByEntryId: by.id });
+  expect(repo.update(e.id, { kind: 'done' })).toMatchObject({ kind: 'done', status: null, resolvedAt: null, resolvedByEntryId: null });
+  expect(repo.update(e.id, { kind: 'next' })).toMatchObject({ kind: 'next', status: 'open' });
+});
+test('resolve(id, byEntryId) stores the resolver', () => {
+  const a = repo.add({ summary: 'a', kind: 'next', ...base });
+  const b = repo.add({ summary: 'b', ...base });
+  const r = repo.resolve(a.id, b.id);
+  expect(r).toMatchObject({ status: 'resolved', resolvedByEntryId: b.id });
+  expect(r.resolvedAt).not.toBeNull();
+});
+test('list tags use AND semantics', () => {
+  repo.add({ summary: 'xy', ...base, tags: ['x', 'y'] });
+  repo.add({ summary: 'x', ...base, tags: ['x'] });
+  expect(repo.list({ tags: ['x', 'y'] }).map((e) => e.summary)).toEqual(['xy']);
+});
+test('list tags apply tag aliases like add', () => {
+  config.tagAliases['fix'] = 'bug';
+  repo.add({ summary: 'f', ...base, tags: ['fix'] });
+  expect(repo.list({ tags: ['fix'] })).toHaveLength(1);
+  expect(repo.list({ tags: ['bug'] })).toHaveLength(1);
+});
+test('list ignores a limit that is not a positive integer', () => {
+  repo.add({ summary: 'a', ...base });
+  repo.add({ summary: 'b', ...base });
+  for (const limit of [0, -1, 1.5, NaN]) expect(repo.list({ limit })).toHaveLength(2);
+});
+test('update with tags only keeps refs, with refs only keeps tags', () => {
+  const e = repo.add({ summary: 's', ...base, tags: ['a'], refs: [{ type: 'url', value: 'https://x.test' }] });
+  expect(repo.update(e.id, { tags: ['b'] })).toMatchObject({ tags: ['b'], refs: [{ type: 'url', value: 'https://x.test' }] });
+  expect(repo.update(e.id, { refs: [{ type: 'pr', value: '5' }] })).toMatchObject({ tags: ['b'], refs: [{ type: 'pr', value: '5' }] });
+});
+test('update never drops refs that came from old tags', () => {
+  const e = repo.add({ summary: 's', ...base, tags: ['sbdc-1'] });
+  expect(e.refs).toEqual([{ type: 'jira', value: 'SBDC-1' }]);
+  expect(repo.update(e.id, { tags: ['bug'] })).toMatchObject({ tags: ['bug'], refs: [{ type: 'jira', value: 'SBDC-1' }] });
+});
+test('softDelete, restore, and resolve throw on an unknown id', () => {
+  for (const fn of [repo.softDelete, repo.restore, repo.resolve]) {
+    expect(() => fn('missing-id')).toThrow('No entry with id "missing-id"');
+  }
+});
+test('resolve and update surface AmbiguousIdError', () => {
+  forceAmbiguous();
+  expect(() => repo.resolve('SHARED1')).toThrow(AmbiguousIdError);
+  expect(() => repo.update('SHARED1', { summary: 'x' })).toThrow(AmbiguousIdError);
+});
+test('add and update reject a summary over 120 characters', () => {
+  const long = 'x'.repeat(121);
+  expect(() => repo.add({ summary: long, ...base })).toThrow('summary is over 120 characters');
+  const e = repo.add({ summary: 'x'.repeat(120), ...base });
+  expect(() => repo.update(e.id, { summary: long })).toThrow('summary is over 120 characters');
+});
+test('add dedupes resolves', () => {
+  const b = repo.add({ summary: 'blk', kind: 'blocker', ...base });
+  expect(() => repo.add({ summary: 'fix', ...base, resolves: [b.id, b.id] })).not.toThrow();
+  expect(repo.get(b.id)?.status).toBe('resolved');
 });

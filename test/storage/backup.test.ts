@@ -15,10 +15,16 @@ beforeEach(() => {
 });
 afterEach(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
 
-test('an empty journal makes no backup', () => {
-  db.exec('DELETE FROM entries');
-  expect(backupDbIfNeeded(db, file, new Date(2026, 10, 15))).toBeNull();
-  expect(fs.existsSync(path.join(dir, 'backups'))).toBe(false);
+test('removes stale temp files but keeps fresh ones', () => {
+  const bdir = path.join(dir, 'backups');
+  fs.mkdirSync(bdir);
+  const stale = path.join(bdir, 'old.tmp'); const fresh = path.join(bdir, 'new.tmp');
+  fs.writeFileSync(stale, 'x'); fs.writeFileSync(fresh, 'x');
+  const old = new Date(Date.now() - 2 * 3600 * 1000);
+  fs.utimesSync(stale, old, old);
+  backupDbIfNeeded(db, file, new Date(2026, 10, 15));
+  expect(fs.existsSync(stale)).toBe(false);
+  expect(fs.existsSync(fresh)).toBe(true);
 });
 test('backs up once per local day', () => {
   expect(backupDbIfNeeded(db, file, new Date(2026, 10, 15, 9))).toBe(path.join(dir, 'backups', 'gournal-2026-11-15.db'));

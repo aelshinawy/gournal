@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { mergeRefs, newId, normalizeTags } from '../core';
+import { mergeRefs, newId, normalizeTags, summaryLength, MAX_SUMMARY } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref } from '../core';
 import type { EntryRepository, ListQuery } from '../core/repository';
 import { backupDbIfNeeded } from './backup';
@@ -13,6 +13,11 @@ export class AmbiguousIdError extends Error {
 }
 
 const MIN_SUFFIX = 6;
+let backupWarned = false;
+
+function checkSummary(summary: string): void {
+  if (summaryLength(summary) > MAX_SUMMARY) throw new Error(`summary is over ${MAX_SUMMARY} characters`);
+}
 const CHUNK = 500;
 
 interface Row {
@@ -31,7 +36,15 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
   const aliasProject = (p: string): string => (Object.hasOwn(config.projectAliases, p) ? config.projectAliases[p] : p);
 
   function write<T>(fn: () => T): T {
-    backupDbIfNeeded(db, dbPath);
+    try {
+      backupDbIfNeeded(db, dbPath);
+    } catch (err) {
+      // A failed backup never blocks logging. Warn once per process.
+      if (!backupWarned) {
+        backupWarned = true;
+        process.stderr.write(`gournal: daily backup failed: ${(err as Error).message}\n`);
+      }
+    }
     db.exec('BEGIN IMMEDIATE');
     try {
       const result = fn();
@@ -131,6 +144,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
 
   return {
     add(input) {
+      checkSummary(input.summary);
       return write(() => {
         const now = Date.now();
         const createdAt = input.createdAt !== undefined ? parseTime(input.createdAt, 'createdAt') : now;
@@ -145,7 +159,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
             input.branch ?? null, input.source, input.agent ?? null);
         replaceTags(id, tags);
         replaceRefs(id, refs);
-        for (const target of input.resolves ?? []) resolveInTx(target, id, now);
+        for (const target of new Set(input.resolves ?? [])) resolveInTx(target, id, now);
         return load(id);
       });
     },
@@ -156,6 +170,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
     },
 
     update(inputId, patch: EntryPatch) {
+      if (patch.summary !== undefined) checkSummary(patch.summary);
       return write(() => {
         const id = requireId(inputId);
         const now = Date.now();
@@ -179,6 +194,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
         if (patch.tags !== undefined || patch.refs !== undefined) {
           const norm = patch.tags !== undefined ? normalize(patch.tags) : { tags: cur.tags, refs: [] as Ref[] };
           if (patch.tags !== undefined) replaceTags(id, norm.tags);
+          // Refs are additive: a tag edit never drops a reference.
           replaceRefs(id, mergeRefs(patch.refs ?? cur.refs, norm.refs));
         }
         return load(id);
@@ -228,13 +244,16 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
       if (!q.includeDeleted) where.push('deleted_at IS NULL');
       if (q.project !== undefined) { where.push('project = ?'); vals.push(aliasProject(q.project)); }
       for (const tag of q.tags ?? []) {
+        // Same normalization as add. A ticket-shaped tag is stored as a ref, so no tag can match it.
+        const [norm] = normalize([tag]).tags;
+        if (norm === undefined) { where.push('0'); continue; }
         where.push('EXISTS (SELECT 1 FROM entry_tags t WHERE t.entry_id = entries.id AND t.tag = ?)');
-        vals.push(tag.trim().toLowerCase());
+        vals.push(norm);
       }
       if (q.from !== undefined) { where.push('created_at >= ?'); vals.push(parseTime(q.from, 'from')); }
       if (q.to !== undefined) { where.push('created_at <= ?'); vals.push(parseTime(q.to, 'to')); }
       let sql = `SELECT * FROM entries${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY created_at, id`;
-      if (q.limit !== undefined) { sql += ' LIMIT ?'; vals.push(q.limit); }
+      if (q.limit !== undefined && Number.isInteger(q.limit) && q.limit > 0) { sql += ' LIMIT ?'; vals.push(q.limit); }
       return hydrate(db.prepare(sql).all(...vals) as unknown as Row[]);
     },
 

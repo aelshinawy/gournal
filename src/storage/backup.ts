@@ -14,13 +14,11 @@ function localDay(d: Date): string {
 /**
  * Copy the database to backups/gournal-YYYY-MM-DD.db once per local day.
  * It must run outside a transaction (VACUUM INTO cannot run inside one).
- * It skips an empty journal, so an empty copy never blocks the real backup of the day.
  */
 export function backupDbIfNeeded(db: DatabaseSync, dbPath: string, now: Date = new Date()): string | null {
   const dir = path.join(path.dirname(dbPath), 'backups');
   const dest = path.join(dir, `gournal-${localDay(now)}.db`);
   if (fs.existsSync(dest)) return null;
-  if (!db.prepare('SELECT 1 AS x FROM entries LIMIT 1').get()) return null;
   fs.mkdirSync(dir, { recursive: true });
   // Copy to a temp name, then rename, so a crash never leaves a partial backup.
   const tmp = `${dest}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
@@ -34,6 +32,12 @@ export function backupDbIfNeeded(db: DatabaseSync, dbPath: string, now: Date = n
   const names = fs.readdirSync(dir).filter((n) => BACKUP_PATTERN.test(n)).sort();
   for (const old of names.slice(0, Math.max(0, names.length - BACKUP_KEEP))) {
     fs.rmSync(path.join(dir, old), { force: true });
+  }
+  // Remove temp files that a crashed process left behind.
+  const cutoff = Date.now() - 60 * 60 * 1000;
+  for (const n of fs.readdirSync(dir).filter((x) => x.endsWith('.tmp'))) {
+    const f = path.join(dir, n);
+    try { if (fs.statSync(f).mtimeMs < cutoff) fs.rmSync(f, { force: true }); } catch { /* ignore */ }
   }
   return dest;
 }
