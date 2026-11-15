@@ -9,7 +9,7 @@ Delete an entry. The entry stays in the database. The text result tells you the 
 The text result:
 
 ```text
-Entry 1QGS52KG deleted: Draft the release notes for 2.4
+Entry 1QGS52KG removed: Draft the release notes for 2.4
 restore with gournal restore 1QGS52KG
 ```
 

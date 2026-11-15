@@ -249,7 +249,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     },
     guarded(({ id }: { id: string }, { repo }) => {
       const entry = repo.softDelete(id);
-      return entryResult(`Entry ${shortId(entry.id)} deleted: ${entry.summary}\nrestore with gournal restore ${shortId(entry.id)}`, entry);
+      return entryResult(`Entry ${shortId(entry.id)} removed: ${entry.summary}\nrestore with gournal restore ${shortId(entry.id)}`, entry);
     })
   );
 
