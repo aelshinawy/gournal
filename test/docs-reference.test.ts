@@ -1,11 +1,18 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { Command } from 'commander';
 import { CONFIG_KEY_DOCS, ENV_VAR_DOCS } from '../src/core';
 import {
-  generateReference, orphanExamples, ownedFilesOnDisk, writeReference, REFERENCE_DIR,
+  generateReference, inertProgram, orphanExamples, ownedFilesOnDisk, referenceSidebar, writeReference, REFERENCE_DIR,
 } from '../site/scripts/reference/generate';
-import { table } from '../site/scripts/reference/markdown';
+import { cliSection, leafCommands, leafNames } from '../site/scripts/reference/cli';
+import { CAPABILITIES, GROUPS, checkCoverage } from '../site/scripts/reference/capabilities';
+import { capabilityPage } from '../site/scripts/reference/capability-page';
+import { firstSentence, table } from '../site/scripts/reference/markdown';
+import { createDocsServer, listTools, schemaRows } from '../site/scripts/reference/mcp';
 
 const siteRoot = path.resolve(__dirname, '../site');
 const examplesDir = path.join(siteRoot, 'src/content/examples');
@@ -141,10 +148,6 @@ test('generated pages contain no em dash and no package version', async () => {
   }
 });
 
-// ---- MCP tool reference ----
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { createDocsServer, schemaRows } from '../site/scripts/reference/mcp';
 
 describe('MCP defaults', () => {
   test('MCP input tables have a Default column when a field has a default', async () => {
@@ -255,11 +258,6 @@ test('every MCP field row has a description', async () => {
   expect(empty).toEqual([]);
 });
 
-import { Command } from 'commander';
-import { inertProgram } from '../site/scripts/reference/generate';
-import { leafNames, cliSection } from '../site/scripts/reference/cli';
-import { listTools } from '../site/scripts/reference/mcp';
-import { CAPABILITIES, GROUPS, checkCoverage } from '../site/scripts/reference/capabilities';
 
 describe('capability registry', () => {
   test('every CLI leaf and MCP tool maps to exactly one capability', async () => {
@@ -276,6 +274,14 @@ describe('capability registry', () => {
     expect(text).toContain('brand-new');
     expect(text).toContain('new_tool');
     expect(text).toContain('site/scripts/reference/capabilities.ts');
+  });
+
+  test('checkCoverage reports a registry name that is not a real command or tool', () => {
+    const add = CAPABILITIES.find((c) => c.slug === 'add')!;
+    const registry = [{ ...add, cli: [...add.cli, 'ghost'], mcp: [...add.mcp, 'ghost_tool'] }];
+    const text = checkCoverage(['add'], ['add_entry'], registry).join('\n');
+    expect(text).toMatch(/CLI command "ghost" in site\/scripts\/reference\/capabilities\.ts does not exist/);
+    expect(text).toMatch(/MCP tool "ghost_tool" in site\/scripts\/reference\/capabilities\.ts does not exist/);
   });
 
   test('checkCoverage names a command mapped twice', () => {
@@ -298,6 +304,7 @@ describe('capability registry', () => {
     const slugs = new Set(CAPABILITIES.map((c) => c.slug));
     for (const c of CAPABILITIES) {
       expect(c.related.length).toBeGreaterThanOrEqual(1);
+      expect(c.related.length).toBeLessThanOrEqual(3);
       for (const r of c.related) {
         if (r.startsWith('guides/')) {
           expect(fs.existsSync(path.join(siteRoot, 'src/content/docs/docs', `${r}.md`))).toBe(true);
@@ -363,10 +370,6 @@ describe('capability pages', () => {
   });
 });
 
-import { capabilityPage } from '../site/scripts/reference/capability-page';
-import { referenceSidebar } from '../site/scripts/reference/generate';
-import { firstSentence } from '../site/scripts/reference/markdown';
-import { leafCommands } from '../site/scripts/reference/cli';
 
 const plain = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
@@ -522,7 +525,7 @@ describe('one heading per surface', () => {
   });
 
   test('every anchor the overview and output shapes link to is a heading id on the target page', async () => {
-    // Same rule as github-slugger for ASCII headings: lowercase, drop punctuation except "_" and "-", spaces become "-".
+    // Same rule as github-slugger for ASCII headings. A repeated id gets a -1, -2 suffix.
     const slug = (h: string): string => h.trim().toLowerCase().replace(/[^a-z0-9_\s-]/g, '').replace(/ /g, '-');
     const pages = await generateReference({ examplesDir });
     const linkRe = /\]\(\/gournal\/docs\/reference\/([a-z-]+)\/#([^)]+)\)/g;
@@ -532,15 +535,34 @@ describe('one heading per surface', () => {
         const target = pages.find((p) => p.path === `${m[1]}.md`);
         if (!target) { broken.push(`${src.path}: no page ${m[1]}`); continue; }
         const ids = new Set<string>();
+        const seen = new Map<string, number>();
         let fenced = false;
         for (const line of target.content.split('\n')) {
           if (/^```/.test(line)) fenced = !fenced;
           const h = !fenced && /^#{1,6}\s+(.*)$/.exec(line);
-          if (h) ids.add(slug(h[1]));
+          if (!h) continue;
+          const base = slug(h[1]);
+          const n = seen.get(base) ?? 0;
+          seen.set(base, n + 1);
+          ids.add(n === 0 ? base : `${base}-${n}`);
         }
         if (!ids.has(m[2])) broken.push(`${src.path}: ${m[1]}#${m[2]}`);
       }
     }
     expect(broken).toEqual([]);
+  });
+
+  test('remove-restore keeps #### sub-headings under its per-command ### headings', async () => {
+    const page = await get('remove-restore.md');
+    const under = (h3: string): string => {
+      const start = page.indexOf(`\n### ${h3}\n`);
+      expect(start).toBeGreaterThan(-1);
+      const rest = page.slice(start + 1);
+      return rest.slice(0, rest.search(/\n#{1,3} /));
+    };
+    expect(under('gournal restore')).toMatch(/\n#### Arguments\n/);
+    const examples = page.slice(page.indexOf('\n### CLI\n'), page.indexOf('\n### MCP\n'));
+    expect(examples).toMatch(/\n#### gournal undo\n/);
+    expect(examples).toMatch(/\n#### gournal restore\n/);
   });
 });

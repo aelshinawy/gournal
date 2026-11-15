@@ -74,6 +74,7 @@ describeBuilt('built homepage', () => {
 
   test('the hero has no ledger margin column', () => {
     const hero = /<section class="g-hero"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+    expect(hero).toContain('g-hero__intro');
     expect(hero).not.toContain('g-ledger');
     expect(hero).not.toContain('g-hero__margin');
     expect(hero).not.toContain('g-hero__specimen');
@@ -90,6 +91,7 @@ describeBuilt('built homepage', () => {
     expect(desc.length).toBeGreaterThan(0);
     expect(desc.length).toBeLessThanOrEqual(160);
     expect(html).toContain(`<meta property="og:description" content="${desc}"`);
+    expect(desc).toBe('Gournal is a local-first command-line work journal. It keeps all data in SQLite on your machine, needs no account, and stores no tokens.');
   });
 
   test('the demo video has an accessible label', () => {
@@ -112,6 +114,7 @@ describeBuilt('built homepage', () => {
 
 describeBuilt('share image and social cards', () => {
   const OG_URL = 'https://aelshinawy.github.io/gournal/og.png';
+  const OG_ALT = 'A gournal standup in the terminal: done work by project, blockers, next items, and linked GitHub activity.';
   const docsPage = path.join(root, 'site/dist/docs/start-here/introduction/index.html');
   const pages: Record<string, string> = {
     homepage: fs.readFileSync(builtHome, 'utf8'),
@@ -127,6 +130,10 @@ describeBuilt('share image and social cards', () => {
       expect([...html.matchAll(/name="twitter:card"/g)].length).toBe(1);
       const tw = [...html.matchAll(/<meta\s+name="twitter:image"\s+content="([^"]*)"/g)].map((m) => m[1]);
       expect(tw).toEqual([OG_URL]);
+      const one = (prop: string): string[] => [...html.matchAll(new RegExp(`<meta\\s+property="${prop}"\\s+content="([^"]*)"`, 'g'))].map((m) => m[1]);
+      expect(one('og:image:width')).toEqual(['1200']);
+      expect(one('og:image:height')).toEqual(['630']);
+      expect(one('og:image:alt')).toEqual([OG_ALT]);
     });
   }
 

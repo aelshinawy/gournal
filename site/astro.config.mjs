@@ -7,6 +7,7 @@ import { rehypeTableRegion } from './plugins/rehype-table-region.mjs';
 import referenceSidebar from './src/generated/reference-sidebar.json' with { type: 'json' };
 
 const OG_IMAGE = 'https://aelshinawy.github.io/gournal/og.png';
+const OG_ALT = 'A gournal standup in the terminal: done work by project, blockers, next items, and linked GitHub activity.';
 
 export default defineConfig({
   site: 'https://aelshinawy.github.io',
@@ -19,6 +20,9 @@ export default defineConfig({
       title: 'gournal',
       head: [
         { tag: 'meta', attrs: { property: 'og:image', content: OG_IMAGE } },
+        { tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
+        { tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+        { tag: 'meta', attrs: { property: 'og:image:alt', content: OG_ALT } },
         { tag: 'meta', attrs: { name: 'twitter:image', content: OG_IMAGE } }
       ],
       customCss: ['./src/styles/tokens.css', './src/styles/fonts.css', './src/styles/docs.css'],

@@ -130,6 +130,37 @@ describe('dark theme blocks', () => {
     const media = parseBlock(css, /:root:not\(\[data-theme\]\) \{([\s\S]*?)^  \}/m);
     expect(Object.keys(media).length).toBeGreaterThan(5);
     expect(media).toEqual(explicit);
+    const light = parseBlock(css, /^:root \{([\s\S]*?)^\}/m);
+    expect(Object.keys(explicit).sort()).toEqual(Object.keys(light).sort());
+  });
+});
+
+describe('reduced motion coverage', () => {
+  const css = fs.readFileSync(path.join(root, 'site/src/styles/docs.css'), 'utf8');
+  const start = css.indexOf('@media (prefers-reduced-motion: reduce)');
+  const block = css.slice(start);
+
+  // These Starlight elements can move: the sidebar caret (svg), the details summary marker,
+  // the code copy button and its tooltip (button, div), and links. The block lists their tags.
+  test('the reduced motion block covers the tags that move', () => {
+    for (const tag of ['a', 'button', 'summary', 'details', 'svg', 'div', 'span']) {
+      expect(block).toMatch(new RegExp(`[(,\\s]${tag}[,)]`));
+    }
+    expect(block).toMatch(/animation:\s*none\s*!important/);
+    expect(block).toMatch(/scroll-behavior:\s*auto/);
+  });
+
+  const built = fs.existsSync(path.join(dist, '_astro'));
+  const run = built ? test : test.skip;
+  // Starlight's search dialog, its tabs, and its mobile menu have no transition or animation of their own.
+  // If a future Starlight adds one, this test fails and the element joins the reduced motion block.
+  run('dialog, site-search, starlight-tabs, and the mobile menu have no motion rules', () => {
+    const files = fs.readdirSync(path.join(dist, '_astro')).filter((f) => f.endsWith('.css'));
+    const rules = files.flatMap((f) => fs.readFileSync(path.join(dist, '_astro', f), 'utf8').match(/[^{}]+\{[^{}]*\}/g) ?? []);
+    const moving = rules.filter((r) => /(^|[^-])(transition|animation)\s*[:-]/.test(r.slice(r.indexOf('{'))) && !/no-preference/.test(r));
+    const names = ['dialog', 'site-search', 'starlight-tabs', 'starlight-menu-button', 'mobile-starlight-toc'];
+    const hits = moving.filter((r) => names.some((n) => new RegExp(`(^|[\\s,>+~])${n}([\\s,.:#\\[>+~{]|$)`).test(r.slice(0, r.indexOf('{')))));
+    expect(hits).toEqual([]);
   });
 });
 

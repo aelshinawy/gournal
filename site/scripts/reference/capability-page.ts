@@ -56,12 +56,12 @@ function toolBlock(s: ToolSection, single: boolean): string {
 }
 
 /** The id Starlight gives a heading: lowercase, punctuation dropped except `_` and `-`, spaces to hyphens. */
-export function headingId(text: string): string {
+function headingId(text: string): string {
   return text.trim().toLowerCase().replace(/[^a-z0-9_\s-]/g, '').replace(/ /g, '-');
 }
 
 /** The anchor of a CLI command, or of an MCP tool, on its capability page. */
-export function surfaceAnchor(cap: Capability, name: string, cli: boolean): string {
+function surfaceAnchor(cap: Capability, name: string, cli: boolean): string {
   const count = cli ? cap.cli.length : cap.mcp.length;
   const text = cli ? `gournal ${name}` : name;
   if (count === 1) return headingId(cli ? `CLI: ${text}` : `MCP tool: ${text}`);

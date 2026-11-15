@@ -399,8 +399,8 @@ p {
 .g-demo__plate {
   position: relative;
   width: 100%;
-  max-width: 36rem;
-  aspect-ratio: 920 / 1000;
+  max-width: 44rem;
+  aspect-ratio: 1200 / 1000;
   background: var(--h-plate);
   border: 1px solid var(--h-plate-rule);
   border-radius: var(--g-radius-lg);
@@ -425,7 +425,7 @@ p {
 
 @media (min-width: 60rem) {
   .g-demo__stage {
-    grid-template-columns: minmax(0, 36rem) minmax(9rem, 1fr);
+    grid-template-columns: minmax(0, 44rem) minmax(9rem, 1fr);
     gap: 0;
   }
 
@@ -473,7 +473,7 @@ p {
 /* Pause control: set into the plate corner on wide screens, below the plate on phones. Plate ink either way. */
 .g-demo__frame {
   position: relative;
-  max-width: 36rem;
+  max-width: 44rem;
 }
 
 .g-demo__toggle {
