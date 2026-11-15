@@ -7,3 +7,4 @@ export * from './config';
 export * from './query';
 export * from './periods';
 export * from './group';
+export * from './identity';

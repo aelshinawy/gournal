@@ -4,14 +4,12 @@ import path from 'path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
-jest.mock('../src/git');
-
-import { getProjectName } from '../src/git';
-import { createServer, SERVER_INSTRUCTIONS } from '../src/mcp';
+import { pathToFileURL } from 'url';
+import { ListRootsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { createServer, SERVER_INSTRUCTIONS, type ServerDeps } from '../src/mcp';
+import { resolveIdentity } from '../src/sources';
 import type { NewEntryInput } from '../src/core';
 import { openJournal, type Journal } from '../src/storage/journal';
-
-const mockedGetProjectName = getProjectName as jest.MockedFunction<typeof getProjectName>;
 
 let home: string;
 let journal: Journal;
@@ -22,10 +20,14 @@ const seed = (summary: string, o: Partial<NewEntryInput> = {}) =>
   journal.repo.add({ summary, project: 'p', source: 'mcp', ...o });
 const call = (name: string, args: Record<string, unknown> = {}) => client.callTool({ name, arguments: args }) as Promise<any>;
 
-async function connect(j?: Journal) {
-  const server = createServer(j);
+const identityStub = jest.fn((cwd: string) => ({ project: 'stub-project', repo: 'o/stub', branch: `b-${cwd}` }));
+const processCwd = jest.fn(() => '/proc');
+
+async function connect(j?: Journal, deps: Partial<ServerDeps> = {}, roots?: string[]) {
+  const server = createServer({ journal: j, identity: identityStub, processCwd, ...deps });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const c = new Client({ name: 'test-client', version: '1.0.0' });
+  const c = new Client({ name: 'test-client', version: '1.0.0' }, roots ? { capabilities: { roots: {} } } : undefined);
+  if (roots) c.setRequestHandler(ListRootsRequestSchema, async () => ({ roots: roots.map(r => ({ uri: pathToFileURL(r).href })) }));
   await Promise.all([c.connect(clientTransport), server.connect(serverTransport)]);
   return c;
 }
@@ -34,7 +36,8 @@ beforeEach(async () => {
   home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-mcp-'));
   journal = openJournal(home);
   client = await connect(journal);
-  mockedGetProjectName.mockReset();
+  identityStub.mockClear();
+  processCwd.mockClear();
 });
 afterEach(() => {
   journal.close();
@@ -46,6 +49,7 @@ test('server sends the instructions', () => {
   expect(client.getInstructions()).toBe([
     'Gournal is the user\'s work journal. Log each distinct piece of finished work with add_entry.',
     'Always pass project. summary is one line, max 120 characters. Put longer text in details.',
+    'Pass cwd (your working directory) so gournal can record the repo and branch.',
     'kind is done (default), blocker (something stops you), or next (a planned next step).',
     'To close a blocker or next item, pass its id in resolves on the done entry, or call resolve_entry.',
     'Reuse existing tags (list_tags). Ticket keys and PR numbers go in refs, not tags.',
@@ -85,10 +89,49 @@ test('empty summary is a tool error', async () => {
   expect(text(r)).toContain('summary is empty');
 });
 
-test('add_entry falls back to git-detected project when omitted', async () => {
-  mockedGetProjectName.mockReturnValue('detected-project');
+test('add_entry falls back to the process cwd identity when nothing else is given', async () => {
   await call('add_entry', { summary: 'No project passed' });
-  expect(journal.repo.find()[0].project).toBe('detected-project');
+  expect(journal.repo.find()[0]).toMatchObject({ project: 'stub-project', repo: 'o/stub', branch: 'b-/proc' });
+});
+
+test('instructions tell agents to pass cwd', () => expect(SERVER_INSTRUCTIONS).toContain('Pass cwd'));
+
+test('cwd sets project, repo, and branch', async () => {
+  await call('add_entry', { summary: 'With cwd', cwd: '/w' });
+  expect(journal.repo.find()[0]).toMatchObject({ project: 'stub-project', repo: 'o/stub', branch: 'b-/w' });
+});
+
+test('explicit fields win per field over cwd', async () => {
+  await call('add_entry', { summary: 'Mixed', cwd: '/w', project: 'mine' });
+  expect(journal.repo.find()[0]).toMatchObject({ project: 'mine', repo: 'o/stub', branch: 'b-/w' });
+  await call('add_entry', { summary: 'Mixed two', cwd: '/w', branch: 'x', repo: 'a/b' });
+  expect(journal.repo.find({ order: 'desc' })[0]).toMatchObject({ project: 'stub-project', repo: 'a/b', branch: 'x' });
+});
+
+test('process cwd is not used when project is explicit', async () => {
+  await call('add_entry', { summary: 'Explicit', project: 'mine' });
+  expect(identityStub).not.toHaveBeenCalled();
+  expect(journal.repo.find()[0]).toMatchObject({ project: 'mine', repo: null, branch: null });
+});
+
+test('the first client root is used when cwd is missing', async () => {
+  const c = await connect(journal, {}, ['/root-a', '/root-b']);
+  await c.callTool({ name: 'add_entry', arguments: { summary: 'From root' } });
+  expect(journal.repo.find()[0].branch).toBe('b-/root-a');
+  expect(processCwd).not.toHaveBeenCalled();
+});
+
+test('a client without roots falls back to the process cwd', async () => {
+  const c = await connect(journal, {});
+  await c.callTool({ name: 'add_entry', arguments: { summary: 'No roots' } });
+  expect(journal.repo.find()[0].branch).toBe('b-/proc');
+});
+
+test('bad cwd never blocks add_entry', async () => {
+  const c = await connect(journal, { identity: (cwd: string) => resolveIdentity(cwd, {}) });
+  const r: any = await c.callTool({ name: 'add_entry', arguments: { summary: 'Bad cwd', cwd: '/no/such/dir' } });
+  expect(r.isError).toBeFalsy();
+  expect(journal.repo.find()[0].project).toBe('uncategorized');
 });
 
 test('long summary is rejected with the fix', async () => {

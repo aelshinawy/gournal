@@ -1,6 +1,6 @@
 import { Command, CommanderError } from 'commander';
 import chalk from 'chalk';
-import { getProjectName } from '../../git';
+import { resolveIdentity } from '../../sources';
 import { generateStandupReport } from '../../report';
 import { generateWorkLog } from '../../log';
 import { generateStats } from '../../stats';
@@ -73,12 +73,15 @@ export function buildProgram(io: CliIo): Command {
       }
       const check = checkSummary(summary, options.details, { allowSplit: true });
       if (!check.ok) throw new Error(check.error);
-      await withJournal(({ repo }) => {
+      await withJournal(({ repo, config }) => {
+        const id = resolveIdentity(io.cwd, config.projectAliases);
         const entry = repo.add({
           summary: check.summary,
           details: check.details,
           kind: options.kind as Kind | undefined,
-          project: getProjectName(io.cwd),
+          project: id.project,
+          repo: id.repo ?? undefined,
+          branch: id.branch ?? undefined,
           source: 'cli',
           tags: splitList(options.tags),
           resolves: splitList(options.resolves),

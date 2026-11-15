@@ -1,7 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { getProjectName } from './git';
+import { fileURLToPath } from 'url';
+import { resolveIdentity } from './sources';
+import { resolveCallIdentity } from './adapters/mcp-identity';
 import { generateStandupReport } from './report';
 import { generateCsvExport, generateMarkdownExport } from './export';
 import { generateWorkLog } from './log';
@@ -9,7 +11,7 @@ import { VERSION } from './adapters/version';
 import { parseBound } from './core';
 import { checkSummary, closeTags, normalizeTags, type Entry, type EntryPatch } from './core';
 import type { EntryRepository } from './core/repository';
-import type { Config } from './core';
+import type { Config, RepoIdentity } from './core';
 import { openJournal } from './storage/journal';
 import { toLegacy } from './legacy-view';
 import type { ReportOptions } from './types/report-config';
@@ -17,6 +19,7 @@ import type { ReportOptions } from './types/report-config';
 export const SERVER_INSTRUCTIONS = [
   'Gournal is the user\'s work journal. Log each distinct piece of finished work with add_entry.',
   'Always pass project. summary is one line, max 120 characters. Put longer text in details.',
+  'Pass cwd (your working directory) so gournal can record the repo and branch.',
   'kind is done (default), blocker (something stops you), or next (a planned next step).',
   'To close a blocker or next item, pass its id in resolves on the done entry, or call resolve_entry.',
   'Reuse existing tags (list_tags). Ticket keys and PR numbers go in refs, not tags.',
@@ -29,12 +32,21 @@ type JournalLike = { repo: EntryRepository; config: Config };
 
 const textResult = (text: string) => ({ content: [{ type: 'text' as const, text }] });
 const errorResult = (text: string) => ({ isError: true as const, content: [{ type: 'text' as const, text }] });
+type ToolResult = ReturnType<typeof textResult> | ReturnType<typeof errorResult>;
 const shortId = (id: string) => id.slice(-8);
 
-export function createServer(journal?: JournalLike): McpServer {
+export interface ServerDeps {
+  journal?: JournalLike;
+  identity?: (cwd: string) => RepoIdentity;
+  processCwd?: () => string;
+}
+
+const ROOTS_TIMEOUT_MS = 1000;
+
+export function createServer(deps: ServerDeps = {}): McpServer {
   const server = new McpServer({ name: 'gournal', version: VERSION }, { instructions: SERVER_INSTRUCTIONS });
 
-  let opened: JournalLike | undefined = journal;
+  let opened: JournalLike | undefined = deps.journal;
   const getJournal = (): JournalLike => {
     if (!opened) {
       const j = openJournal();
@@ -42,6 +54,22 @@ export function createServer(journal?: JournalLike): McpServer {
       opened = j;
     }
     return opened;
+  };
+
+  const identity = deps.identity ?? ((cwd: string) => resolveIdentity(cwd, getJournal().config.projectAliases));
+  const processCwd = deps.processCwd ?? (() => process.cwd());
+  const roots = async (): Promise<string[]> => {
+    try {
+      if (!server.server.getClientCapabilities()?.roots) return [];
+      const { roots: list } = await server.server.listRoots(undefined, { timeout: ROOTS_TIMEOUT_MS });
+      const paths: string[] = [];
+      for (const r of list) {
+        try { paths.push(fileURLToPath(r.uri)); } catch { /* skip a root that is not a file URI */ }
+      }
+      return paths;
+    } catch {
+      return [];
+    }
   };
 
   // Rejected summary to the time of rejection. Lives as long as the server.
@@ -56,10 +84,10 @@ export function createServer(journal?: JournalLike): McpServer {
   };
 
   /** Run a handler. Any throw becomes a tool error, never a protocol error. */
-  const guarded = <A>(fn: (args: A, j: JournalLike) => ReturnType<typeof textResult> | ReturnType<typeof errorResult>) =>
+  const guarded = <A>(fn: (args: A, j: JournalLike) => ToolResult | Promise<ToolResult>) =>
     async (args: A) => {
       try {
-        return fn(args, getJournal());
+        return await fn(args, getJournal());
       } catch (err) {
         return errorResult(err instanceof Error ? err.message : String(err));
       }
@@ -86,7 +114,7 @@ export function createServer(journal?: JournalLike): McpServer {
     'add_entry',
     {
       title: 'Add journal entry',
-      description: 'Add a new gournal journal entry. Pass `project` explicitly whenever you know it, the server process\'s own working directory is not a reliable signal for which project the calling agent is actually in, unlike the CLI where cwd matches. Falls back to git-detecting the server\'s own cwd only when `project` is omitted. The summary must be one line of at most 120 characters. Put longer text in `details`.',
+      description: 'Add a new gournal journal entry. Pass `project` explicitly whenever you know it, and pass `cwd` so that gournal can record the repo and branch. The server process\'s own working directory is not a reliable signal for which project the calling agent is actually in. Fields come from the explicit arguments first, then from `cwd`, then from the first client root, and last from the server\'s own cwd (only when `project` is omitted). The summary must be one line of at most 120 characters. Put longer text in `details`.',
       inputSchema: {
         summary: z.string().optional().describe('One line, max 120 characters. Put longer text in `details`.'),
         message: z.string().optional().describe('Deprecated alias for summary'),
@@ -95,15 +123,16 @@ export function createServer(journal?: JournalLike): McpServer {
         project: z.string().optional().describe('Project/repo name to tag this entry with; pass it explicitly rather than relying on server cwd detection'),
         repo: z.string().optional().describe('Repository name'),
         branch: z.string().optional().describe('Git branch'),
+        cwd: z.string().optional().describe('Your working directory. Gournal derives project, repo, and branch from it.'),
         agent: z.string().optional().describe('Name of the calling agent'),
         tags: z.array(z.string()).optional().describe('Optional tags for this entry. Reuse existing tags (list_tags).'),
         refs: z.array(refSchema).optional().describe('References such as PRs and ticket keys'),
         resolves: z.array(z.string()).optional().describe('Ids of open blocker or next entries that this entry closes'),
       },
     },
-    guarded((args: {
+    guarded(async (args: {
       summary?: string; message?: string; details?: string; kind?: 'done' | 'blocker' | 'next';
-      project?: string; repo?: string; branch?: string; agent?: string; tags?: string[];
+      project?: string; repo?: string; branch?: string; cwd?: string; agent?: string; tags?: string[];
       refs?: { type: 'pr' | 'jira' | 'commit' | 'url'; value: string; repo?: string }[]; resolves?: string[];
     }, { repo, config }) => {
       const raw = args.summary ?? args.message;
@@ -126,7 +155,7 @@ export function createServer(journal?: JournalLike): McpServer {
           if (close.length) hints.push(`New tag "${tag}". Close existing tags: ${close.join(', ')}`);
         }
       }
-      const project = args.project ?? getProjectName();
+      const id = await resolveCallIdentity(args, { identity, roots, processCwd });
       // A bad resolves id never stops the entry. Drop it and report it.
       // The check and the add share one transaction, so a target cannot change in between.
       const dropped: string[] = [];
@@ -148,9 +177,9 @@ export function createServer(journal?: JournalLike): McpServer {
           summary: check.summary,
           details: check.details,
           kind: args.kind,
-          project,
-          repo: args.repo,
-          branch: args.branch,
+          project: id.project,
+          repo: id.repo ?? undefined,
+          branch: id.branch ?? undefined,
           agent: args.agent,
           source: 'mcp',
           tags: args.tags,
