@@ -1,4 +1,5 @@
 export * from './types';
+export * from './option-text';
 export * from './ulid';
 export * from './summary';
 export * from './refs';
@@ -14,3 +15,4 @@ export * from './stats';
 export * from './activity';
 export * from './linking';
 export type { EntryRepository, ActivityRepository, ActivityQuery } from './repository';
+export * from './docs-meta';

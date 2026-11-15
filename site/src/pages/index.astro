@@ -1,0 +1,91 @@
+---
+import { PITCH_LINE } from '../pitch';
+import '../styles/tokens.css';
+import '../styles/fonts.css';
+import '../styles/home.css';
+import Nav from '../components/home/Nav.astro';
+import Install from '../components/home/Install.astro';
+import Demo from '../components/home/Demo.astro';
+import Features from '../components/home/Features.astro';
+import HowItWorks from '../components/home/HowItWorks.astro';
+import LocalFirst from '../components/home/LocalFirst.astro';
+import Footer from '../components/home/Footer.astro';
+import newsreaderUrl from '@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2?url';
+
+const base = import.meta.env.BASE_URL;
+const title = 'gournal: a command-line work journal';
+const description =
+  'Gournal is a local-first command-line work journal. It keeps all data in SQLite on your machine, needs no account, and stores no tokens.';
+const canonical = new URL(base, 'https://aelshinawy.github.io').href;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:description" content={description} />
+    <meta property="og:site_name" content="gournal" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="sitemap" href={`${base}sitemap-index.xml`} />
+    <link rel="preload" href={newsreaderUrl} as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+    <meta name="theme-color" content="#f7f6fb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1f2029" media="(prefers-color-scheme: dark)" />
+    {/* Same rule as the Starlight theme script, so the docs choice carries over before paint. */}
+    <script is:inline>
+      (() => {
+        let stored = null;
+        try {
+          stored = localStorage.getItem('starlight-theme');
+        } catch {
+          /* storage can be blocked */
+        }
+        const theme =
+          stored === 'light' || stored === 'dark'
+            ? stored
+            : window.matchMedia('(prefers-color-scheme: light)').matches
+              ? 'light'
+              : 'dark';
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="g-skip" href="#main">Skip to content</a>
+    <Nav />
+    <main id="main">
+      <section class="g-hero" aria-labelledby="g-hero-title">
+        <div class="g-wrap">
+          <h1 id="g-hero-title" class="g-hero__title">{PITCH_LINE}</h1>
+          <div class="g-ledger g-hero__ledger">
+            <div class="g-ledger__margin g-hero__margin">
+              <p class="g-hero__lede">
+                You and your AI agents log finished work in one local journal. Gournal links each entry to its pull
+                requests and commits, and it writes your standup from them.
+              </p>
+              <Install />
+              <p class="g-hero__req">Needs Node 22.13 or newer. The <code>gh</code> CLI is optional.</p>
+              <div class="g-actions">
+                <a class="g-btn g-btn--primary" href={`${base}docs/start-here/quickstart/`}>Get started</a>
+                <a class="g-btn g-btn--secondary" href="https://github.com/aelshinawy/gournal" rel="noopener">GitHub</a>
+              </div>
+            </div>
+            <div class="g-ledger__specimen g-hero__specimen">
+              <Demo />
+            </div>
+          </div>
+        </div>
+      </section>
+      <Features />
+      <HowItWorks />
+      <LocalFirst />
+    </main>
+    <Footer />
+  </body>
+</html>

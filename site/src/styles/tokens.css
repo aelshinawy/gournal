@@ -1,0 +1,111 @@
+/*
+ * Gournal design tokens.
+ * Plain CSS custom properties. They need no Starlight.
+ * The docs map them in docs.css. The homepage uses them directly.
+ *
+ * Theme rule: light is the default. Dark applies when
+ * [data-theme="dark"] is set, or when the OS prefers dark and no
+ * data-theme is set. Starlight always sets data-theme.
+ */
+
+:root {
+  /* Type families. Fonts load in fonts.css. */
+  --g-font-text: 'Newsreader Variable', Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  --g-font-ui: 'Instrument Sans Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --g-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Type scale (1.200 ratio, rem). */
+  --g-text-xs: 0.75rem;
+  --g-text-sm: 0.875rem;
+  --g-text-base: 1.0625rem;
+  --g-text-md: 1.25rem;
+  --g-text-lg: 1.5rem;
+  --g-text-xl: 1.875rem;
+  --g-text-2xl: 2.375rem;
+  --g-text-3xl: 3rem;
+  --g-text-display: clamp(2.5rem, 1.6rem + 4vw, 4.5rem);
+
+  --g-leading-tight: 1.15;
+  --g-leading-snug: 1.3;
+  --g-leading-body: 1.65;
+  --g-measure: 68ch;
+
+  /* Spacing scale (4px base). */
+  --g-space-1: 0.25rem;
+  --g-space-2: 0.5rem;
+  --g-space-3: 0.75rem;
+  --g-space-4: 1rem;
+  --g-space-5: 1.5rem;
+  --g-space-6: 2rem;
+  --g-space-7: 3rem;
+  --g-space-8: 4.5rem;
+  --g-space-9: 7rem;
+
+  /* Shape. */
+  --g-radius-sm: 4px;
+  --g-radius: 8px;
+  --g-radius-lg: 14px;
+
+  /* Motion. */
+  --g-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --g-duration: 160ms;
+
+  /* Color, light: lavender paper, dark ink, one violet accent (muted Dracula). */
+  --g-paper: #f7f6fb;
+  --g-paper-raised: #eeedf6;
+  --g-paper-sunk: #e6e4f0;
+  --g-code-bg: #ebe9f4;
+  --g-ink: #1e1d29;
+  --g-ink-soft: #3d3b52;
+  --g-ink-muted: #5f5c80;
+  --g-ink-faint: #67648a;
+  --g-rule: #d8d6e6;
+  --g-rule-strong: #bdb9d3;
+  --g-accent: #5b45b8;
+  --g-accent-text: #4f3aa6;
+  --g-accent-wash: #e7e1f7;
+  --g-on-accent: #ffffff;
+  --g-focus: #1f6f93;
+  color-scheme: light;
+}
+
+/* Dark: deep navy-violet paper, pale ink, soft violet (muted Dracula). */
+:root[data-theme='dark'] {
+  --g-paper: #1f2029;
+  --g-paper-raised: #272938;
+  --g-paper-sunk: #191a22;
+  --g-code-bg: #17181f;
+  --g-ink: #ecebf3;
+  --g-ink-soft: #cfcfe0;
+  --g-ink-muted: #9a9fc2;
+  --g-ink-faint: #868ab0;
+  --g-rule: #353749;
+  --g-rule-strong: #4a4d66;
+  --g-accent: #a98be6;
+  --g-accent-text: #b9a0f0;
+  --g-accent-wash: #332c4a;
+  --g-on-accent: #17181f;
+  --g-focus: #7fd6ea;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --g-paper: #1f2029;
+    --g-paper-raised: #272938;
+    --g-paper-sunk: #191a22;
+    --g-code-bg: #17181f;
+    --g-ink: #ecebf3;
+    --g-ink-soft: #cfcfe0;
+    --g-ink-muted: #9a9fc2;
+    --g-ink-faint: #868ab0;
+    --g-rule: #353749;
+    --g-rule-strong: #4a4d66;
+    --g-accent: #a98be6;
+    --g-accent-text: #b9a0f0;
+    --g-accent-wash: #332c4a;
+    --g-on-accent: #17181f;
+    --g-focus: #7fd6ea;
+    color-scheme: dark;
+  }
+}

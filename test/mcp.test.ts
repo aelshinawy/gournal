@@ -250,6 +250,19 @@ test('update_entry, delete_entry, resolve_entry work by suffix', async () => {
   expect(journal.repo.get(one.id)!.deletedAt).not.toBeNull();
 });
 
+test('update_entry kind change reopens and clears resolution', async () => {
+  const blocker = seed('stuck', { kind: 'blocker', createdAt: '2026-07-13T10:00:00.000Z' });
+  await call('resolve_entry', { id: blocker.id.slice(-8) });
+  expect(journal.repo.get(blocker.id)).toMatchObject({ status: 'resolved' });
+  expect(journal.repo.get(blocker.id)!.resolvedAt).not.toBeNull();
+
+  await call('update_entry', { id: blocker.id.slice(-8), kind: 'next' });
+  expect(journal.repo.get(blocker.id)).toMatchObject({ kind: 'next', status: 'open', resolvedAt: null, resolvedByEntryId: null });
+
+  await call('update_entry', { id: blocker.id.slice(-8), kind: 'done' });
+  expect(journal.repo.get(blocker.id)).toMatchObject({ kind: 'done', status: null, resolvedAt: null });
+});
+
 test('update_entry keeps details when only the summary changes', async () => {
   await call('add_entry', { summary: 'one', details: 'keep me', project: 'p' });
   const [e] = journal.repo.find();

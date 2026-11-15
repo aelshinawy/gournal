@@ -1,0 +1,83 @@
+name: Site
+
+on:
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'src/**'
+      - 'README.md'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/site.yml'
+      - 'test/site-*.test.ts'
+      - 'test/docs-reference.test.ts'
+      - 'test/help-text-drift.test.ts'
+      - 'site/plugins/**'
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'src/**'
+      - 'README.md'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/site.yml'
+      - 'test/site-*.test.ts'
+      - 'test/docs-reference.test.ts'
+      - 'test/help-text-drift.test.ts'
+      - 'site/plugins/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('site-pr-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            site/package-lock.json
+      - run: npm ci
+      - run: npm run docs:gen
+      - name: Check generated pages are current
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Changed or untracked files:"
+            git status --porcelain
+            echo "::error::Generated reference pages are out of date. Run npm run docs:gen and commit the result."
+            exit 1
+          fi
+      - run: npm --prefix site ci
+      - run: npm --prefix site run build
+      - name: Check built homepage
+        run: npx jest test/site-home.test.ts test/site-a11y.test.ts
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site/dist
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

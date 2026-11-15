@@ -371,6 +371,21 @@ describe('gournal CLI reads on Query and renderers', () => {
     expect(r.stdout).not.toContain('outside entry');
   });
 
+  test('--from overrides --week', async () => {
+    seed([{ summary: 'old entry', createdAt: daysAgo(20) }]);
+    const day = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const old = new Date(daysAgo(20));
+    const weekOnly = await run('log', '--week');
+    expect(weekOnly.status).toBe(0);
+    expect(weekOnly.stdout).not.toContain('old entry');
+    const both = await run('log', '--week', '--from', day(old), '--to', day(old));
+    expect(both.status).toBe(0);
+    expect(both.stdout).toContain('old entry');
+    const standup = await run('standup', '--week', '--from', day(old), '--to', day(old));
+    expect(standup.stdout).toContain('Range (');
+    expect(standup.stdout).not.toContain('Weekly');
+  });
+
   test('a bad --from exits 1 with Invalid date, before opening the journal', async () => {
     for (const cmd of ['standup', 'log']) {
       const r = await run(cmd, '--from', 'soon');

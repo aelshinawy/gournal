@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import { checkSummary, extractRefs, mergeRefs, normalizeTags, resolveProjectAlias, splitSummary } from '../core';
+import { checkSummary, extractRefs, KINDS, mergeRefs, normalizeTags, resolveProjectAlias, splitSummary } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref } from '../core';
 import type { EntryRepository } from '../core';
 import { createActivityRepository } from './activity-repository';
@@ -166,7 +166,6 @@ export interface PlanChange {
   after: PlanView;
 }
 
-const KINDS: readonly string[] = ['done', 'blocker', 'next'];
 const view = (e: Entry): PlanView => ({ summary: e.summary, details: e.details, kind: e.kind, project: e.project, tags: e.tags, refs: e.refs });
 /** True when the original message (trimmed) is still in the summary or in the details. */
 const keepsText = (message: string, summary: string, details: string | null): boolean => {
@@ -204,7 +203,7 @@ function validatePlan(db: DatabaseSync, jsonPath: string, plan: MigrationPlan): 
     const check = checkSummary(item.summary, null, { allowSplit: false });
     if (!check.ok) throw new Error(`Plan item ${i} ${check.error}`);
     if (check.summary.length === 0) throw new Error(`Plan item ${i} summary is empty`);
-    if (item.kind !== undefined && !KINDS.includes(item.kind)) throw new Error(`Plan item ${i} kind is not valid`);
+    if (item.kind !== undefined && !(KINDS as readonly string[]).includes(item.kind)) throw new Error(`Plan item ${i} kind is not valid`);
     if (item.tags !== undefined && !(Array.isArray(item.tags) && item.tags.every((t) => typeof t === 'string'))) {
       throw new Error(`Plan item ${i} tags must be an array of strings`);
     }

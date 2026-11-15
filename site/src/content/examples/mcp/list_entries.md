@@ -1,0 +1,63 @@
+List the two newest entries of one project. Pass a low `limit` so that the result stays short.
+
+```json
+{
+  "project": "web-app",
+  "limit": 2
+}
+```
+
+The structured result. The text result holds the `entries` list as JSON.
+
+```json
+{
+  "entries": [
+    {
+      "id": "01M7G81Q136KF0CM6DY7SPVT15",
+      "createdAt": "2026-11-15T18:38:23.779Z",
+      "updatedAt": "2026-11-15T18:38:23.779Z",
+      "deletedAt": null,
+      "deviceId": "01M7G81PASZ2E8T209BWDT235N",
+      "summary": "Add keyboard focus styles to the date picker",
+      "details": null,
+      "kind": "done",
+      "status": null,
+      "resolvedAt": null,
+      "resolvedByEntryId": null,
+      "project": "web-app",
+      "repo": null,
+      "branch": "main",
+      "source": "cli",
+      "agent": null,
+      "tags": [
+        "ui",
+        "a11y"
+      ],
+      "refs": []
+    },
+    {
+      "id": "01M7G81PVX3V0CVNHGHHKZGA1A",
+      "createdAt": "2026-11-15T18:38:23.613Z",
+      "updatedAt": "2026-11-15T18:38:23.613Z",
+      "deletedAt": null,
+      "deviceId": "01M7G81PASZ2E8T209BWDT235N",
+      "summary": "Move the settings page to the new form components",
+      "details": null,
+      "kind": "done",
+      "status": null,
+      "resolvedAt": null,
+      "resolvedByEntryId": null,
+      "project": "web-app",
+      "repo": null,
+      "branch": "main",
+      "source": "cli",
+      "agent": null,
+      "tags": [
+        "ui"
+      ],
+      "refs": []
+    }
+  ],
+  "count": 2
+}
+```

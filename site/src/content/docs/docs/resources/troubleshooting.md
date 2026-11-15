@@ -1,0 +1,84 @@
+---
+title: Troubleshooting
+description: Fix GitHub sync warnings, sync errors, and entries that do not link to activity.
+---
+
+This page explains the messages that gournal prints when a GitHub sync has a problem. It also explains why an entry may not link to a pull request. For other questions, see the [FAQ](/gournal/docs/resources/faq/).
+
+## A warning shows when I run a report
+
+Gournal syncs before `standup` and `log`. When the sync fails, gournal prints one line and uses the stored data. A sync warning has one line. `REASON` in the lines below stands for the cause. Find the cause in [The reasons](#the-reasons).
+
+### Auto-sync warnings
+
+Auto-sync prints one of two lines:
+
+```text
+gournal: GitHub sync skipped (REASON); showing stored activity
+gournal: GitHub sync stopped early (REASON); run gournal sync to catch up
+```
+
+The first line means that the sync fetched nothing. The second line means that the sync fetched some pull requests and stopped. In both cases the report still shows the stored data.
+
+To stop auto-sync, set `github.autoSync` to `false` or set `GOURNAL_NO_AUTOSYNC=1`. See [Auto-sync](/gournal/docs/guides/github-activity/#auto-sync).
+
+### Manual sync messages
+
+`gournal sync` stops with this line when it fails:
+
+```text
+GitHub sync failed (REASON)
+```
+
+When it stops early, it prints the summary line and this text:
+
+```text
+Stopped early (REASON); run gournal sync again to continue.
+```
+
+If another sync runs, `gournal sync` stops with this message. Wait a minute and run it again.
+
+```text
+Another GitHub sync is running; try again in a minute.
+```
+
+### The reasons
+
+| Reason text | What to do |
+|-------------|------------|
+| `gh is not signed in; run gh auth login` | Run `gh auth login`. Then run `gournal sync`. |
+| `GitHub rate limit reached` | Wait. Then run `gournal sync`. It continues where it stopped. |
+| `no network` | Check your connection. Then run `gournal sync`. |
+| `timed out after 10 s` | Auto-sync ran out of time. Run `gournal sync`. A manual sync waits up to 60 seconds for each call. |
+| `a GitHub call timed out` | A manual sync ran out of time. Run `gournal sync` again. |
+| `gh is not installed; see https://cli.github.com` | Install `gh`. Or set `GOURNAL_GH` to the path of `gh`. |
+| The first line of an error from `gh` | Run the `gh` command yourself to see the full error. |
+
+Example: auto-sync when `gh` is not signed in.
+
+```console
+$ gournal standup
+gournal: GitHub sync skipped (gh is not signed in; run gh auth login); showing stored activity
+
+Standup: Today (2026-11-15)
+...
+```
+
+Example: a manual sync that stops early because of the network.
+
+```console
+$ gournal sync
+Synced GitHub activity since Oct 16: 2 new, 0 updated, 0 links. Stopped early (no network); run gournal sync again to continue.
+```
+
+## A pull request does not link to my entry
+
+A link needs a PR ref, a commit ref, or a `done` entry on the same repository and branch within 2 hours of the activity. See [How activity links to entries](/gournal/docs/guides/github-activity/#how-activity-links-to-entries). Then check these points:
+
+1. Check that the entry is `done` for the branch rule. A `blocker` or `next` entry links only by a PR ref or a commit ref.
+2. Check that the entry has the repository and the branch. Add the entry from inside the repository.
+3. Check the 2 hour window. The entry and the activity must be within 2 hours.
+4. Check that no other `done` entry is within 2 hours of the same activity.
+5. Add a PR ref. Use the tag `pr-42` or run `gournal add "..." -t pr-42`. The ref links the entry to all activity of the pull request.
+
+If gournal prints `gournal: relink after write failed (...)` on stderr, the entry was saved, but gournal could not update its links. The next edit of the entry recomputes them.

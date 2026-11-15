@@ -1,0 +1,34 @@
+---
+const base = import.meta.env.BASE_URL;
+const links = [
+  { label: 'Docs', href: `${base}docs/start-here/introduction/` },
+  { label: 'Reference', href: `${base}docs/reference/add/` },
+  { label: 'Changelog', href: `${base}docs/resources/changelog/` },
+  { label: 'GitHub', href: 'https://github.com/aelshinawy/gournal', external: true },
+  { label: 'npm', href: 'https://www.npmjs.com/package/gournal', external: true }
+];
+---
+
+<header class="g-nav">
+  <div class="g-wrap g-nav__inner">
+    <a class="g-nav__mark" href={base} aria-label="gournal home">gournal</a>
+    <nav aria-label="Main">
+      <ul class="g-nav__links">
+        {
+          links.map((l) => (
+            <li>
+              <a href={l.href} {...(l.external ? { rel: 'noopener' } : {})}>
+                {l.label}
+                {l.external && (
+                  <svg class="g-ext" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+                    <path d="M4 2h6v6M10 2 3 9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                )}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+</header>

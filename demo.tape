@@ -1,38 +1,36 @@
 # VHS tape for the gournal README demo.
-# Regenerate with: vhs demo.tape
+# Regenerate from the repository root after npm run build: vhs demo.tape
+# The hidden setup makes a fresh mktemp home with fixture data (scripts/demo/setup.sh).
+# It never reads or writes ~/.gournal.
 
 Output demo.gif
 
 Require node
+Require git
 
 Set Shell "bash"
-Set FontSize 22
-Set Width 1200
-Set Height 650
-Set Theme "Dracula"
-Set TypingSpeed 40ms
-Set Padding 20
+Set FontFamily "JetBrainsMono Nerd Font"
+Set FontSize 20
+Set LineHeight 1.2
+Set Width 1100
+Set Height 900
+Set Padding 28
+Set Theme { "name": "gournal-dracula-muted", "black": "#1f2029", "red": "#f08080", "green": "#7fdc97", "yellow": "#e3e39a", "blue": "#a98be6", "magenta": "#e39bd0", "cyan": "#7fd6ea", "white": "#ecebf3", "brightBlack": "#9a9fc2", "brightRed": "#f5a0a0", "brightGreen": "#9ee8b0", "brightYellow": "#ecedb5", "brightBlue": "#b9a0f0", "brightMagenta": "#f0b4de", "brightCyan": "#a5e3f0", "brightWhite": "#ffffff", "background": "#17181f", "foreground": "#ecebf3", "selection": "#353749", "cursor": "#a98be6" }
+Set TypingSpeed 45ms
+Set Framerate 15
+Set CursorBlink false
 
-# Use an isolated HOME so the recording doesn't touch real gournal data,
-# and alias `gournal` to the built CLI so this works before npm install.
 Hide
-Type "export HOME=/tmp/gournal-demo-home && rm -rf $HOME && mkdir -p $HOME && alias gournal='node dist/cli.js' && clear"
+Type "source scripts/demo/setup.sh"
 Enter
-Sleep 500ms
+Sleep 4s
 Show
 
-Type "gournal add 'Fixed the flaky auth test' --tags bug,testing"
+Sleep 500ms
+Type "gournal add 'Paired on the refresh fix review' --tags review"
 Enter
-Sleep 1s
-
-Type "gournal add 'Reviewed PR for export feature' --tags review"
-Enter
-Sleep 1s
+Sleep 1500ms
 
 Type "gournal standup"
 Enter
-Sleep 2s
-
-Type "gournal export --format md"
-Enter
-Sleep 3s
+Sleep 6s

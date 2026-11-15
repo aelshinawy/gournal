@@ -60,6 +60,7 @@ export function exportBundle(db: DatabaseSync, config: Config): Bundle {
 }
 
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+// The bundle validator stays frozen to the on-disk bundle format. A core change must not alter what it accepts.
 const KINDS = ['done', 'blocker', 'next'];
 const STATUSES = ['open', 'resolved'];
 const SOURCES = ['cli', 'mcp', 'migration'];

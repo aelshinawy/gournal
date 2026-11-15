@@ -1,0 +1,113 @@
+---
+const base = import.meta.env.BASE_URL;
+const poster = `${base}demo/standup-poster.png`;
+// Proof marks beside the plate. Each top value is the line's place in the last frame of the recording.
+const marks = [
+  { top: 12.5, text: 'Done, grouped by project' },
+  { top: 23.8, text: 'A PR and its commits, from GitHub' },
+  { top: 53.7, text: 'Open items carry forward' },
+  { top: 76.2, text: 'GitHub activity not linked to a done entry' }
+];
+---
+
+<figure class="g-demo" aria-labelledby="g-demo-caption">
+  <div class="g-demo__stage">
+    <div class="g-demo__frame">
+    <div class="g-demo__plate">
+      <video
+        class="g-demo__video"
+        muted
+        loop
+        playsinline
+        preload="metadata"
+        poster={poster}
+        width="920"
+        height="1000"
+        aria-label="Demo: the gournal standup command printing a report"
+        aria-describedby="g-demo-caption"
+        data-demo-video
+      >
+        <source src={`${base}demo/standup.webm`} type="video/webm" />
+        <source src={`${base}demo/standup.mp4`} type="video/mp4" />
+      </video>
+      <img class="g-demo__still" src={poster} width="920" height="1000" alt="" loading="lazy" />
+    </div>
+      <button class="g-demo__toggle" type="button" data-demo-toggle hidden>
+        <svg class="g-demo__icon g-demo__icon--pause" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+          <path d="M3.5 2v8M8.5 2v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        <svg class="g-demo__icon g-demo__icon--play" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+          <path d="M3.5 2.2v7.6L10 6z" fill="currentColor" />
+        </svg>
+        <span data-demo-label>Pause</span><span class="g-visually-hidden"> the demo</span>
+      </button>
+    </div>
+    <ol class="g-demo__marks" aria-hidden="true">
+      {marks.map((m) => <li style={`--y: ${m.top}%`}>{m.text}</li>)}
+    </ol>
+  </div>
+  <figcaption id="g-demo-caption" class="g-demo__caption">
+    <code>gournal standup</code> on sample data. Two projects, a merged pull request folded under the entry it
+    belongs to, and an Also line for GitHub items not linked to a done entry in the report. <a href="#transcript">Read the standup as text</a>.
+  </figcaption>
+</figure>
+
+<script>
+  // The demo loops, so it needs a pause control (WCAG 2.2.2). The markup has no autoplay:
+  // the script starts the loop and shows the control together. With no script, the poster stays.
+  // Reduced motion: the loop never starts. CSS also swaps in the still image and hides the control.
+  const video = document.querySelector<HTMLVideoElement>('[data-demo-video]');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-demo-toggle]');
+  const label = toggle?.querySelector<HTMLElement>('[data-demo-label]');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let userPaused = false;
+  // The standup is fully printed from about 2.5s. The first play starts at 3s, so a visitor
+  // sees the populated report at once. The loop still returns to 0 and replays the typing.
+  const START = 3;
+  let seeded = false;
+
+  function startPlayback(): void {
+    if (!video) return;
+    const go = (): void => {
+      if (!seeded) {
+        seeded = true;
+        if (video.duration > START + 1) video.currentTime = START;
+      }
+      void video.play().catch(() => undefined);
+    };
+    if (video.readyState >= 1) go();
+    else video.addEventListener('loadedmetadata', go, { once: true });
+  }
+
+  function render(): void {
+    if (!video || !toggle || !label) return;
+    const playing = !video.paused;
+    toggle.dataset.state = playing ? 'playing' : 'paused';
+    label.textContent = playing ? 'Pause' : 'Play';
+  }
+  function apply(): void {
+    if (!video) return;
+    if (reduce.matches) {
+      video.pause();
+    } else if (video.paused && !userPaused) {
+      startPlayback();
+    }
+    render();
+  }
+
+  toggle?.addEventListener('click', () => {
+    if (!video) return;
+    if (video.paused) {
+      userPaused = false;
+      void video.play().catch(() => undefined);
+    } else {
+      userPaused = true;
+      video.pause();
+    }
+  });
+  video?.addEventListener('play', render);
+  video?.addEventListener('pause', render);
+  if (toggle) toggle.hidden = false;
+  apply();
+  reduce.addEventListener('change', apply);
+</script>

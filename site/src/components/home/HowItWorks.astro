@@ -1,0 +1,140 @@
+---
+// The four steps mark the standup lines that they make. The transcript is the same standup as the recording.
+const steps = [
+  {
+    n: 1,
+    cmd: 'gournal setup claude',
+    title: 'Connect your agent',
+    body: 'Install with npm, then run setup. It registers the gournal MCP server and installs the skill for Claude Code.'
+  },
+  {
+    n: 2,
+    cmd: 'gournal add "Fixed the token refresh race"',
+    title: 'Log as you work',
+    body: 'Add done work, blockers, and next steps. Gournal records the project, repo, and branch of the folder.'
+  },
+  {
+    n: 3,
+    cmd: 'gournal sync',
+    title: 'Link GitHub',
+    body: 'Fetch your pull requests, commits, and reviews through gh. Gournal folds each linked item under its entry.'
+  },
+  {
+    n: 4,
+    cmd: 'gournal standup',
+    title: 'Read your standup',
+    body: 'Print the report for today. Pass <code>--yesterday</code> or <code>--week</code> for a longer period.'
+  }
+];
+
+// The transcript: [step that made the line, or 0; the line as HTML]. Times and ids match the recording.
+const dim = (t: string) => `<span class="t-dim">${t}</span>`;
+const acc = (t: string) => `<span class="t-acc">${t}</span>`;
+const lines: [number, string][] = [
+  [4, '<b>Standup: Today (2026-11-15)</b>'],
+  [0, ' '],
+  [4, '  <span class="t-grn">Done</span>'],
+  [0, `  ${acc('api')}`],
+  [2, `  ${dim('10:41')}  Fixed the token refresh race`],
+  [3, `         ${dim('\u21b3 merged #412 Fix token refresh race')}`],
+  [3, `         ${dim('\u21b3 3 commits')}`],
+  [0, ' '],
+  [0, `  ${acc('worker')}`],
+  [1, `  ${dim('14:04')}  Added retry with backoff to webhooks`],
+  [3, `         ${dim('\u21b3 2 commits')}`],
+  [1, `  ${dim('16:09')}  Wrote tests for the retry policy`],
+  [0, ' '],
+  [4, '  <span class="t-red">Blockers</span>'],
+  [2, `    ${dim('Nov 14  DFKD4PX0')}  Waiting on staging keys  ${acc('[api]')}`],
+  [0, ' '],
+  [4, '  <span class="t-yel">Next</span>'],
+  [1, `    ${dim('Nov 15  9BZNA94G')}  Ship retry metrics  ${acc('[worker]')}`],
+  [0, ' '],
+  [3, `  ${dim('Also: 1 commit, 1 PR merged, 1 review in 2 repos (--activity to expand)')}`],
+  [3, `    ${dim('merged    acme/docs#57  Document webhook retries')}`],
+  [3, `    ${dim('reviewed  octo/web#88   Dark mode tokens')}`]
+];
+// Consecutive lines of one step share one proof bracket.
+const runs: { step: number; lines: string[] }[] = [];
+for (const [step, html] of lines) {
+  const last = runs[runs.length - 1];
+  if (last && step !== 0 && last.step === step) last.lines.push(html);
+  else runs.push({ step, lines: [html] });
+}
+---
+
+<section class="g-section g-how" aria-labelledby="g-how-title" data-trace>
+  <div class="g-wrap g-ledger">
+    <div class="g-ledger__margin">
+      <h2 id="g-how-title" class="g-h2">How it works</h2>
+      <p class="g-how__hint">Pick a step to mark the lines it makes in the standup.</p>
+      <ol class="g-steps">
+        {
+          steps.map((s) => (
+            <li>
+              <button class="g-step" type="button" data-step={s.n} aria-pressed={s.n === 1 ? 'true' : 'false'} aria-controls="transcript">
+                <span class="g-step__n" aria-hidden="true">{s.n}</span>
+                <span class="g-step__title">{s.title}</span>
+                <code class="g-step__cmd">{s.cmd}</code>
+                <span class="g-step__body" set:html={s.body} />
+              </button>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+
+    <figure class="g-ledger__specimen g-transcript" aria-labelledby="g-transcript-caption">
+      <pre id="transcript" class="g-transcript__pre" data-active="1" tabindex="0" aria-label="Standup transcript"><code>{
+            runs.map((r) =>
+              r.step ? (
+                <span class="g" data-s={r.step}>{r.lines.map((l) => <span class="l" set:html={l} />)}</span>
+              ) : (
+                r.lines.map((l) => <span class="l" set:html={l} />)
+              )
+            )
+          }</code></pre>
+      <figcaption id="g-transcript-caption" class="g-transcript__caption">
+        The standup from the recording, as text. Sample data: <code>acme</code> and <code>octo</code> are made-up GitHub
+        owners. Your agent logged the marked lines in step 1.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<script>
+  const section = document.querySelector<HTMLElement>('[data-trace]');
+  const pre = section?.querySelector<HTMLElement>('#transcript');
+  const caption = section?.querySelector<HTMLElement>('.g-transcript__caption');
+  const buttons = Array.from(section?.querySelectorAll<HTMLButtonElement>('[data-step]') ?? []);
+  const notes: Record<string, string> = {
+    '1': 'Your agent logged the marked lines through the MCP server.',
+    '2': 'You logged the marked lines with gournal add.',
+    '3': 'gournal sync brought in the marked lines from GitHub.',
+    '4': 'gournal standup set out the marked headings.'
+  };
+  const lead = 'The standup from the recording, as text. Sample data: acme and octo are made-up GitHub owners. ';
+  let pinned = '1';
+
+  function show(step: string): void {
+    if (!pre) return;
+    pre.dataset.active = step;
+    if (caption) caption.textContent = lead + notes[step];
+  }
+  function pin(step: string): void {
+    pinned = step;
+    for (const b of buttons) b.setAttribute('aria-pressed', b.dataset.step === step ? 'true' : 'false');
+    show(step);
+  }
+
+  for (const b of buttons) {
+    const step = b.dataset.step ?? '1';
+    b.addEventListener('click', () => pin(step));
+    b.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'mouse') show(step);
+    });
+    b.addEventListener('pointerleave', () => show(pinned));
+    b.addEventListener('focus', () => pin(step));
+  }
+  section?.setAttribute('data-ready', '');
+</script>
