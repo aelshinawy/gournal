@@ -17,13 +17,14 @@ import { createServer } from '../src/mcp';
 
 const mockedReadEntries = readEntries as jest.MockedFunction<typeof readEntries>;
 const mockedUpdateEntries = updateEntries as jest.MockedFunction<typeof updateEntries>;
-const { CorruptJournalError } = jest.requireActual('../src/storage');
-let written: Entry[] = [];
 const mockedGetProjectName = getProjectName as jest.MockedFunction<typeof getProjectName>;
 const mockedStandup = generateStandupReport as jest.MockedFunction<typeof generateStandupReport>;
 const mockedCsv = generateCsvExport as jest.MockedFunction<typeof generateCsvExport>;
 const mockedMd = generateMarkdownExport as jest.MockedFunction<typeof generateMarkdownExport>;
 const mockedWorkLog = generateWorkLog as jest.MockedFunction<typeof generateWorkLog>;
+
+const { CorruptJournalError } = jest.requireActual<typeof import('../src/storage')>('../src/storage');
+let written: Entry[] = [];
 
 const entries: Entry[] = [
   { timestamp: '2026-07-13T10:00:00.000Z', message: 'Fixed auth middleware', project: 'api', tags: ['bug'] },
@@ -41,8 +42,8 @@ async function connectedClient() {
 describe('MCP server tools', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // fresh shallow copy each call: add_entry mutates the array it reads (same
-    // as the real CLI path), a shared reference here would leak between tests
+    // fresh shallow copy each call: tools must not share one array across tests, so each read and each
+    // update gets its own shallow copy
     mockedReadEntries.mockImplementation(() => Promise.resolve([...entries]));
     written = [];
     mockedUpdateEntries.mockImplementation(async fn => (written = fn([...entries])));

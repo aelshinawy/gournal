@@ -61,14 +61,17 @@ program
     .command('undo')
     .description('Remove the most recently added journal entry')
     .action(async () => {
-      const entries = await readEntries();
-      if (entries.length === 0) {
+      let removed: Entry | undefined;
+      await updateEntries(e => {
+        if (e.length === 0) return e;
+        removed = e[e.length - 1];
+        return e.slice(0, -1);
+      });
+      if (!removed) {
         console.log(chalk.yellow('No entries to undo.'));
         return;
       }
-      const removed = entries[entries.length - 1];
-      await updateEntries(e => e.slice(0, -1));
-      console.log(chalk.green(`✓ Removed: ${removed.message}`));
+      console.log(chalk.green(`✓ Removed: ${(removed as Entry).message}`));
     });
 
   program
