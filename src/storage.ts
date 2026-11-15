@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { format } from 'date-fns';
 import type { Entry } from './types';
+import { withLock, type LockOptions } from './lock';
 
 const DATA_DIR = path.join(process.env.HOME || process.env.USERPROFILE!, '.gournal');
 export const ENTRIES_PATH = path.join(DATA_DIR, 'entries.json');
@@ -93,6 +94,26 @@ export async function backupIfNeeded(filePath: string, now: Date = new Date()): 
     await fs.remove(path.join(backupsDir(filePath), old));
   }
   return dest;
+}
+
+export async function updateEntries(
+  mutate: (entries: Entry[]) => Entry[],
+  filePath = ENTRIES_PATH,
+  opts?: LockOptions
+): Promise<Entry[]> {
+  await fs.ensureDir(path.dirname(filePath));
+  return withLock(
+    `${filePath}.lock`,
+    async () => {
+      // Read first: a corrupt file throws here, before any backup copies it.
+      const current = await readEntries(filePath);
+      await backupIfNeeded(filePath);
+      const next = mutate(current);
+      await writeEntriesAtomic(next, filePath);
+      return next;
+    },
+    opts
+  );
 }
 
 export async function writeEntries(entries: Entry[], filePath = ENTRIES_PATH): Promise<void> {

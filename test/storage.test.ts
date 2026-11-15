@@ -5,6 +5,7 @@ import {
   readEntries,
   writeEntriesAtomic,
   backupIfNeeded,
+  updateEntries,
   CorruptJournalError,
 } from '../src/storage';
 import type { Entry } from '../src/types';
@@ -73,5 +74,11 @@ describe('Storage Operations', () => {
     const names = fs.readdirSync(path.join(dir, 'backups')).sort();
     expect(names).toHaveLength(7);
     expect(names[0]).toBe('entries-2026-11-03.json');
+  });
+  test('updateEntries does not back up or change a corrupt file', async () => {
+    fs.writeFileSync(file, 'garbage');
+    await expect(updateEntries(e => e, file)).rejects.toBeInstanceOf(CorruptJournalError);
+    expect(fs.existsSync(path.join(dir, 'backups'))).toBe(false);
+    expect(fs.readFileSync(file, 'utf8')).toBe('garbage');
   });
 });
