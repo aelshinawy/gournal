@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
 
@@ -90,12 +91,9 @@ test('the overview check runs once per document', () => {
   expect(result).toBe(1);
 });
 
-const scratch = '/private/tmp/claude-501/-Users-ahmed-elshinawy-dev-personal-gournal/1d3e3d38-aa3d-4229-87e2-2ba952218d98/scratchpad';
-
 // Run the focusable plugin hook over a Markdown source: one render pass per entry in `passes`.
 function renderNames(source: string, blocks: number, passes: number): string[][] {
-  fs.mkdirSync(scratch, { recursive: true });
-  const dir = fs.mkdtempSync(path.join(scratch, 'ecf-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ecf-'));
   const file = path.join(dir, 'doc.md');
   fs.writeFileSync(file, source);
   const mod = path.join(plugins, 'ec-focusable.mjs');
@@ -136,4 +134,14 @@ test('a title line outside frontmatter is ignored', () => {
       `console.log(JSON.stringify([headingsPerBlock(${JSON.stringify(src)}), headingsPerBlock(${JSON.stringify(noFront)})]));`
   );
   expect(result).toEqual([['Real', 'Real'], ['']]);
+});
+
+test('frontmatter with CRLF line endings is read', () => {
+  const mod = path.join(plugins, 'ec-focusable.mjs');
+  const src = '---\r\ntitle: Real\r\n---\r\n\r\n```json\r\n{}\r\n```\r\n';
+  const result = runModule(
+    `import { headingsPerBlock } from ${JSON.stringify(mod)};` +
+      `console.log(JSON.stringify(headingsPerBlock(${JSON.stringify(src)})));`
+  );
+  expect(result).toEqual(['Real']);
 });
