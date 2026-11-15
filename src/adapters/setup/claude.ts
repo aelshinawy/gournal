@@ -37,12 +37,18 @@ export const execFileRunner: CommandRunner = (file, args) =>
 type Json = Record<string, unknown>;
 const SERVER = 'gournal';
 
+/**
+ * Write through a symlink: the temp file goes next to the real target, so the link stays a link.
+ * An existing file keeps its mode.
+ */
 function writeAtomic(file: string, content: string): void {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = path.join(path.dirname(file), `.${path.basename(file)}.${process.pid}.${newId()}.tmp`);
+  const real = fs.existsSync(file) ? fs.realpathSync(file) : file;
+  fs.mkdirSync(path.dirname(real), { recursive: true });
+  const tmp = path.join(path.dirname(real), `.${path.basename(real)}.${process.pid}.${newId()}.tmp`);
   try {
     fs.writeFileSync(tmp, content, 'utf8');
-    fs.renameSync(tmp, file);
+    if (fs.existsSync(real)) fs.chmodSync(tmp, fs.statSync(real).mode & 0o7777);
+    fs.renameSync(tmp, real);
   } finally {
     fs.rmSync(tmp, { force: true });
   }
@@ -128,9 +134,9 @@ export async function setupClaude(io: SetupIo, opts: SetupOptions): Promise<numb
     return res;
   };
 
-  const writeSettings = (read: Extract<SettingsRead, { kind: 'ok' }>, next: Json): void => {
-    // Keep the first backup: it holds the file as it was before gournal.
-    if (read.exists && !fs.existsSync(backupFile)) fs.copyFileSync(settingsFile, backupFile);
+  const writeSettings = (read: Extract<SettingsRead, { kind: 'ok' }>, next: Json, takeBackup: boolean): void => {
+    // Keep the first backup: it holds the file as it was before gournal. Only install takes it.
+    if (takeBackup && read.exists && !fs.existsSync(backupFile)) fs.copyFileSync(settingsFile, backupFile);
     writeAtomic(settingsFile, JSON.stringify(next, null, 2) + '\n');
   };
 
@@ -187,9 +193,9 @@ export async function setupClaude(io: SetupIo, opts: SetupOptions): Promise<numb
         const { next, changed } = addStopHook(read.settings, hookCommand);
         if (!changed) io.out('Stop hook: already set up.');
         else {
-          io.out(`Stop hook: add "${hookCommand}" to ${settingsFile} (backup: ${backupFile}).`);
+          io.out(`Stop hook: add "${hookCommand}" to ${settingsFile}${read.exists ? ` (backup: ${backupFile})` : ''}.`);
           if (await ask('Add the gournal Stop hook?', opts.hook)) {
-            writeSettings(read, next);
+            writeSettings(read, next, true);
             io.out('Stop hook: added.');
           } else io.out('Stop hook: skipped.');
         }
@@ -230,10 +236,12 @@ export async function setupClaude(io: SetupIo, opts: SetupOptions): Promise<numb
     const { next, changed } = removeStopHook(read.settings, hookCommand);
     if (!changed) io.out('Stop hook: not set up.');
     else {
-      io.out(`Stop hook: remove the gournal hook from ${settingsFile} (backup: ${backupFile}).`);
+      // Only a backup that install took before its first write holds the original file.
+      const hasOriginal = fs.existsSync(backupFile);
+      io.out(`Stop hook: remove the gournal hook from ${settingsFile}${hasOriginal ? ` (original backup: ${backupFile})` : ''}.`);
       if (await ask('Remove the gournal Stop hook?', true)) {
-        writeSettings(read, next);
-        io.out(`Stop hook: removed. The original file is kept at ${backupFile}.`);
+        writeSettings(read, next, false);
+        io.out(`Stop hook: removed.${hasOriginal ? ` The original file is kept at ${backupFile}.` : ''}`);
       } else io.out('Stop hook: kept.');
     }
   }

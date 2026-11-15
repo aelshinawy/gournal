@@ -311,3 +311,39 @@ test('the first settings backup is kept and uninstall names it', async () => {
   expect(fs.readFileSync(`${settingsFile()}.gournal-backup`, 'utf8')).toBe(pristine);
   expect(out.join('\n')).toContain(`${settingsFile()}.gournal-backup`);
 });
+
+test('uninstall does not claim a backup when settings.json did not exist at install', async () => {
+  await run({ hook: true });
+  expect(fs.existsSync(`${settingsFile()}.gournal-backup`)).toBe(false);
+  out.length = 0;
+  await run({ uninstall: true });
+  expect(fs.existsSync(`${settingsFile()}.gournal-backup`)).toBe(false);
+  expect(out.join('\n')).not.toMatch(/backup|original file/i);
+  expect(out.join('\n')).toContain('Stop hook: removed.');
+});
+
+test('uninstall names the backup that install took before its first write', async () => {
+  writeSettings({ model: 'pristine' });
+  await run({ hook: true });
+  out.length = 0;
+  await run({ uninstall: true });
+  expect(out.join('\n')).toContain(`The original file is kept at ${settingsFile()}.gournal-backup`);
+});
+
+test('a symlinked settings.json stays a link, the target holds the hook, and the mode is kept', async () => {
+  const dotfiles = path.join(home, 'dotfiles');
+  fs.mkdirSync(dotfiles, { recursive: true });
+  const target = path.join(dotfiles, 'settings.json');
+  fs.writeFileSync(target, JSON.stringify({ model: 'x' }));
+  fs.chmodSync(target, 0o600);
+  fs.mkdirSync(path.dirname(settingsFile()), { recursive: true });
+  fs.symlinkSync(target, settingsFile());
+  await run({ hook: true });
+  expect(fs.lstatSync(settingsFile()).isSymbolicLink()).toBe(true);
+  expect(fs.realpathSync(settingsFile())).toBe(fs.realpathSync(target));
+  const stored = JSON.parse(fs.readFileSync(target, 'utf8'));
+  expect(stored.model).toBe('x');
+  expect(stored.hooks.Stop[0].hooks[0].command).toBe('gournal hook stop');
+  expect(fs.statSync(target).mode & 0o777).toBe(0o600);
+  expect(fs.readdirSync(dotfiles).filter((n) => n.endsWith('.tmp'))).toEqual([]);
+});
