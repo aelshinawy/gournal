@@ -18,7 +18,14 @@ const textResult = (text: string) => ({ content: [{ type: 'text' as const, text 
 export function createServer(): McpServer {
   const server = new McpServer({ name: 'gournal', version: VERSION });
 
-  const isoDate = z.string().refine(v => !isNaN(Date.parse(v)), {
+  const isoDate = z.string().refine(v => {
+    try {
+      parseBound(v, 'from');
+      return true;
+    } catch {
+      return false;
+    }
+  }, {
     message: 'must be a valid ISO date/timestamp',
   });
 
@@ -58,9 +65,11 @@ export function createServer(): McpServer {
       },
     },
     async ({ project, from, to, limit }) => {
+      const fromBound = from ? parseBound(from, 'from') : undefined;
+      const toBound = to ? parseBound(to, 'to') : undefined;
       let entries = filterByProject(await readEntries(), project);
-      if (from) entries = entries.filter(e => e.timestamp >= parseBound(from, 'from'));
-      if (to) entries = entries.filter(e => e.timestamp <= parseBound(to, 'to'));
+      if (fromBound) entries = entries.filter(e => e.timestamp >= fromBound);
+      if (toBound) entries = entries.filter(e => e.timestamp <= toBound);
       entries = [...entries].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, limit);
       return textResult(JSON.stringify(entries, null, 2));
     }

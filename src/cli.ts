@@ -167,10 +167,12 @@ program
   .option('--from <date>', 'ISO date lower bound (inclusive)')
   .option('--to <date>', 'ISO date upper bound (inclusive)')
   .action(async (query: string, options: { project?: string; tags?: string; from?: string; to?: string }) => {
+    const fromBound = options.from ? parseBound(options.from, 'from') : undefined;
+    const toBound = options.to ? parseBound(options.to, 'to') : undefined;
     let entries = filterByProject(await readEntries(), options.project);
     entries = filterByTags(entries, options.tags ? options.tags.split(',').filter(Boolean) : undefined);
-    if (options.from) entries = entries.filter(e => e.timestamp >= parseBound(options.from!, 'from'));
-    if (options.to) entries = entries.filter(e => e.timestamp <= parseBound(options.to!, 'to'));
+    if (fromBound) entries = entries.filter(e => e.timestamp >= fromBound);
+    if (toBound) entries = entries.filter(e => e.timestamp <= toBound);
 
     const results = entries.filter(entry => entry.message.toLowerCase().includes(query.toLowerCase()));
 
