@@ -138,7 +138,16 @@ describe('dark theme blocks', () => {
 describe('reduced motion coverage', () => {
   const css = fs.readFileSync(path.join(root, 'site/src/styles/docs.css'), 'utf8');
   const start = css.indexOf('@media (prefers-reduced-motion: reduce)');
-  const block = css.slice(start);
+  let depth = 0;
+  let end = css.length;
+  for (let i = css.indexOf('{', start); i < css.length; i++) {
+    if (css[i] === '{') depth++;
+    if (css[i] === '}' && --depth === 0) {
+      end = i;
+      break;
+    }
+  }
+  const block = css.slice(start, end);
 
   // These Starlight elements can move: the sidebar caret (svg), the details summary marker,
   // the code copy button and its tooltip (button, div), and links. The block lists their tags.
@@ -158,6 +167,8 @@ describe('reduced motion coverage', () => {
     const files = fs.readdirSync(path.join(dist, '_astro')).filter((f) => f.endsWith('.css'));
     const rules = files.flatMap((f) => fs.readFileSync(path.join(dist, '_astro', f), 'utf8').match(/[^{}]+\{[^{}]*\}/g) ?? []);
     const moving = rules.filter((r) => /(^|[^-])(transition|animation)\s*[:-]/.test(r.slice(r.indexOf('{'))) && !/no-preference/.test(r));
+    expect(moving.length).toBeGreaterThan(0);
+    expect(moving.some((r) => r.includes('.caret'))).toBe(true);
     const names = ['dialog', 'site-search', 'starlight-tabs', 'starlight-menu-button', 'mobile-starlight-toc'];
     const hits = moving.filter((r) => names.some((n) => new RegExp(`(^|[\\s,>+~])${n}([\\s,.:#\\[>+~{]|$)`).test(r.slice(0, r.indexOf('{')))));
     expect(hits).toEqual([]);
