@@ -193,7 +193,7 @@ program
     await startMcpServer();
   });
 
-program.parseAsync(process.argv).catch((err: Error) => {
-  console.error(chalk.red(err.message));
+program.parseAsync(process.argv).catch((err: unknown) => {
+  console.error(chalk.red(err instanceof Error ? err.message : String(err)));
   process.exitCode = 1;
 });

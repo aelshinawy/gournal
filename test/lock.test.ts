@@ -58,6 +58,7 @@ describe('withLock', () => {
     const err = await withLock(lockPath, async () => 'never', { staleMs: 60_000, timeoutMs: 100 }).catch(e => e);
     expect(err).toBeInstanceOf(LockTimeoutError);
     expect(err.lockPath).toBe(lockPath);
+    expect(err.message.endsWith(` If no gournal process is running, remove ${lockPath}.`)).toBe(true);
   });
   test('does not break a lock owned by a live process', async () => {
     const owner = JSON.stringify({ pid: process.pid, hostname: os.hostname(), token: 'x', acquiredAt: Date.now() - 60_000 });
@@ -74,6 +75,79 @@ describe('withLock', () => {
     fs.writeFileSync(path.join(lockPath, 'owner.json'), JSON.stringify(await deadOwner()));
     expect(await withLock(lockPath, async () => 'ok', { staleMs: 60_000, timeoutMs: 1_000 })).toBe('ok');
     expect(fs.existsSync(lockPath)).toBe(false);
+  });
+  test('breaks a lock taken before the last boot', async () => {
+    fs.mkdirSync(lockPath);
+    fs.writeFileSync(path.join(lockPath, 'owner.json'),
+      JSON.stringify({ pid: process.pid, hostname: os.hostname(), token: 'x', acquiredAt: 0 }));
+    expect(await withLock(lockPath, async () => 'ok', { staleMs: 60_000, timeoutMs: 1_000 })).toBe('ok');
+    expect(fs.existsSync(lockPath)).toBe(false);
+  });
+  test('breaks a lock owned by another host after staleMs', async () => {
+    fs.mkdirSync(lockPath);
+    fs.writeFileSync(path.join(lockPath, 'owner.json'),
+      JSON.stringify({ pid: process.pid, hostname: 'other-host', token: 'x', acquiredAt: Date.now() - 60_000 }));
+    expect(await withLock(lockPath, async () => 'ok', { staleMs: 10_000, timeoutMs: 1_000 })).toBe('ok');
+  });
+  test('does not break a fresh lock owned by another host', async () => {
+    fs.mkdirSync(lockPath);
+    fs.writeFileSync(path.join(lockPath, 'owner.json'),
+      JSON.stringify({ pid: process.pid, hostname: 'other-host', token: 'x', acquiredAt: Date.now() }));
+    await expect(withLock(lockPath, async () => 'never', { staleMs: 60_000, timeoutMs: 200 }))
+      .rejects.toBeInstanceOf(LockTimeoutError);
+  });
+  test('a lock folder always has an owner and leaves no tmp dirs', async () => {
+    await withLock(lockPath, async () => {
+      expect(fs.existsSync(path.join(lockPath, 'owner.json'))).toBe(true);
+    });
+    expect(fs.readdirSync(dir)).toEqual([]);
+  });
+  test('removes old tmp dirs left by crashed acquires, keeps fresh ones', async () => {
+    const oldTmp = `${lockPath}.aaa.tmp`;
+    const freshTmp = `${lockPath}.bbb.tmp`;
+    fs.mkdirSync(oldTmp);
+    fs.mkdirSync(freshTmp);
+    const old = new Date(Date.now() - 60_000);
+    fs.utimesSync(oldTmp, old, old);
+    await withLock(lockPath, async () => undefined, { staleMs: 10_000, timeoutMs: 1_000 });
+    expect(fs.existsSync(oldTmp)).toBe(false);
+    expect(fs.existsSync(freshTmp)).toBe(true);
+  });
+  test('a live holder on .break blocks breaking and is not removed', async () => {
+    fs.mkdirSync(lockPath);
+    fs.writeFileSync(path.join(lockPath, 'owner.json'), JSON.stringify(await deadOwner()));
+    const breakPath = `${lockPath}.break`;
+    fs.mkdirSync(breakPath);
+    const breakOwner = JSON.stringify({ pid: process.pid, hostname: os.hostname(), token: 'b', acquiredAt: Date.now() });
+    fs.writeFileSync(path.join(breakPath, 'owner.json'), breakOwner);
+    const old = new Date(Date.now() - 60_000);
+    fs.utimesSync(breakPath, old, old); // old mtime must not matter: the owner is alive
+    await expect(withLock(lockPath, async () => 'never', { staleMs: 1_000, timeoutMs: 300 }))
+      .rejects.toBeInstanceOf(LockTimeoutError);
+    expect(fs.readFileSync(path.join(breakPath, 'owner.json'), 'utf8')).toBe(breakOwner);
+  });
+  test('breaks a .break lock whose owner is dead', async () => {
+    fs.mkdirSync(lockPath);
+    fs.writeFileSync(path.join(lockPath, 'owner.json'), JSON.stringify(await deadOwner()));
+    const breakPath = `${lockPath}.break`;
+    fs.mkdirSync(breakPath);
+    fs.writeFileSync(path.join(breakPath, 'owner.json'), JSON.stringify(await deadOwner()));
+    expect(await withLock(lockPath, async () => 'ok', { staleMs: 60_000, timeoutMs: 2_000 })).toBe('ok');
+  });
+  test('release leaves a note on stderr when the owner cannot be read', async () => {
+    const spy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      await withLock(lockPath, async () => {
+        const ownerFile = path.join(lockPath, 'owner.json');
+        fs.rmSync(ownerFile);
+        fs.mkdirSync(ownerFile); // reading a directory gives EISDIR, not ENOENT
+      });
+      const written = spy.mock.calls.map(c => String(c[0])).join('');
+      expect(written).toContain(`gournal: could not verify lock owner at ${lockPath}; leaving it in place`);
+      expect(fs.existsSync(lockPath)).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
   });
   test('release does not remove a lock it no longer owns', async () => {
     await withLock(lockPath, async () => {

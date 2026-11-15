@@ -88,7 +88,15 @@ export async function backupIfNeeded(filePath: string, now: Date = new Date()): 
   const dest = path.join(backupsDir(filePath), `entries-${format(now, 'yyyy-MM-dd')}.json`);
   if (await fs.pathExists(dest)) return null;
   await fs.ensureDir(backupsDir(filePath));
-  await fs.copyFile(filePath, dest);
+  // Copy to a tmp name, then rename, so a crash never leaves a truncated backup.
+  const tmp = `${dest}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  try {
+    await fs.copyFile(filePath, tmp);
+    await fs.rename(tmp, dest);
+  } catch (err) {
+    await fs.remove(tmp).catch(() => undefined);
+    throw err;
+  }
   const names = await listBackups(filePath);
   for (const old of names.slice(0, Math.max(0, names.length - BACKUP_KEEP))) {
     await fs.remove(path.join(backupsDir(filePath), old));
