@@ -185,7 +185,7 @@ function rowsFor(props: Record<string, JSONSchema>, required: string[], prefix: 
   // so the output is byte-stable on every Node version.
   for (const [name, prop] of Object.entries(props)) {
     const field = `${prefix}${name}`;
-    out.push([code(field), typeCell(prop, root), required.includes(name) ? 'yes' : 'no', defaultCell(prop, root), resolveRef(prop, root).description ?? '']);
+    out.push([code(field), typeCell(prop, root), required.includes(name) ? 'yes' : 'no', resolveRef(prop, root).description ?? '', defaultCell(prop, root)]);
     descend(prop, field, root, out);
   }
 }
@@ -196,19 +196,18 @@ function descend(prop: JSONSchema, field: string, root: JSONSchema, out: string[
   if (child.props) rowsFor(child.props, child.required, `${field}.`, root, out);
   else if (child.extra) {
     const key = `${field}.<key>`;
-    out.push([code(key), typeCell(child.extra, root), 'yes', defaultCell(child.extra, root), resolveRef(child.extra, root).description ?? '']);
+    out.push([code(key), typeCell(child.extra, root), 'yes', resolveRef(child.extra, root).description ?? '', defaultCell(child.extra, root)]);
     descend(child.extra, key, root, out);
   }
 }
 
-/** Rows of [field, type, required, default, description] for the fields of an object schema. Nested fields use `a.b`. */
+/** Rows of [field, type, required, description, default] for the fields of an object schema. Nested fields use `a.b`. */
 export function schemaRows(schema: JSONSchema): string[][] {
   const out: string[][] = [];
   const child = childSchema(schema, schema);
   if (child.props) rowsFor(child.props, child.required, '', schema, out);
   return out;
 }
-
 
 // ---- pages ----
 
@@ -228,9 +227,9 @@ export function shapeHeading(slug: string): string {
 
 export function fieldTable(schema: JSONSchema): string {
   const rows = schemaRows(schema);
-  // The Default column is dropped when every cell is empty, like the CLI options table.
-  if (rows.every((r) => r[3] === '')) return table(['Field', 'Type', 'Required', 'Description'], rows.map((r) => [r[0], r[1], r[2], r[4]]));
-  return table(['Field', 'Type', 'Required', 'Default', 'Description'], rows);
+  // The Default column goes last, like the CLI options table. It is dropped when every cell is empty.
+  const keep = rows.every((r) => r[4] === '') ? 4 : 5;
+  return table(['Field', 'Type', 'Required', 'Description', 'Default'].slice(0, keep), rows.map((r) => r.slice(0, keep)));
 }
 
 /** The rendered Markdown parts of one MCP tool. */

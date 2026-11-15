@@ -149,8 +149,8 @@ import { createDocsServer, schemaRows } from '../site/scripts/reference/mcp';
 describe('MCP defaults', () => {
   test('MCP input tables have a Default column when a field has a default', async () => {
     const search = await get('search.md');
-    expect(search).toContain('| Field | Type | Required | Default | Description |');
-    expect(search).toMatch(/^\| `limit` \| .+ \| no \| `\d+` \| /m);
+    expect(search).toContain('| Field | Type | Required | Description | Default |');
+    expect(search).toMatch(/^\| `limit` \| .+ \| no \| .+ \| `\d+` \|$/m);
     // A table with no defaults has no Default column.
     expect(await get('edit.md')).toContain('| Field | Type | Required | Description |');
   });
@@ -192,7 +192,7 @@ describe('MCP reference', () => {
     expect(add).toMatch(/^\| `refs.value` \| `string` \| yes \|/m);
     expect(add).toMatch(/^\| `tags` \| `string\[\]` \| no \|/m);
     expect(schemaRows({ type: 'object', required: ['a'], properties: { a: { type: 'string', description: 'x|y' }, b: { type: ['integer', 'null'] } } } as never))
-      .toEqual([['`a`', '`string`', 'yes', '', 'x|y'], ['`b`', '`integer | null`', 'no', '', '']]);
+      .toEqual([['`a`', '`string`', 'yes', 'x|y', ''], ['`b`', '`integer | null`', 'no', '', '']]);
   });
 
   test('shared output shapes appear once and tool sections link to them', async () => {
@@ -247,9 +247,9 @@ test('every MCP field row has a description', async () => {
     const mcpPart = p.content.split(/\n## MCP tool/)[1].split(/\n## /)[0];
     for (const line of mcpPart.split('\n')) {
       const cells = line.split(/(?<!\\)\|/).map((c) => c.trim());
-      // A field row starts with a code-quoted name. The description is the last cell before the closing pipe.
+      // A field row starts with a code-quoted name. The description is the fourth cell, before any Default cell.
       if (cells.length < 5 || !cells[1]?.startsWith('`')) continue;
-      if (cells[cells.length - 2] === '') empty.push(`${p.path}: ${cells[1]}`);
+      if (cells[4] === '') empty.push(`${p.path}: ${cells[1]}`);
     }
   }
   expect(empty).toEqual([]);

@@ -13,13 +13,13 @@ List journal entries, newest first. The text result is JSON. Pass a low `limit` 
 
 ### Input
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `project` | `string` | no |  | Only entries of this project. |
-| `tags` | `string[]` | no |  | Only entries that have all of these tags. |
-| `from` | `string` | no |  | Only entries from this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
-| `to` | `string` | no |  | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
-| `limit` | `integer` | no | `50` | Most entries to return. The newest come first. The maximum is 500. |
+| Field | Type | Required | Description | Default |
+|-------|------|----------|-------------|---------|
+| `project` | `string` | no | Only entries of this project. |  |
+| `tags` | `string[]` | no | Only entries that have all of these tags. |  |
+| `from` | `string` | no | Only entries from this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |  |
+| `to` | `string` | no | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |  |
+| `limit` | `integer` | no | Most entries to return. The newest come first. The maximum is 500. | `50` |
 
 ### Output
 

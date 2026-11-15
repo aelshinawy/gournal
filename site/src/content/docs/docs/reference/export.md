@@ -32,14 +32,14 @@ Export journal entries as Markdown or CSV, oldest first. When more entries exist
 
 ### Input
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `format` | `"md" \| "csv"` | no | `"md"` | Output format: md (Markdown) or csv. |
-| `project` | `string` | no |  | Only entries of this project. |
-| `tags` | `string[]` | no |  | Only entries that have all of these tags. |
-| `from` | `string` | no |  | Only entries from this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
-| `to` | `string` | no |  | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
-| `limit` | `integer` | no | `200` | Most entries to return. The maximum is 2000. The newest entries are kept. |
+| Field | Type | Required | Description | Default |
+|-------|------|----------|-------------|---------|
+| `format` | `"md" \| "csv"` | no | Output format: md (Markdown) or csv. | `"md"` |
+| `project` | `string` | no | Only entries of this project. |  |
+| `tags` | `string[]` | no | Only entries that have all of these tags. |  |
+| `from` | `string` | no | Only entries from this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |  |
+| `to` | `string` | no | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |  |
+| `limit` | `integer` | no | Most entries to return. The maximum is 2000. The newest entries are kept. | `200` |
 
 ### Output
 
