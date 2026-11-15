@@ -31,11 +31,11 @@ type JournalLike = { repo: EntryRepository; config: Config };
 const EXPORT_DEFAULT_LIMIT = 200;
 const FIND_DEFAULT_LIMIT = 50;
 
-const textResult = (text: string) => ({ content: [{ type: 'text' as const, text }] });
 const dataResult = (text: string, structuredContent: Record<string, unknown>) =>
   ({ content: [{ type: 'text' as const, text }], structuredContent });
 const errorResult = (text: string) => ({ isError: true as const, content: [{ type: 'text' as const, text }] });
-type ToolResult = ReturnType<typeof textResult> | ReturnType<typeof dataResult> | ReturnType<typeof errorResult>;
+type TextResult = { content: { type: 'text'; text: string }[] };
+type ToolResult = TextResult | ReturnType<typeof dataResult> | ReturnType<typeof errorResult>;
 const entryResult = (text: string, entry: Entry, notes: string[] = []) =>
   dataResult(text, { entry: entryJson(entry), notes });
 
@@ -380,7 +380,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'export_entries',
     {
       title: 'Export journal entries',
-      description: 'Export gournal journal entries to Markdown or CSV, oldest first, optionally filtered by project, tags, and a date range. Returns the newest `limit` entries (default 200, max 2000).',
+      description: 'Export gournal journal entries to Markdown or CSV, oldest first, optionally filtered by project, tags, and a date range. Returns the newest `limit` entries (default 200, max 2000). When more entries exist than `limit`, a second text block carries a notice.',
       inputSchema: {
         format: z.enum(['md', 'csv']).default('md'),
         project: z.string().optional().describe('Filter by project name'),

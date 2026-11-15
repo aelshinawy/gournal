@@ -8,4 +8,4 @@ export { importLegacy, applyPlan, renderPlanDiff } from './migrate';
 export type { MigrationPlan } from './migrate';
 export { CorruptDatabaseError } from './db';
 export { AmbiguousIdError } from './sqlite-repository';
-export { rebuildSearchIndex } from './schema';
+export { rebuildSearchIndex, hasFts5 } from './schema';

@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { hasLineBreak, mergeRefs, newId, normalizeTags, resolveQuery, summaryLength, MAX_SUMMARY } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Query, Ref } from '../core';
-import type { EntryRepository } from '../core/repository';
+import type { EntryRepository } from '../core';
 import { backupDbIfNeeded } from './backup';
 import { searchIndexLive } from './schema';
 import { ftsMatchExpression, likePattern } from './search';

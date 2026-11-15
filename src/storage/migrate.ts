@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { checkSummary, extractRefs, mergeRefs, normalizeTags, splitSummary } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref } from '../core';
-import type { EntryRepository } from '../core/repository';
+import type { EntryRepository } from '../core';
 import { snapshotDb } from './backup';
 import type { Config } from '../core';
 import { CorruptJournalError, readLegacyEntriesSync } from './legacy-json';

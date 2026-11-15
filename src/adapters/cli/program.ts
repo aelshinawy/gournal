@@ -13,14 +13,8 @@ import fs from 'fs-extra';
 import path from 'path';
 import { VERSION } from '../version';
 import { clearConfirmQuestion } from './prompts';
-import { openJournal } from '../../storage/journal';
-import type { Journal } from '../../storage/journal';
-import { exportBundle, importBundle } from '../../storage/bundle';
-import { backupDbIfNeeded } from '../../storage/backup';
-import { gournalHome } from '../../storage/home';
-import { hasFts5, rebuildSearchIndex } from '../../storage/schema';
-import { importLegacy, applyPlan, renderPlanDiff } from '../../storage/migrate';
-import type { MigrationPlan } from '../../storage/migrate';
+import { openJournal, exportBundle, importBundle, backupDbIfNeeded, gournalHome, hasFts5, rebuildSearchIndex, importLegacy, applyPlan, renderPlanDiff } from '../../storage';
+import type { Journal, MigrationPlan } from '../../storage';
 
 export interface CliIo {
   out(text: string): void;

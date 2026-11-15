@@ -31,7 +31,7 @@ Gournal is a CLI tool that helps developers:
 
 ### Prerequisites
 - Node.js 22.13+
-- Git (for project detection)
+- Git 2.31 or newer (for project detection)
 
 ### Installation
 ```bash
@@ -142,7 +142,13 @@ Gournal keeps its settings in `~/.gournal/config.json`. It creates the file on f
 - `weekStartsOn`: the first day of the week, a number from 0 (Sunday) to 6. The default is 1 (Monday). `--week` uses it.
 - `staleAfterDays`: the age in days after which an open blocker or next item counts as stale. The default is 14.
 
-An invalid `weekStartsOn` or `staleAfterDays` falls back to its default and prints one warning.
+- `github.*`: reserved for the next phase. Gournal reads these settings and does not use them yet.
+  - `github.autoSync`: true or false. The default is true.
+  - `github.autoSyncMinutes`: a positive whole number. The default is 15.
+  - `github.initialSyncDays`: a positive whole number. The default is 30.
+  - `github.owners.include` and `github.owners.exclude`: lists of owner names. Both default to an empty list.
+
+An invalid `weekStartsOn`, `staleAfterDays`, or `github.*` value falls back to its default and prints one warning.
 
 Alias chains are rejected. If `a` maps to `b`, then `b` must not be a key in the same map. Gournal refuses to start and names the file when the config is not valid. It does not change the file.
 
@@ -211,11 +217,26 @@ Tools exposed:
 - `delete_entry` — soft delete an entry (`gournal restore` brings it back)
 - `resolve_entry` — mark an open blocker or next entry as resolved
 - `list_entries` — list entries newest-first, filterable by `project`, `from`, `to`, capped by `limit` (default 50, max 500)
+- `find_entries` — search entries. Every filter is optional: `project`, `repo`, `tags`, `text` (every word must match), `kind`, `status`, `source`, `from`, `to`, `order`, and `limit` (default 50, max 500)
 - `get_standup` — generate a standup report (`yesterday` / `week` / `month`, filterable by `project`)
 - `export_entries` — export entries to `md` or `csv`
 - `get_work_log` — generate a chronological work log grouped by day (`yesterday` / `week` / `month`, filterable by `project`/`tags`)
 - `list_tags` — distinct tags with counts, filterable by `project`
 - `list_projects` — distinct projects with counts
+
+Every data tool also returns structured content that matches its `outputSchema`. The write tools return `{ entry, notes }`. `list_entries`, `list_tags`, and `list_projects` keep their JSON text. The report tools and `find_entries` return Markdown text. No MCP output contains ANSI codes. `export_entries` returns a document and has no `outputSchema`. When more entries exist than its `limit`, it adds a second text block with a notice.
+
+### Project identity
+
+`add_entry` accepts a `cwd` parameter. Pass your working directory so that gournal can record the project, repo, and branch. Gournal fills each field in this order:
+
+1. The explicit `project`, `repo`, and `branch` arguments. Each field wins on its own.
+2. The `cwd` argument.
+3. The first root that the MCP client reports.
+4. The working directory of the server process. Gournal uses it only when the call has no `project`.
+5. The project `uncategorized`.
+
+A directory that is not in a git repository resolves to `uncategorized`. Project identity needs Git 2.31 or newer.
 
 ### Using with Claude Code
 
