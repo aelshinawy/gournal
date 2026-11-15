@@ -169,6 +169,8 @@ starlight-toc a[aria-current='true'] {
 
 .sl-markdown-content .g-table table {
   margin: 0;
+  /* Starlight sets display: block on tables, which shrinks the grid to its content. */
+  display: table;
   width: 100%;
   font-family: var(--g-font-ui);
   font-size: var(--g-text-sm);

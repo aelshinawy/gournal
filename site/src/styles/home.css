@@ -462,7 +462,7 @@ p {
 }
 
 .g-demo__caption {
-  max-width: 36rem;
+  max-width: 64ch;
   margin-top: var(--g-space-4);
   font-family: var(--g-font-ui);
   font-size: var(--g-text-sm);
