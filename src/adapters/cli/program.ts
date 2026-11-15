@@ -106,11 +106,11 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('add <summary>')
-    .description('Add a journal entry. Gournal records the project, repo, and branch of the current directory.')
+    .description('Add a journal entry. Gournal records the project, repo, and branch of the current directory. A summary over 120 characters, or with a line break, is cut at the first sentence. The full text goes to details, and a note prints.')
     .option('-t, --tags <tags>', 'Tag the entry. Separate tags with commas.', '')
     .option('-d, --details <text>', 'Save longer text with the entry. The summary stays one line.')
     .addOption(new Option('-k, --kind <kind>', 'Set the entry kind: done (default), blocker, or next.').default(undefined, 'done'))
-    .option('--resolves <ids>', 'Close the open blocker or next entries with these ids. Separate ids with commas.')
+    .option('--resolves <ids>', 'Close the open blocker or next entries with these ids. Separate ids with commas. One unknown id stops the add, and gournal stores nothing.')
     .action(async (summary: string, options: { tags: string; details?: string; kind?: string; resolves?: string }) => {
       if (options.kind !== undefined && !(KINDS as readonly string[]).includes(options.kind)) {
         throw new Error(`Unknown kind "${options.kind}". Use done, blocker, or next.`);
@@ -196,7 +196,7 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('standup')
-    .description('Show a standup report for today, or for the period that you choose. The report lists done entries, open blockers, open next items, and a Stale line.')
+    .description('Show a standup report for today, or for the period that you choose. The report lists done entries, open blockers, open next items, and a Stale line. An Also line counts the GitHub activity that no done entry links to. The --from and --to options override --yesterday, --week, and --month.')
     .option('-y, --yesterday', OPTION_TEXT.yesterday)
     .option('-w, --week', OPTION_TEXT.week)
     .option('-m, --month', OPTION_TEXT.month)
@@ -205,7 +205,7 @@ export function buildProgram(io: CliIo): Command {
     .option('-p, --project <project>', OPTION_TEXT.project)
     .option('--repo <owner/name>', OPTION_TEXT.repo)
     .option('-t, --tags <tags>', `${OPTION_TEXT.tags} Separate tags with commas.`)
-    .option('--activity', 'List every GitHub activity item that is not linked to a done entry in this report. Without this option, the report shows only counts.')
+    .option('--activity', 'List every GitHub activity item that is not linked to a done entry in this report. Without this option, the report shows counts and one line for each merged or reviewed PR.')
     .action(async (options: PeriodCliOptions & { activity?: boolean }) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
       await withJournal(async (journal) => {
@@ -218,7 +218,7 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('log')
-    .description('Show your entries in time order, grouped by day. The log covers today unless you choose a period.')
+    .description('Show your entries in time order, grouped by day. The log covers today unless you choose a period. The --from and --to options override --yesterday, --week, and --month.')
     .option('-y, --yesterday', OPTION_TEXT.yesterday)
     .option('-w, --week', OPTION_TEXT.week)
     .option('-m, --month', OPTION_TEXT.month)
@@ -406,7 +406,7 @@ export function buildProgram(io: CliIo): Command {
   const index = program.command('index').description('Maintain the full-text search index.');
   index
     .command('rebuild')
-    .description('Drop and recreate the full-text search index. Run it only when every gournal process uses a Node build with FTS5.')
+    .description('Drop and recreate the full-text search index. It takes today\'s backup first, if none exists yet. Run it only when every gournal process uses a Node build with FTS5.')
     .action(async () => {
       await withJournal(({ db }) => {
         // Check FTS5 first, so a refusal does not use up the daily backup slot.
@@ -424,7 +424,7 @@ export function buildProgram(io: CliIo): Command {
   program
     .command('sync')
     .description('Fetch your GitHub activity (PRs, commits, reviews) through the gh CLI. Gournal links the activity to your entries.')
-    .option('--since <date>', 'Fetch activity from this date. Use a local day or an ISO timestamp. Without this option, gournal fetches from the last sync.')
+    .option('--since <date>', 'Fetch activity from this date. Use a local day or an ISO timestamp. Without this option, gournal starts at the stored sync cursor. With no cursor, it starts github.initialSyncDays days before now.')
     .action(async (options: { since?: string }) => {
       const since = options.since === undefined ? undefined : parseSince(options.since); // fail before the journal opens
       const report = await withJournal((journal) =>
@@ -439,8 +439,8 @@ export function buildProgram(io: CliIo): Command {
     .command('claude')
     .description('Register the gournal MCP server and install the gournal skill for Claude Code. You can also add a Stop hook.')
     .option('--uninstall', 'Remove the MCP server, the skill, and the hook that setup added.')
-    .option('-y, --yes', 'Apply the MCP server and skill steps without asking.')
-    .option('--hook', 'Also add the Stop hook. The hook reminds Claude to log its work.')
+    .option('-y, --yes', 'Answer yes to the install and removal prompts. The prompt to replace an existing MCP registration still asks. Without a terminal and without this option, setup prints its plan and exits with code 1.')
+    .option('--hook', 'Also add the Stop hook. The hook reminds Claude to log its work. With --yes, the hook is added only when you pass this option. Before it changes an existing settings.json, setup saves a copy as settings.json.gournal-backup.')
     .action(async (options: { uninstall?: boolean; yes?: boolean; hook?: boolean }) => {
       const code = await setupClaude({
         out: io.out, err: io.err, isTTY: io.isTTY,

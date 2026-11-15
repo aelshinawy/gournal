@@ -19,8 +19,8 @@ Search your entries for words. Every word must match. The oldest entries come fi
 | `-k, --kind <kinds>` | Only entries of these kinds: done, blocker, or next. Separate kinds with commas. |  |
 | `--status <status>` | Only open or only resolved entries. |  |
 | `--repo <owner/name>` | Only entries of this repository (owner/name). |  |
-| `--from <date>` | Only entries from this date (inclusive). Use a local day or an ISO timestamp. |  |
-| `--to <date>` | Only entries up to this date (inclusive). Use a local day or an ISO timestamp. |  |
+| `--from <date>` | Only entries from this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |  |
+| `--to <date>` | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |  |
 | `-n, --limit <n>` | Most entries to return. The oldest come first. |  |
 
 ## Examples

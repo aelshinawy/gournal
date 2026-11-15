@@ -120,7 +120,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       description: 'Add a journal entry. Pass `project` explicitly whenever you know it, and pass `cwd` so that gournal can record the repo and branch. The server process\'s own working directory is not a reliable signal for which project the calling agent is actually in. Fields come from the explicit arguments first, then from `cwd`, then from the first client root, and last from the server\'s own cwd (only when `project` is omitted).',
       outputSchema: EntryResultSchema,
       inputSchema: {
-        summary: z.string().optional().describe('One line, max 120 characters. Put longer text in `details`.'),
+        summary: z.string().optional().describe('One line, max 120 characters. A longer summary is split into details when you pass `details`, or when you retry the same summary within 10 minutes. Otherwise the server rejects it.'),
         message: z.string().optional().describe('Deprecated alias for summary. Use summary instead.'),
         details: z.string().optional().describe('Longer text for this entry. Use it when the summary needs more room.'),
         kind: KIND.default('done').describe('Entry kind: done (default), blocker (something stops you), or next (a planned step).'),
@@ -131,7 +131,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
         agent: z.string().optional().describe('Name of the calling agent. Gournal stores it with the entry.'),
         tags: z.array(z.string()).optional().describe('Tags for this entry. Reuse existing tags (list_tags).'),
         refs: z.array(refSchema).optional().describe('References such as PRs and ticket keys. Put them here, not in tags.'),
-        resolves: z.array(z.string()).optional().describe('Ids of open blocker or next entries that this entry closes. Use the full id or the last 8 characters.'),
+        resolves: z.array(z.string()).optional().describe('Ids of open blocker or next entries that this entry closes. Use the full id or the last 8 characters. The server drops an unknown id, and the result carries a note.'),
       },
     },
     guarded(async (args: {
@@ -209,7 +209,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
         id: z.string().min(1).describe('Full id or the last 8 characters of the entry.'),
         summary: z.string().optional().describe('One line, max 120 characters. Put longer text in `details`.'),
         details: z.string().optional().describe('New longer text for the entry.'),
-        kind: KIND.optional().describe('New kind: done, blocker, or next.'),
+        kind: KIND.optional().describe('New kind: done, blocker, or next. A change of kind sets the status to open (none for done) and clears the resolution.'),
         project: z.string().optional().describe('New project name.'),
         tags: z.array(z.string()).optional().describe('New tags. They replace the current tags.'),
         refs: z.array(refSchema).optional().describe('New references. They replace the current references. If you also pass `tags`, references that come from ticket-style tags are added to them.'),

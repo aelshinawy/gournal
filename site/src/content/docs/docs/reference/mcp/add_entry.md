@@ -12,7 +12,7 @@ Add a journal entry. Pass `project` explicitly whenever you know it, and pass `c
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `summary` | `string` | no | One line, max 120 characters. Put longer text in `details`. |
+| `summary` | `string` | no | One line, max 120 characters. A longer summary is split into details when you pass `details`, or when you retry the same summary within 10 minutes. Otherwise the server rejects it. |
 | `message` | `string` | no | Deprecated alias for summary. Use summary instead. |
 | `details` | `string` | no | Longer text for this entry. Use it when the summary needs more room. |
 | `kind` | `"done" \| "blocker" \| "next"` | no | Entry kind: done (default), blocker (something stops you), or next (a planned step). Default: `"done"`. |
@@ -26,7 +26,7 @@ Add a journal entry. Pass `project` explicitly whenever you know it, and pass `c
 | `refs.type` | `"pr" \| "jira" \| "commit" \| "url"` | yes | Kind of reference: a PR, a Jira key, a commit, or a URL. |
 | `refs.value` | `string` | yes | The PR number, ticket key, commit hash, or URL. |
 | `refs.repo` | `string` | no | Repository (owner/name) of the PR or commit. |
-| `resolves` | `string[]` | no | Ids of open blocker or next entries that this entry closes. Use the full id or the last 8 characters. |
+| `resolves` | `string[]` | no | Ids of open blocker or next entries that this entry closes. Use the full id or the last 8 characters. The server drops an unknown id, and the result carries a note. |
 
 ## Output
 

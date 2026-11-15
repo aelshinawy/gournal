@@ -15,7 +15,7 @@ Change fields of an existing entry. Fields that you omit stay as they are.
 | `id` | `string` | yes | Full id or the last 8 characters of the entry. |
 | `summary` | `string` | no | One line, max 120 characters. Put longer text in `details`. |
 | `details` | `string` | no | New longer text for the entry. |
-| `kind` | `"done" \| "blocker" \| "next"` | no | New kind: done, blocker, or next. |
+| `kind` | `"done" \| "blocker" \| "next"` | no | New kind: done, blocker, or next. A change of kind sets the status to open (none for done) and clears the resolution. |
 | `project` | `string` | no | New project name. |
 | `tags` | `string[]` | no | New tags. They replace the current tags. |
 | `refs` | `object[]` | no | New references. They replace the current references. If you also pass `tags`, references that come from ticket-style tags are added to them. |

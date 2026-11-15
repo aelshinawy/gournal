@@ -15,8 +15,8 @@ Get a work log, grouped by day. It covers today unless you choose a period. The 
 | `yesterday` | `boolean` | no | Cover yesterday and today. |
 | `week` | `boolean` | no | Cover the current week. |
 | `month` | `boolean` | no | Cover the current month. |
-| `from` | `string` | no | Only entries from this date (inclusive). Use a local day or an ISO timestamp. |
-| `to` | `string` | no | Only entries up to this date (inclusive). Use a local day or an ISO timestamp. |
+| `from` | `string` | no | Only entries from this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
+| `to` | `string` | no | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
 | `project` | `string` | no | Only entries of this project. |
 | `repo` | `string` | no | Only entries of this repository (owner/name). |
 | `tags` | `string[]` | no | Only entries that have all of these tags. |

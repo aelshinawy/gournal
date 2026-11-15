@@ -15,8 +15,8 @@ Export journal entries as Markdown or CSV, oldest first. When more entries exist
 | `format` | `"md" \| "csv"` | no | Output format: md (Markdown) or csv. Default: `"md"`. |
 | `project` | `string` | no | Only entries of this project. |
 | `tags` | `string[]` | no | Only entries that have all of these tags. |
-| `from` | `string` | no | Only entries from this date (inclusive). Use a local day or an ISO timestamp. |
-| `to` | `string` | no | Only entries up to this date (inclusive). Use a local day or an ISO timestamp. |
+| `from` | `string` | no | Only entries from this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
+| `to` | `string` | no | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
 | `limit` | `integer` | no | Most entries to return. The maximum is 2000. The newest entries are kept. Default: `200`. |
 
 ## Output

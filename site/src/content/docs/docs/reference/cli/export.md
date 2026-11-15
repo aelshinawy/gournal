@@ -17,8 +17,8 @@ Write journal entries as Markdown or CSV, or write a full bundle for backup and 
 | `-f, --format <format>` | Output format: md (Markdown) or csv. Use bundle for a full backup that gournal import reads. | `"md"` |
 | `-p, --project <project>` | Only entries of this project. |  |
 | `-t, --tags <tags>` | Only entries that have all of these tags. Separate tags with commas. |  |
-| `--from <date>` | Only entries from this date (inclusive). Use a local day or an ISO timestamp. |  |
-| `--to <date>` | Only entries up to this date (inclusive). Use a local day or an ISO timestamp. |  |
+| `--from <date>` | Only entries from this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |  |
+| `--to <date>` | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |  |
 | `-o, --output <file>` | Write the output to this file instead of the terminal. |  |
 
 ## Examples

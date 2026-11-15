@@ -27,7 +27,7 @@ export const CONFIG_KEY_DOCS: readonly ConfigKeyDoc[] = [
     key: 'weekStartsOn',
     type: 'integer',
     default: '1',
-    description: 'The first day of the week, from 0 (Sunday) to 6. The `--week` option uses it.',
+    description: 'The first day of the week, from 0 (Sunday) to 6. It sets the `--week` option, the MCP `week` period, and the window that links GitHub activity to entries.',
     validation: 'An integer from 0 to 6. Other values give a warning and the default.',
   },
   {
@@ -62,7 +62,7 @@ export const CONFIG_KEY_DOCS: readonly ConfigKeyDoc[] = [
     key: 'github.autoSync',
     type: 'boolean',
     default: 'true',
-    description: 'Turns on auto-sync of GitHub activity.',
+    description: 'Turns on auto-sync of GitHub activity. Auto-sync runs only in `standup`, `log`, `get_standup`, and `get_work_log`.',
     validation: 'true or false. Other values give a warning and the default.',
   },
   {
@@ -83,14 +83,14 @@ export const CONFIG_KEY_DOCS: readonly ConfigKeyDoc[] = [
     key: 'github.owners.include',
     type: 'string[]',
     default: '[]',
-    description: 'Limits the sync to these owners (users or organizations).',
+    description: 'Limits the sync to these owners (users or organizations). The match ignores case, and `exclude` wins over this list.',
     validation: 'An array of strings. Other values give a warning and an empty list.',
   },
   {
     key: 'github.owners.exclude',
     type: 'string[]',
     default: '[]',
-    description: 'Skips these owners (users or organizations) in the sync.',
+    description: 'Skips these owners (users or organizations) in the sync. The match ignores case, and this list wins over `include`.',
     validation: 'An array of strings. Other values give a warning and an empty list.',
   },
 ];
@@ -98,13 +98,13 @@ export const CONFIG_KEY_DOCS: readonly ConfigKeyDoc[] = [
 export const ENV_VAR_DOCS: readonly EnvVarDoc[] = [
   {
     name: 'GOURNAL_HOME',
-    default: '~/.gournal',
+    default: '`.gournal` in `$HOME`, then `$USERPROFILE`, then the OS home folder',
     description: 'The folder for all gournal data.',
   },
   {
     name: 'GOURNAL_NO_AUTOSYNC',
     default: 'Not set',
-    description: 'Set it to `1` to turn off auto-sync.',
+    description: 'Set it to `1` to turn off auto-sync. Any other value leaves auto-sync on.',
   },
   {
     name: 'GOURNAL_GH',
