@@ -36,5 +36,5 @@ export function projectFor(
     const mapped = resolveProjectAlias(key, aliases);
     if (mapped !== key) return mapped;
   }
-  return facts.folder ?? repoName ?? UNCATEGORIZED;
+  return repoName ?? facts.folder ?? UNCATEGORIZED;
 }

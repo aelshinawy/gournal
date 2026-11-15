@@ -39,6 +39,11 @@ test('a worktree resolves to the main repo', () => {
   expect(resolveIdentity(wt, {})).toEqual({ project: 'collection-app', repo: 'acme/collection-app', branch: 'lane-b' });
 });
 
+test('a folder that differs from the remote name resolves to the remote name', () => {
+  const dir = makeRepo('local-checkout', 'git@github.com:acme/collection-app.git');
+  expect(resolveIdentity(dir, {}).project).toBe('collection-app');
+});
+
 test('detached HEAD has no branch', () => {
   const dir = makeRepo('collection-app');
   git(dir, 'checkout', '--detach');

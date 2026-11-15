@@ -12,6 +12,7 @@ test('alias keys: full repo, then repo name, then folder', () => {
   expect(projectFor({ repo: 'acme/x', folder: 'y' }, { x: 'By Name' })).toBe('By Name');
   expect(projectFor({ repo: null, folder: 'scratch' }, { scratch: 'Scratch Pad' })).toBe('Scratch Pad');
   expect(projectFor({ repo: 'acme/x', folder: 'x' }, {})).toBe('x');
+  expect(projectFor({ repo: 'acme/x', folder: 'y' }, {})).toBe('x');
   expect(projectFor({ repo: null, folder: 'scratch' }, {})).toBe('scratch');
   expect(projectFor({ repo: null, folder: null }, {})).toBe('uncategorized');
 });
