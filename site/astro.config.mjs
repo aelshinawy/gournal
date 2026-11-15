@@ -9,6 +9,17 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'gournal',
+      customCss: ['./src/styles/tokens.css', './src/styles/fonts.css', './src/styles/docs.css'],
+      social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/aelshinawy/gournal' }],
+      expressiveCode: {
+        styleOverrides: {
+          codeFontFamily: 'var(--g-font-mono)',
+          codeFontSize: '0.875rem',
+          codeBackground: 'var(--g-code-bg)',
+          borderColor: 'var(--g-rule-strong)',
+          borderRadius: '8px'
+        }
+      },
       plugins: [starlightLinksValidator()],
       sidebar: [
         {

@@ -1,0 +1,111 @@
+/*
+ * Gournal design tokens.
+ * Plain CSS custom properties. They need no Starlight.
+ * The docs map them in docs.css. The homepage uses them directly.
+ *
+ * Theme rule: light is the default. Dark applies when
+ * [data-theme="dark"] is set, or when the OS prefers dark and no
+ * data-theme is set. Starlight always sets data-theme.
+ */
+
+:root {
+  /* Type families. Fonts load in fonts.css. */
+  --g-font-text: 'Newsreader Variable', Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  --g-font-ui: 'Instrument Sans Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --g-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Type scale (1.200 ratio, rem). */
+  --g-text-xs: 0.75rem;
+  --g-text-sm: 0.875rem;
+  --g-text-base: 1.0625rem;
+  --g-text-md: 1.25rem;
+  --g-text-lg: 1.5rem;
+  --g-text-xl: 1.875rem;
+  --g-text-2xl: 2.375rem;
+  --g-text-3xl: 3rem;
+  --g-text-display: clamp(2.5rem, 1.6rem + 4vw, 4.5rem);
+
+  --g-leading-tight: 1.15;
+  --g-leading-snug: 1.3;
+  --g-leading-body: 1.65;
+  --g-measure: 68ch;
+
+  /* Spacing scale (4px base). */
+  --g-space-1: 0.25rem;
+  --g-space-2: 0.5rem;
+  --g-space-3: 0.75rem;
+  --g-space-4: 1rem;
+  --g-space-5: 1.5rem;
+  --g-space-6: 2rem;
+  --g-space-7: 3rem;
+  --g-space-8: 4.5rem;
+  --g-space-9: 7rem;
+
+  /* Shape. */
+  --g-radius-sm: 4px;
+  --g-radius: 8px;
+  --g-radius-lg: 14px;
+
+  /* Motion. */
+  --g-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --g-duration: 160ms;
+
+  /* Color, light: warm paper, dark ink, one rust accent. */
+  --g-paper: #faf6ee;
+  --g-paper-raised: #f3ede0;
+  --g-paper-sunk: #eee6d5;
+  --g-code-bg: #f1eadb;
+  --g-ink: #1d1a15;
+  --g-ink-soft: #473f33;
+  --g-ink-muted: #675e4e;
+  --g-ink-faint: #706753;
+  --g-rule: #ddd3be;
+  --g-rule-strong: #c4b79b;
+  --g-accent: #b8461f;
+  --g-accent-text: #8f3414;
+  --g-accent-wash: #f4e1d4;
+  --g-on-accent: #fffaf2;
+  --g-focus: #1d5fa8;
+  color-scheme: light;
+}
+
+/* Dark: warm near-black paper, cream ink, softened rust. */
+:root[data-theme='dark'] {
+  --g-paper: #17140f;
+  --g-paper-raised: #201c15;
+  --g-paper-sunk: #110f0b;
+  --g-code-bg: #1d1912;
+  --g-ink: #f1eadc;
+  --g-ink-soft: #d0c6b2;
+  --g-ink-muted: #a89f8a;
+  --g-ink-faint: #8a816d;
+  --g-rule: #342e23;
+  --g-rule-strong: #4d4535;
+  --g-accent: #e8885c;
+  --g-accent-text: #f2a67f;
+  --g-accent-wash: #33201a;
+  --g-on-accent: #17140f;
+  --g-focus: #7db4f0;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --g-paper: #17140f;
+    --g-paper-raised: #201c15;
+    --g-paper-sunk: #110f0b;
+    --g-code-bg: #1d1912;
+    --g-ink: #f1eadc;
+    --g-ink-soft: #d0c6b2;
+    --g-ink-muted: #a89f8a;
+    --g-ink-faint: #8a816d;
+    --g-rule: #342e23;
+    --g-rule-strong: #4d4535;
+    --g-accent: #e8885c;
+    --g-accent-text: #f2a67f;
+    --g-accent-wash: #33201a;
+    --g-on-accent: #17140f;
+    --g-focus: #7db4f0;
+    color-scheme: dark;
+  }
+}

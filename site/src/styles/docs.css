@@ -1,0 +1,224 @@
+/* Maps the gournal tokens onto Starlight. Load after tokens.css and fonts.css. */
+
+:root,
+:root[data-theme='light'],
+:root[data-theme='dark'] {
+  /* Neutral ramp. Starlight reads white as the strongest text and black as the page. */
+  --sl-color-white: var(--g-ink);
+  --sl-color-gray-1: var(--g-ink);
+  --sl-color-gray-2: var(--g-ink-soft);
+  --sl-color-gray-3: var(--g-ink-muted);
+  --sl-color-gray-4: var(--g-ink-faint);
+  --sl-color-gray-5: var(--g-rule-strong);
+  --sl-color-gray-6: var(--g-paper-raised);
+  --sl-color-gray-7: var(--g-paper-sunk);
+  --sl-color-black: var(--g-paper);
+
+  --sl-color-accent-low: var(--g-accent-wash);
+  --sl-color-accent: var(--g-accent);
+  --sl-color-accent-high: var(--g-accent-text);
+
+  --sl-color-text: var(--g-ink-soft);
+  --sl-color-text-accent: var(--g-accent-text);
+  --sl-color-bg: var(--g-paper);
+  --sl-color-bg-nav: var(--g-paper);
+  --sl-color-bg-sidebar: var(--g-paper);
+  --sl-color-bg-inline-code: var(--g-code-bg);
+  --sl-color-hairline: var(--g-rule);
+  --sl-color-hairline-light: var(--g-rule);
+  --sl-color-hairline-shade: var(--g-rule);
+  --sl-color-backdrop-overlay: color-mix(in srgb, var(--g-paper-sunk) 70%, transparent);
+
+  --sl-font: var(--g-font-ui);
+  --sl-font-system-mono: var(--g-font-mono);
+  --sl-text-body: var(--g-text-base);
+  --sl-text-code: 0.875rem;
+  --sl-line-height: var(--g-leading-body);
+  --sl-content-width: 46rem;
+  --sl-nav-height: 3.5rem;
+}
+
+/* Reading column: serif text, tight headings. */
+.sl-markdown-content {
+  font-family: var(--g-font-text);
+  font-size: var(--g-text-base);
+  font-variant-numeric: oldstyle-nums;
+  hanging-punctuation: first;
+}
+
+.sl-markdown-content :is(h1, h2, h3, h4) {
+  font-family: var(--g-font-text);
+  font-weight: 600;
+  color: var(--g-ink);
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+
+.sl-markdown-content :is(p, li) {
+  text-wrap: pretty;
+}
+
+/* Page title. */
+h1#_top {
+  font-family: var(--g-font-text);
+  font-weight: 600;
+  font-size: clamp(2rem, 1.5rem + 2vw, var(--g-text-2xl));
+  letter-spacing: -0.02em;
+  line-height: var(--g-leading-tight);
+  color: var(--g-ink);
+  text-wrap: balance;
+}
+
+.sl-markdown-content .sl-heading-wrapper.level-h2 {
+  border-top: 1px solid var(--g-rule);
+  padding-top: var(--g-space-5);
+  margin-top: var(--g-space-7);
+}
+
+.sl-markdown-content .sl-heading-wrapper.level-h2 > h2 {
+  margin-top: 0;
+}
+
+/* Links in prose: ink-weight underline, accent on hover. */
+.sl-markdown-content a:not(:where(.not-content *)) {
+  color: var(--g-accent-text);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.sl-markdown-content a:not(:where(.not-content *)):hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Site title as a command name. */
+.site-title {
+  font-family: var(--g-font-mono);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--g-ink);
+}
+
+/* Sidebar: UI sans, quiet group labels, rust current item. */
+.sidebar-content {
+  font-family: var(--g-font-ui);
+}
+
+.sidebar-content .large {
+  font-weight: 600;
+  color: var(--g-ink);
+}
+
+.sidebar-content a {
+  border-radius: var(--g-radius-sm);
+}
+
+.sidebar-content a[aria-current='page'] {
+  background: var(--g-accent);
+  color: var(--g-on-accent);
+  font-weight: 600;
+}
+
+/* Right rail. */
+starlight-toc a[aria-current='true'] {
+  color: var(--g-accent-text);
+}
+
+/* Inline code. */
+.sl-markdown-content :not(pre) > code {
+  font-family: var(--g-font-mono);
+  font-size: 0.86em;
+  background: var(--g-code-bg);
+  border: 1px solid var(--g-rule);
+  border-radius: var(--g-radius-sm);
+  padding: 0.1em 0.35em;
+  color: var(--g-ink);
+  overflow-wrap: anywhere;
+}
+
+/* Tables scroll in their own box. */
+.sl-markdown-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  font-family: var(--g-font-ui);
+  font-size: var(--g-text-sm);
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--g-rule);
+  border-radius: var(--g-radius);
+  border-collapse: separate;
+  border-spacing: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sl-markdown-content :is(th, td) {
+  min-width: 8rem;
+  padding: var(--g-space-2) var(--g-space-3);
+  border-bottom: 1px solid var(--g-rule);
+  vertical-align: top;
+}
+
+.sl-markdown-content tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.sl-markdown-content th {
+  background: var(--g-paper-raised);
+  color: var(--g-ink);
+  font-weight: 600;
+  text-align: start;
+  white-space: nowrap;
+}
+
+.sl-markdown-content :is(th, td):last-child:not(:first-child) {
+  min-width: 16rem;
+}
+
+.sl-markdown-content td:first-child code {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+/* Callouts: no side stripe. A full hairline box with a tinted wash. */
+.starlight-aside {
+  border: 1px solid var(--g-rule-strong);
+  border-inline-start-width: 1px;
+  border-radius: var(--g-radius);
+  background: var(--g-paper-raised);
+  font-family: var(--g-font-text);
+}
+
+.starlight-aside__title {
+  font-family: var(--g-font-ui);
+  font-weight: 600;
+  color: var(--g-ink);
+}
+
+/* Browser surfaces. */
+::selection {
+  background: var(--g-accent-wash);
+  color: var(--g-ink);
+}
+
+:root {
+  caret-color: var(--g-accent);
+  scrollbar-color: var(--g-rule-strong) transparent;
+  accent-color: var(--g-accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--g-focus);
+  outline-offset: 2px;
+}
+
+/* Never let the page scroll sideways. Wide children scroll in their own box. */
+.main-pane,
+.sl-markdown-content {
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

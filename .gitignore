@@ -6,3 +6,7 @@ dist/
 site/node_modules/
 site/dist/
 site/.astro/
+.impeccable/mocks/
+.impeccable/review/
+.impeccable/build/
+.impeccable/config.local.json
