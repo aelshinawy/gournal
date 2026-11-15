@@ -14,4 +14,4 @@ Show how many entries you have for each project and tag, and your current daily 
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-p, --project <project>` | Count only entries of this project. |  |
+| `-p, --project <project>` | Only entries of this project. |  |

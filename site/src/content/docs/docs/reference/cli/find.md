@@ -14,14 +14,14 @@ Search your entries for words. Every word must match. The oldest entries come fi
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-p, --project <project>` | Show only entries of this project. |  |
-| `-t, --tags <tags>` | Show only entries with all of these tags. Separate tags with commas. |  |
-| `-k, --kind <kinds>` | Show only these kinds: done, blocker, next. Separate kinds with commas. |  |
-| `--status <status>` | Show only open or resolved entries. |  |
-| `--repo <owner/name>` | Show only entries of this repository. |  |
-| `--from <date>` | Show entries from this date (inclusive). Use a local day or an ISO timestamp. |  |
-| `--to <date>` | Show entries up to this date (inclusive). Use a local day or an ISO timestamp. |  |
-| `-n, --limit <n>` | Show at most this many entries, oldest first. |  |
+| `-p, --project <project>` | Only entries of this project. |  |
+| `-t, --tags <tags>` | Only entries that have all of these tags. Separate tags with commas. |  |
+| `-k, --kind <kinds>` | Only entries of these kinds: done, blocker, or next. Separate kinds with commas. |  |
+| `--status <status>` | Only open or only resolved entries. |  |
+| `--repo <owner/name>` | Only entries of this repository (owner/name). |  |
+| `--from <date>` | Only entries from this date (inclusive). Use a local day or an ISO timestamp. |  |
+| `--to <date>` | Only entries up to this date (inclusive). Use a local day or an ISO timestamp. |  |
+| `-n, --limit <n>` | Most entries to return. The oldest come first. |  |
 
 ## Examples
 

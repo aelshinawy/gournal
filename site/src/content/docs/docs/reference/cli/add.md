@@ -16,7 +16,7 @@ Add a journal entry. Gournal records the project, repo, and branch of the curren
 |--------|-------------|---------|
 | `-t, --tags <tags>` | Tag the entry. Separate tags with commas. | (empty) |
 | `-d, --details <text>` | Save longer text with the entry. The summary stays one line. |  |
-| `-k, --kind <kind>` | Set the entry kind: done (default), blocker, or next. |  |
+| `-k, --kind <kind>` | Set the entry kind: done (default), blocker, or next. | `done` |
 | `--resolves <ids>` | Close the open blocker or next entries with these ids. Separate ids with commas. |  |
 
 ## Examples

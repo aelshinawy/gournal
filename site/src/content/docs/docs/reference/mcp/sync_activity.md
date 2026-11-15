@@ -12,7 +12,7 @@ Fetch the user's GitHub activity (PRs, commits, reviews) through the gh CLI, and
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `since` | `string` | no | Fetch activity from this date: a local day (YYYY-MM-DD) or an ISO timestamp. Default: the last sync. |
+| `since` | `string` | no | Fetch activity from this date: a local day (YYYY-MM-DD) or an ISO timestamp. Without this option, gournal fetches from the last sync. |
 
 ## Output
 

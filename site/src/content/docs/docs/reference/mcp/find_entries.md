@@ -19,8 +19,8 @@ Search journal entries. Every filter is optional, and filters combine.
 | `kind` | `("done" \| "blocker" \| "next")[]` | no | Only entries of these kinds: done, blocker, or next. |
 | `status` | `"open" \| "resolved"` | no | Only open or only resolved entries. |
 | `source` | `"cli" \| "mcp" \| "migration"` | no | Only entries that came from this source. |
-| `from` | `string` | no | Only entries from this date (inclusive): a local day or an ISO timestamp. |
-| `to` | `string` | no | Only entries up to this date (inclusive): a local day or an ISO timestamp. |
+| `from` | `string` | no | Only entries from this date (inclusive). Use a local day or an ISO timestamp. |
+| `to` | `string` | no | Only entries up to this date (inclusive). Use a local day or an ISO timestamp. |
 | `limit` | `integer` | no | Most entries to return. The maximum is 500. Default: `50`. |
 | `order` | `"asc" \| "desc"` | no | desc puts the newest entries first. asc puts the oldest first. Default: `"desc"`. |
 | `includeDeleted` | `boolean` | no | Also return entries that you deleted. |

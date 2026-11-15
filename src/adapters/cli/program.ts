@@ -1,10 +1,10 @@
-import { Command, CommanderError } from 'commander';
+import { Command, CommanderError, Option } from 'commander';
 import chalk from 'chalk';
 import { execGh, resolveIdentity, type GhRunner } from '../../sources';
 import { maybeAutoSync, parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
 import { startMcpServer } from '../mcp';
 import { standupModel, workLogModel } from '../reports';
-import { buildStats, checkSummary, resolveQuery, shortId } from '../../core';
+import { EXPORT_FORMATS, KINDS, OPTION_TEXT, STATUSES, buildStats, checkSummary, resolveQuery, shortId } from '../../core';
 import type { Kind, Query, Status } from '../../core';
 import {
   entryLinesText, exportCsv, exportMarkdown, projectCountsText, standupText, statsText, tagCountsText, workLogText,
@@ -44,9 +44,7 @@ async function inquirerConfirm(message: string, def: boolean): Promise<boolean> 
   }
 }
 
-const KINDS: Kind[] = ['done', 'blocker', 'next'];
 const splitList = (v?: string): string[] => (v ? v.split(',').map(x => x.trim()).filter(Boolean) : []);
-const STATUSES: Status[] = ['open', 'resolved'];
 const NO_FTS5_MESSAGE = 'This Node build has no FTS5; the search index cannot be rebuilt.';
 
 interface PeriodCliOptions {
@@ -61,9 +59,9 @@ interface FindCliOptions {
 function buildQuery(options: Partial<FindCliOptions>, text?: string): Query {
   const kind = splitList(options.kind);
   for (const k of kind) {
-    if (!KINDS.includes(k as Kind)) throw new Error(`Unknown kind "${k}". Use done, blocker, or next.`);
+    if (!(KINDS as readonly string[]).includes(k)) throw new Error(`Unknown kind "${k}". Use done, blocker, or next.`);
   }
-  if (options.status !== undefined && !STATUSES.includes(options.status as Status)) {
+  if (options.status !== undefined && !(STATUSES as readonly string[]).includes(options.status)) {
     throw new Error(`Unknown status "${options.status}". Use open or resolved.`);
   }
   const query: Query = {
@@ -111,10 +109,10 @@ export function buildProgram(io: CliIo): Command {
     .description('Add a journal entry. Gournal records the project, repo, and branch of the current directory.')
     .option('-t, --tags <tags>', 'Tag the entry. Separate tags with commas.', '')
     .option('-d, --details <text>', 'Save longer text with the entry. The summary stays one line.')
-    .option('-k, --kind <kind>', 'Set the entry kind: done (default), blocker, or next.')
+    .addOption(new Option('-k, --kind <kind>', 'Set the entry kind: done (default), blocker, or next.').default(undefined, 'done'))
     .option('--resolves <ids>', 'Close the open blocker or next entries with these ids. Separate ids with commas.')
     .action(async (summary: string, options: { tags: string; details?: string; kind?: string; resolves?: string }) => {
-      if (options.kind !== undefined && !KINDS.includes(options.kind as Kind)) {
+      if (options.kind !== undefined && !(KINDS as readonly string[]).includes(options.kind)) {
         throw new Error(`Unknown kind "${options.kind}". Use done, blocker, or next.`);
       }
       const check = checkSummary(summary, options.details, { allowSplit: true });
@@ -199,14 +197,14 @@ export function buildProgram(io: CliIo): Command {
   program
     .command('standup')
     .description('Show a standup report for today, or for the period that you choose. The report lists done entries, open blockers, open next items, and a Stale line.')
-    .option('-y, --yesterday', 'Report on yesterday and today.')
-    .option('-w, --week', 'Report on the current week.')
-    .option('-m, --month', 'Report on the current month.')
-    .option('--from <date>', 'Start of the period (inclusive). Use a local day or an ISO timestamp.')
-    .option('--to <date>', 'End of the period (inclusive). Use a local day or an ISO timestamp.')
-    .option('-p, --project <project>', 'Show only entries of this project.')
-    .option('--repo <owner/name>', 'Show only entries of this repository.')
-    .option('-t, --tags <tags>', 'Show only entries with all of these tags. Separate tags with commas.')
+    .option('-y, --yesterday', OPTION_TEXT.yesterday)
+    .option('-w, --week', OPTION_TEXT.week)
+    .option('-m, --month', OPTION_TEXT.month)
+    .option('--from <date>', OPTION_TEXT.from)
+    .option('--to <date>', OPTION_TEXT.to)
+    .option('-p, --project <project>', OPTION_TEXT.project)
+    .option('--repo <owner/name>', OPTION_TEXT.repo)
+    .option('-t, --tags <tags>', `${OPTION_TEXT.tags} Separate tags with commas.`)
     .option('--activity', 'List every GitHub activity item that is not linked to a done entry in this report. Without this option, the report shows only counts.')
     .action(async (options: PeriodCliOptions & { activity?: boolean }) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
@@ -221,14 +219,14 @@ export function buildProgram(io: CliIo): Command {
   program
     .command('log')
     .description('Show your entries in time order, grouped by day. The log covers today unless you choose a period.')
-    .option('-y, --yesterday', 'Show yesterday and today.')
-    .option('-w, --week', 'Show the current week.')
-    .option('-m, --month', 'Show the current month.')
-    .option('--from <date>', 'Start of the period (inclusive). Use a local day or an ISO timestamp.')
-    .option('--to <date>', 'End of the period (inclusive). Use a local day or an ISO timestamp.')
-    .option('-p, --project <project>', 'Show only entries of this project.')
-    .option('--repo <owner/name>', 'Show only entries of this repository.')
-    .option('-t, --tags <tags>', 'Show only entries with all of these tags. Separate tags with commas.')
+    .option('-y, --yesterday', OPTION_TEXT.yesterday)
+    .option('-w, --week', OPTION_TEXT.week)
+    .option('-m, --month', OPTION_TEXT.month)
+    .option('--from <date>', OPTION_TEXT.from)
+    .option('--to <date>', OPTION_TEXT.to)
+    .option('-p, --project <project>', OPTION_TEXT.project)
+    .option('--repo <owner/name>', OPTION_TEXT.repo)
+    .option('-t, --tags <tags>', `${OPTION_TEXT.tags} Separate tags with commas.`)
     .action(async (options: PeriodCliOptions) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
       await withJournal(async (journal) => {
@@ -241,7 +239,7 @@ export function buildProgram(io: CliIo): Command {
   program
     .command('stats')
     .description('Show how many entries you have for each project and tag, and your current daily streak.')
-    .option('-p, --project <project>', 'Count only entries of this project.')
+    .option('-p, --project <project>', OPTION_TEXT.project)
     .action(async (options: { project?: string }) => {
       const query = buildQuery({ project: options.project });
       await withJournal(({ repo }) => {
@@ -269,16 +267,16 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('export')
-    .description('Write journal entries as Markdown or CSV, or write a full bundle for backup and import. Output goes to the terminal unless you pass --output.')
-    .option('-f, --format <format>', 'Choose the output format: md, csv, or bundle.', 'md')
-    .option('-p, --project <project>', 'Export only entries of this project. Applies to md and csv.')
-    .option('-t, --tags <tags>', 'Export only entries with all of these tags. Separate tags with commas. Applies to md and csv.')
-    .option('--from <date>', 'Export entries from this date (inclusive). Applies to md and csv.')
-    .option('--to <date>', 'Export entries up to this date (inclusive). Applies to md and csv.')
+    .description('Write journal entries as Markdown or CSV, or write a full bundle for backup and import. The project, tag, and date options apply to md and csv only. Output goes to the terminal unless you pass --output.')
+    .option('-f, --format <format>', `${OPTION_TEXT.format} Use bundle for a full backup that gournal import reads.`, 'md')
+    .option('-p, --project <project>', OPTION_TEXT.project)
+    .option('-t, --tags <tags>', `${OPTION_TEXT.tags} Separate tags with commas.`)
+    .option('--from <date>', OPTION_TEXT.from)
+    .option('--to <date>', OPTION_TEXT.to)
     .option('-o, --output <file>', 'Write the output to this file instead of the terminal.')
     .action(async (options: { format: string; project?: string; tags?: string; from?: string; to?: string; output?: string }) => {
       const exportFormat = options.format.toLowerCase();
-      if (exportFormat !== 'md' && exportFormat !== 'csv' && exportFormat !== 'bundle') {
+      if (!(EXPORT_FORMATS as readonly string[]).includes(exportFormat)) {
         throw new Error(`Unknown format "${options.format}". Use md, csv, or bundle.`);
       }
       const query = buildQuery(options);
@@ -343,14 +341,14 @@ export function buildProgram(io: CliIo): Command {
   program
     .command('find <text>')
     .description('Search your entries for words. Every word must match. The oldest entries come first.')
-    .option('-p, --project <project>', 'Show only entries of this project.')
-    .option('-t, --tags <tags>', 'Show only entries with all of these tags. Separate tags with commas.')
-    .option('-k, --kind <kinds>', 'Show only these kinds: done, blocker, next. Separate kinds with commas.')
-    .option('--status <status>', 'Show only open or resolved entries.')
-    .option('--repo <owner/name>', 'Show only entries of this repository.')
-    .option('--from <date>', 'Show entries from this date (inclusive). Use a local day or an ISO timestamp.')
-    .option('--to <date>', 'Show entries up to this date (inclusive). Use a local day or an ISO timestamp.')
-    .option('-n, --limit <n>', 'Show at most this many entries, oldest first.')
+    .option('-p, --project <project>', OPTION_TEXT.project)
+    .option('-t, --tags <tags>', `${OPTION_TEXT.tags} Separate tags with commas.`)
+    .option('-k, --kind <kinds>', `${OPTION_TEXT.kind} Separate kinds with commas.`)
+    .option('--status <status>', OPTION_TEXT.status)
+    .option('--repo <owner/name>', OPTION_TEXT.repo)
+    .option('--from <date>', OPTION_TEXT.from)
+    .option('--to <date>', OPTION_TEXT.to)
+    .option('-n, --limit <n>', `${OPTION_TEXT.limit} The oldest come first.`)
     .action(async (text: string, options: FindCliOptions) => {
       const query = buildQuery(options, text);
       await withJournal(({ repo }) => {
@@ -426,7 +424,7 @@ export function buildProgram(io: CliIo): Command {
   program
     .command('sync')
     .description('Fetch your GitHub activity (PRs, commits, reviews) through the gh CLI. Gournal links the activity to your entries.')
-    .option('--since <date>', 'Fetch activity from this date. Use a local day or an ISO timestamp. Default: the last sync.')
+    .option('--since <date>', 'Fetch activity from this date. Use a local day or an ISO timestamp. Without this option, gournal fetches from the last sync.')
     .action(async (options: { since?: string }) => {
       const since = options.since === undefined ? undefined : parseSince(options.since); // fail before the journal opens
       const report = await withJournal((journal) =>

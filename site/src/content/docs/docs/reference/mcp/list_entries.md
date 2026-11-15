@@ -14,9 +14,9 @@ List journal entries, newest first. The text result is JSON. Pass a low `limit` 
 |-------|------|----------|-------------|
 | `project` | `string` | no | Only entries of this project. |
 | `tags` | `string[]` | no | Only entries that have all of these tags. |
-| `from` | `string` | no | Only entries from this ISO timestamp (inclusive). |
-| `to` | `string` | no | Only entries up to this ISO timestamp (inclusive). |
-| `limit` | `integer` | no | Most entries to return, newest first. The maximum is 500. Default: `50`. |
+| `from` | `string` | no | Only entries from this date (inclusive). Use a local day or an ISO timestamp. |
+| `to` | `string` | no | Only entries up to this date (inclusive). Use a local day or an ISO timestamp. |
+| `limit` | `integer` | no | Most entries to return. The newest come first. The maximum is 500. Default: `50`. |
 
 ## Output
 

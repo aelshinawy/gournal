@@ -14,14 +14,14 @@ Show your entries in time order, grouped by day. The log covers today unless you
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `-y, --yesterday` | Show yesterday and today. |  |
-| `-w, --week` | Show the current week. |  |
-| `-m, --month` | Show the current month. |  |
-| `--from <date>` | Start of the period (inclusive). Use a local day or an ISO timestamp. |  |
-| `--to <date>` | End of the period (inclusive). Use a local day or an ISO timestamp. |  |
-| `-p, --project <project>` | Show only entries of this project. |  |
-| `--repo <owner/name>` | Show only entries of this repository. |  |
-| `-t, --tags <tags>` | Show only entries with all of these tags. Separate tags with commas. |  |
+| `-y, --yesterday` | Cover yesterday and today. |  |
+| `-w, --week` | Cover the current week. |  |
+| `-m, --month` | Cover the current month. |  |
+| `--from <date>` | Only entries from this date (inclusive). Use a local day or an ISO timestamp. |  |
+| `--to <date>` | Only entries up to this date (inclusive). Use a local day or an ISO timestamp. |  |
+| `-p, --project <project>` | Only entries of this project. |  |
+| `--repo <owner/name>` | Only entries of this repository (owner/name). |  |
+| `-t, --tags <tags>` | Only entries that have all of these tags. Separate tags with commas. |  |
 
 ## Examples
 

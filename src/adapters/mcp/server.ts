@@ -6,7 +6,7 @@ import { execGh, resolveIdentity, type GhRunner } from '../../sources';
 import { maybeAutoSync, parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
 import { resolveCallIdentity } from './identity';
 import { VERSION } from '../version';
-import { checkSummary, closeTags, normalizeTags, shortId } from '../../core';
+import { KINDS, OPTION_TEXT, STATUSES, checkSummary, closeTags, normalizeTags, shortId } from '../../core';
 import type { ActivityRepository, Config, Entry, EntryPatch, EntryRepository, Query, RepoIdentity } from '../../core';
 import {
   EntryListSchema, EntryResultSchema, ProjectCountsSchema, StandupSchema, SyncReportSchema, TagCountsSchema, WorkLogSchema,
@@ -45,7 +45,7 @@ const entryResult = (text: string, entry: Entry, notes: string[] = []) =>
 const withWarning = (markdown: string, warning: string | null): string =>
   warning === null ? markdown : `${markdown.endsWith('\n') ? markdown : `${markdown}\n`}${warning}\n`;
 
-const KIND = z.enum(['done', 'blocker', 'next']);
+const KIND = z.enum(KINDS);
 
 export interface ServerDeps {
   journal?: JournalLike;
@@ -123,7 +123,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
         summary: z.string().optional().describe('One line, max 120 characters. Put longer text in `details`.'),
         message: z.string().optional().describe('Deprecated alias for summary. Use summary instead.'),
         details: z.string().optional().describe('Longer text for this entry. Use it when the summary needs more room.'),
-        kind: KIND.optional().describe('Entry kind: done (default), blocker (something stops you), or next (a planned step).'),
+        kind: KIND.default('done').describe('Entry kind: done (default), blocker (something stops you), or next (a planned step).'),
         project: z.string().optional().describe('Project name for this entry. Pass it explicitly. Do not rely on the server working directory.'),
         repo: z.string().optional().describe('Repository name, for example owner/name.'),
         branch: z.string().optional().describe('Git branch name.'),
@@ -270,15 +270,15 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     })
   );
 
-  const tagsInput = z.array(z.string()).optional().describe('Only entries that have all of these tags.');
+  const tagsInput = z.array(z.string()).optional().describe(OPTION_TEXT.tags);
   const periodInput = {
-    yesterday: z.boolean().optional().describe('Cover yesterday and today.'),
-    week: z.boolean().optional().describe('Cover the current week.'),
-    month: z.boolean().optional().describe('Cover the current month.'),
-    from: z.string().optional().describe('Start of the period (inclusive): a local day (YYYY-MM-DD) or an ISO timestamp. Overrides yesterday, week, and month.'),
-    to: z.string().optional().describe('End of the period (inclusive): a local day (YYYY-MM-DD) or an ISO timestamp. Overrides yesterday, week, and month.'),
-    project: z.string().optional().describe('Only entries of this project.'),
-    repo: z.string().optional().describe('Only entries of this repository (owner/name).'),
+    yesterday: z.boolean().optional().describe(OPTION_TEXT.yesterday),
+    week: z.boolean().optional().describe(OPTION_TEXT.week),
+    month: z.boolean().optional().describe(OPTION_TEXT.month),
+    from: z.string().optional().describe(OPTION_TEXT.from),
+    to: z.string().optional().describe(OPTION_TEXT.to),
+    project: z.string().optional().describe(OPTION_TEXT.project),
+    repo: z.string().optional().describe(OPTION_TEXT.repo),
     tags: tagsInput,
   };
   type PeriodArgs = {
@@ -293,16 +293,16 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       description: 'Search journal entries. Every filter is optional, and filters combine.',
       outputSchema: EntryListSchema,
       inputSchema: {
-        project: z.string().optional().describe('Only entries of this project.'),
-        repo: z.string().optional().describe('Only entries of this repository (owner/name).'),
+        project: z.string().optional().describe(OPTION_TEXT.project),
+        repo: z.string().optional().describe(OPTION_TEXT.repo),
         tags: tagsInput,
         text: z.string().optional().describe('Search words. Every word must match.'),
-        kind: z.array(KIND).optional().describe('Only entries of these kinds: done, blocker, or next.'),
-        status: z.enum(['open', 'resolved']).optional().describe('Only open or only resolved entries.'),
+        kind: z.array(KIND).optional().describe(OPTION_TEXT.kind),
+        status: z.enum(STATUSES).optional().describe(OPTION_TEXT.status),
         source: z.enum(['cli', 'mcp', 'migration']).optional().describe('Only entries that came from this source.'),
-        from: z.string().optional().describe('Only entries from this date (inclusive): a local day or an ISO timestamp.'),
-        to: z.string().optional().describe('Only entries up to this date (inclusive): a local day or an ISO timestamp.'),
-        limit: z.number().int().min(1).max(500).default(FIND_DEFAULT_LIMIT).describe('Most entries to return. The maximum is 500.'),
+        from: z.string().optional().describe(OPTION_TEXT.from),
+        to: z.string().optional().describe(OPTION_TEXT.to),
+        limit: z.number().int().min(1).max(500).default(FIND_DEFAULT_LIMIT).describe(`${OPTION_TEXT.limit} The maximum is 500.`),
         order: z.enum(['asc', 'desc']).default('desc').describe('desc puts the newest entries first. asc puts the oldest first.'),
         includeDeleted: z.boolean().optional().describe('Also return entries that you deleted.'),
       },
@@ -320,11 +320,11 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       description: 'List journal entries, newest first. The text result is JSON. Pass a low `limit` so that the result does not flood your context.',
       outputSchema: EntryListSchema,
       inputSchema: {
-        project: z.string().optional().describe('Only entries of this project.'),
+        project: z.string().optional().describe(OPTION_TEXT.project),
         tags: tagsInput,
-        from: z.string().optional().describe('Only entries from this ISO timestamp (inclusive).'),
-        to: z.string().optional().describe('Only entries up to this ISO timestamp (inclusive).'),
-        limit: z.number().int().positive().max(500).default(50).describe('Most entries to return, newest first. The maximum is 500.'),
+        from: z.string().optional().describe(OPTION_TEXT.from),
+        to: z.string().optional().describe(OPTION_TEXT.to),
+        limit: z.number().int().positive().max(500).default(50).describe(`${OPTION_TEXT.limit} The newest come first. The maximum is 500.`),
       },
     },
     guarded(({ project, tags, from, to, limit }: { project?: string; tags?: string[]; from?: string; to?: string; limit: number }, { repo }) => {
@@ -337,7 +337,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'get_standup',
     {
       title: 'Get standup report',
-      description: 'Get a standup report. It covers today unless you choose a period. Done entries come from the period. Open blockers and next items carry forward from before the period.',
+      description: 'Get a standup report. It covers today unless you choose a period. Done entries come from the period. Open blockers and next items carry forward from before the period. The from and to options override yesterday, week, and month.',
       outputSchema: StandupSchema.extend({ syncWarning: z.string().nullable().describe('A warning from the automatic GitHub sync, or null. The same warning is the last line of the text result.') }),
       inputSchema: periodInput,
     },
@@ -352,7 +352,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     'get_work_log',
     {
       title: 'Get chronological work log',
-      description: 'Get a work log, grouped by day. It covers today unless you choose a period.',
+      description: 'Get a work log, grouped by day. It covers today unless you choose a period. The from and to options override yesterday, week, and month.',
       outputSchema: WorkLogSchema.extend({ syncWarning: z.string().nullable().describe('A warning from the automatic GitHub sync, or null. The same warning is the last line of the text result.') }),
       inputSchema: periodInput,
     },
@@ -399,12 +399,12 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       title: 'Export journal entries',
       description: 'Export journal entries as Markdown or CSV, oldest first. When more entries exist than `limit`, a second text block carries a notice.',
       inputSchema: {
-        format: z.enum(['md', 'csv']).default('md').describe('Output format: md (Markdown) or csv.'),
-        project: z.string().optional().describe('Only entries of this project.'),
+        format: z.enum(['md', 'csv']).default('md').describe(OPTION_TEXT.format),
+        project: z.string().optional().describe(OPTION_TEXT.project),
         tags: tagsInput,
-        from: z.string().optional().describe('Only entries from this date (inclusive): a local day or an ISO timestamp.'),
-        to: z.string().optional().describe('Only entries up to this date (inclusive): a local day or an ISO timestamp.'),
-        limit: z.number().int().min(1).max(2000).default(EXPORT_DEFAULT_LIMIT).describe('Most entries to return (maximum 2000). The newest entries are kept.'),
+        from: z.string().optional().describe(OPTION_TEXT.from),
+        to: z.string().optional().describe(OPTION_TEXT.to),
+        limit: z.number().int().min(1).max(2000).default(EXPORT_DEFAULT_LIMIT).describe(`${OPTION_TEXT.limit} The maximum is 2000. The newest entries are kept.`),
       },
     },
     guarded(({ format, project, tags, from, to, limit }: { format: 'md' | 'csv'; project?: string; tags?: string[]; from?: string; to?: string; limit: number }, { repo }) => {
@@ -425,7 +425,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       title: 'Sync GitHub activity',
       description: 'Fetch the user\'s GitHub activity (PRs, commits, reviews) through the gh CLI, and link it to journal entries. The gh CLI must be signed in.',
       outputSchema: SyncReportSchema,
-      inputSchema: { since: z.string().optional().describe('Fetch activity from this date: a local day (YYYY-MM-DD) or an ISO timestamp. Default: the last sync.') },
+      inputSchema: { since: z.string().optional().describe('Fetch activity from this date: a local day (YYYY-MM-DD) or an ISO timestamp. Without this option, gournal fetches from the last sync.') },
     },
     guarded(async ({ since }: { since?: string }, journal) => {
       const from = since === undefined ? undefined : parseSince(since);

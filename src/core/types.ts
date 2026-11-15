@@ -1,5 +1,8 @@
-export type Kind = 'done' | 'blocker' | 'next';
-export type Status = 'open' | 'resolved';
+export const KINDS = ['done', 'blocker', 'next'] as const;
+export type Kind = (typeof KINDS)[number];
+export const STATUSES = ['open', 'resolved'] as const;
+export type Status = (typeof STATUSES)[number];
+export const EXPORT_FORMATS = ['md', 'csv', 'bundle'] as const;
 export type RefType = 'pr' | 'jira' | 'commit' | 'url';
 export interface Ref { type: RefType; value: string; repo?: string }
 export type Source = 'cli' | 'mcp' | 'migration';

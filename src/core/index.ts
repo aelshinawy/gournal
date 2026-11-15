@@ -1,4 +1,5 @@
 export * from './types';
+export * from './option-text';
 export * from './ulid';
 export * from './summary';
 export * from './refs';

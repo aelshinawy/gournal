@@ -15,7 +15,7 @@ Add a journal entry. Pass `project` explicitly whenever you know it, and pass `c
 | `summary` | `string` | no | One line, max 120 characters. Put longer text in `details`. |
 | `message` | `string` | no | Deprecated alias for summary. Use summary instead. |
 | `details` | `string` | no | Longer text for this entry. Use it when the summary needs more room. |
-| `kind` | `"done" \| "blocker" \| "next"` | no | Entry kind: done (default), blocker (something stops you), or next (a planned step). |
+| `kind` | `"done" \| "blocker" \| "next"` | no | Entry kind: done (default), blocker (something stops you), or next (a planned step). Default: `"done"`. |
 | `project` | `string` | no | Project name for this entry. Pass it explicitly. Do not rely on the server working directory. |
 | `repo` | `string` | no | Repository name, for example owner/name. |
 | `branch` | `string` | no | Git branch name. |

@@ -54,12 +54,12 @@ test('env descriptors cover the supported variables only', () => {
       if (e.isDirectory()) walk(p);
       else if (e.name.endsWith('.ts')) {
         const text = fs.readFileSync(p, 'utf8');
-        for (const m of text.matchAll(/process\.env(?:\.|\[\s*['"])(GOURNAL_\w+)/g)) used.add(m[1]);
+        for (const m of text.matchAll(/process\.env\.(GOURNAL_\w+)|['"](GOURNAL_\w+)['"]/g)) used.add(m[1] ?? m[2]);
       }
     }
   };
   walk(path.join(__dirname, '..', '..', 'src'));
-  for (const testOnly of ['GOURNAL_REAL_HOME', 'GOURNAL_TEST_HOME_ROOT']) used.delete(testOnly);
+  for (const testOnly of ['GOURNAL_REAL_HOME', 'GOURNAL_TEST_HOME_ROOT', 'GOURNAL_DISABLE_FTS5']) used.delete(testOnly);
   expect(used.size).toBeGreaterThan(0);
   expect(ENV_VAR_DOCS.map((v) => v.name).sort()).toEqual([...used].sort());
 });
