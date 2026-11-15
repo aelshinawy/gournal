@@ -13,3 +13,15 @@ test('find rejects an invalid --from even when the journal is empty', async () =
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
+
+test('find with blank text matches nothing', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-'));
+  try {
+    await runIn(home, ['add', 'something', '-p', 'p']);
+    const res = await runIn(home, ['find', '  ']);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain('Found 0 entries:');
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});

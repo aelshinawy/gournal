@@ -24,9 +24,11 @@ test('alias lookup is exact first, then case-insensitive', () => {
 test('project resolves to the target and its alias keys', () =>
   expect(resolveQuery({ project: 'lane-b' }, { 'lane-b': 'collection-app', v2: 'collection-app' }).projects)
     .toEqual(['collection-app', 'lane-b', 'v2']));
-test('text splits into terms; blank text is no filter', () => {
+test('text splits into terms; blank or punctuation-only text matches nothing; no text is no filter', () => {
   expect(resolveQuery({ text: '  fts   rebuild ' }, {}).terms).toEqual(['fts', 'rebuild']);
-  expect(resolveQuery({ text: '   ' }, {}).terms).toBeUndefined();
+  expect(resolveQuery({ text: '   ' }, {}).terms).toEqual([]);
+  expect(resolveQuery({ text: '!!' }, {}).terms).toEqual([]);
+  expect(resolveQuery({}, {}).terms).toBeUndefined();
 });
 test('limit must be a positive integer', () => {
   expect(() => resolveQuery({ limit: 0 }, {})).toThrow('limit must be a positive integer');
@@ -54,6 +56,6 @@ test('text terms drop control characters and terms with no letter or digit', () 
   expect(resolveQuery({ text: 'ok " (x)' }, {}).terms).toEqual(['ok', '(x)']);
   expect(resolveQuery({ text: '\u0000' }, {}).terms).toEqual([]);
   expect(resolveQuery({ text: '"' }, {}).terms).toEqual([]);
-  expect(resolveQuery({ text: '   ' }, {}).terms).toBeUndefined();
+  expect(resolveQuery({ text: '   ' }, {}).terms).toEqual([]);
   expect(resolveQuery({}, {}).terms).toBeUndefined();
 });

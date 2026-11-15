@@ -44,10 +44,12 @@ const CONTROL_CHARS = /[\u0000-\u001f]/g;
 const HAS_WORD_CHAR = /[\p{L}\p{N}]/u;
 
 /** Split text on whitespace, strip control characters, and drop terms with no letter or digit. */
-function searchTerms(text: string): string[] | undefined {
-  const raw = text.split(/\s+/).filter(Boolean);
-  if (raw.length === 0) return undefined;
-  return raw.map((t) => t.replace(CONTROL_CHARS, '')).filter((t) => HAS_WORD_CHAR.test(t));
+function searchTerms(text: string): string[] {
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => t.replace(CONTROL_CHARS, ''))
+    .filter((t) => HAS_WORD_CHAR.test(t));
 }
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -88,7 +90,7 @@ export function resolveQuery(q: Query, aliases: Record<string, string>): Resolve
     }
   }
   // undefined: no text filter. An empty array: text was given but no usable term is left, so nothing matches.
-  const terms = q.text ? searchTerms(q.text) : undefined;
+  const terms = q.text !== undefined ? searchTerms(q.text) : undefined;
   return {
     projects,
     repo: q.repo,
