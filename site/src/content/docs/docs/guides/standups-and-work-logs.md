@@ -140,7 +140,7 @@ Use the standup for a report to your team. Use the log to see what happened and 
 
 ## Export
 
-`gournal export` writes entries as a report you can share. See [`gournal export`](/gournal/docs/reference/export/) for the formats and options. The output goes to the terminal. Add `-o <file>` to write a file.
+`gournal export` writes entries as Markdown (the default) or CSV. See [`gournal export`](/gournal/docs/reference/export/) for the formats and options. The output goes to the terminal. Add `-o <file>` to write a file.
 
 ```console
 $ gournal export -t bugfix

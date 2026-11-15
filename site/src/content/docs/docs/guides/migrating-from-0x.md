@@ -83,10 +83,10 @@ $ gournal migrate --plan plan.json --dry-run --diff diff.md
 Dry run: 1 entries would change. Diff written to diff.md.
 ```
 
-The diff shows each entry before and after:
+The diff shows each entry before and after. Each entry starts with its index and timestamp:
 
 ````text
-### Example plan
+### 0 2026-07-16T02:24:26.205Z
 
 **before**
 

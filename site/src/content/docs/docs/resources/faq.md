@@ -35,7 +35,7 @@ That is carry-forward. An open item shows until you close it. Run `gournal resol
 
 ## A GitHub warning shows, or a pull request does not link
 
-See [Troubleshooting](/gournal/docs/resources/troubleshooting/).
+When a sync fails, gournal prints one warning line that starts with `gournal: GitHub sync skipped` or `gournal: GitHub sync stopped early`. [Troubleshooting](/gournal/docs/resources/troubleshooting/) explains each warning and why a pull request may not link.
 
 ## `gournal setup claude` says `Not a terminal`
 

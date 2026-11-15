@@ -9,7 +9,7 @@
 
 Gournal is a command-line work journal. You log what you did, and gournal builds your standups and work logs from the entries. It stores everything in a local SQLite database. It needs no account. It links your entries to the pull requests, commits, and reviews that `gh` reports. An MCP server lets AI agents such as Claude Code log work for you.
 
-![gournal demo](./demo.gif)
+![gournal demo](https://raw.githubusercontent.com/aelshinawy/gournal/main/demo.gif)
 
 ## Install
 

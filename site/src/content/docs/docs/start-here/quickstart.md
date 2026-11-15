@@ -30,7 +30,7 @@ Skill: installed.
 Stop hook: not enabled (add --hook to enable it).
 ```
 
-This example ran on a machine with no `claude` CLI, so gournal printed the command for you to run. Restart Claude Code after setup. Then run `claude mcp list`. The list must show `gournal`.
+This example ran on a machine with no `claude` CLI, so gournal printed the command for you to run. With `claude` installed, gournal runs it for you. Restart Claude Code after setup. Then run `claude mcp list`. The list must show `gournal`.
 
 See [Claude Code setup](/gournal/docs/guides/claude-code-setup/) for what the command changes, the Stop hook, and how to undo it.
 
