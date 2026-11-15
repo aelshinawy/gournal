@@ -284,6 +284,19 @@ describe('activity in bundles', () => {
     } finally { db2.close(); }
   });
 
+  test('a new imported entry links to activity that already exists locally', () => {
+    const { d: db2 } = open('b.db');
+    const act2 = createActivityRepository(db2, config, path.join(home, 'b.db'));
+    try {
+      act2.upsert([act()]);
+      const entry = repo.add({ summary: 'ship x', refs: entryRefs, ...base });
+      const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
+      delete bundle.activity; // the activity is not part of the import. It is already local.
+      expect(importBundle(db2, bundle, config)).toMatchObject({ inserted: 1 });
+      expect(act2.linkedTo([entry.id])[entry.id]?.map((a) => a.externalId)).toEqual(['5']);
+    } finally { db2.close(); }
+  });
+
   test('an older bundle activity row does not overwrite a newer local one', () => {
     const a = createActivityRepository(db, config, path.join(home, 'a.db'));
     a.upsert([act()]);

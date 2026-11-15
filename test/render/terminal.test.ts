@@ -160,7 +160,7 @@ describe('terminal renderers with activity', () => {
   test('collapsed Also line lists merged PRs and reviews by title', () => {
     const out = standupText(model([reviewed412, merged327]));
     expect(out).toBe(
-      '\nStandup: Today (2026-11-15)\n\n  gournal\n  10:41  Merged gournal PR #4 and installed 0.8.0\n\n' +
+      '\nStandup: Today (2026-11-15)\n\n  Done\n  gournal\n  10:41  Merged gournal PR #4 and installed 0.8.0\n\n' +
       '  Also: 1 PR merged, 1 review in 2 repos (--activity to expand)\n' +
       '    merged    acme/widgets#327  Add widget cache\n' +
       '    reviewed  octo/app#412      Fix login redirect\n');
@@ -185,7 +185,7 @@ describe('terminal renderers with activity', () => {
     const opened = makeActivity({ type: 'pr_opened', repo: 'acme/widgets', pr: 327, title: 'Add widget cache', occurredAt: at(15, 8, 30).toISOString() });
     const out = standupText(model([reviewed412, merged327, opened, c]), { expandActivity: true });
     expect(out).toBe(
-      '\nStandup: Today (2026-11-15)\n\n  gournal\n  10:41  Merged gournal PR #4 and installed 0.8.0\n\n' +
+      '\nStandup: Today (2026-11-15)\n\n  Done\n  gournal\n  10:41  Merged gournal PR #4 and installed 0.8.0\n\n' +
       '  Also happened\n' +
       '  acme/widgets\n' +
       '    07:05  commit    abcdef0  Fix cache key\n' +
@@ -194,6 +194,12 @@ describe('terminal renderers with activity', () => {
       '  octo/app\n' +
       '    08:00  reviewed  #412     Fix login redirect\n');
     expect(out).not.toContain('--activity to expand');
+  });
+
+  test('Done gets its header when only Also follows it', () => {
+    const out = standupText(model([merged327]));
+    expect(out).toContain('  Done\n  gournal\n  10:41  Merged gournal PR #4');
+    expect(out.indexOf('Done')).toBeLessThan(out.indexOf('  Also:'));
   });
 
   test('Also renders last, after Blockers, Next, and the Stale line', () => {

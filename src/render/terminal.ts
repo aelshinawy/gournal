@@ -46,7 +46,8 @@ export function standupText(m: StandupModel, opts: { expandActivity?: boolean } 
   if (isEmptyStandup(m)) return NO_ENTRIES();
   const timeFormat = m.isMultiDay ? 'EEE dd - HH:mm' : 'HH:mm';
   const activityTimeFormat = m.isMultiDay ? 'EEE dd HH:mm' : 'HH:mm';
-  const hasOpen = m.blockers.length > 0 || m.next.length > 0 || m.stale.count > 0;
+  // Done needs its header when any other section follows it, Also included.
+  const hasMore = m.blockers.length > 0 || m.next.length > 0 || m.stale.count > 0 || m.also !== null;
 
   const done = m.done.map(({ project, entries }) =>
     `  ${chalk.blue.bold(project)}\n` +
@@ -58,7 +59,7 @@ export function standupText(m: StandupModel, opts: { expandActivity?: boolean } 
   ).join('\n\n');
 
   const sections: string[] = [];
-  if (m.done.length > 0) sections.push((hasOpen ? `  ${chalk.green.bold('Done')}\n` : '') + done);
+  if (m.done.length > 0) sections.push((hasMore ? `  ${chalk.green.bold('Done')}\n` : '') + done);
   if (m.blockers.length > 0) sections.push(`  ${chalk.red.bold('Blockers')}\n${m.blockers.map(openItemLine).join('\n')}`);
   if (m.next.length > 0) sections.push(`  ${chalk.yellow.bold('Next')}\n${m.next.map(openItemLine).join('\n')}`);
   if (m.stale.count > 0) {

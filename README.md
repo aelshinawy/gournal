@@ -172,8 +172,8 @@ gournal sync
 gournal sync --since 2026-06-01
 ```
 
-- `--since <date>`: start at this date. A date means the local day. An ISO timestamp is also allowed. Use it to backfill older activity. A later `--since` never moves the sync cursor back.
-- A sync that finishes sets the cursor. A sync that stops early keeps the old cursor. The next sync repeats the overlap, and this causes no duplicates.
+- `--since <date>`: start at this date. A date means the local day. An ISO timestamp is also allowed. Use it to backfill older activity. A `--since` later than the cursor leaves the cursor as it is.
+- A sync that finishes sets the cursor. A sync that stops early moves the cursor to the last pull request that it finished, and never back. The next sync continues there. A small overlap repeats, and this causes no duplicates.
 - Only one sync runs at a time. If another sync runs, `gournal sync` fails and asks you to try again in a minute.
 
 Gournal counts your own PRs (opened and merged), the commits that you authored in them, and your reviews of other people's PRs. It skips your reviews of your own PRs.
@@ -190,7 +190,7 @@ Use `github.owners.include` and `github.owners.exclude` in `config.json` to limi
 - Owner names are not case sensitive.
 
 #### Auto-sync
-`gournal standup` and `gournal log` sync before they report. The MCP tools `get_standup` and `get_work_log` do the same. Auto-sync runs at most once every `github.autoSyncMinutes` (default 15). It stops after 10 seconds.
+`gournal standup` and `gournal log` sync before they report. The MCP tools `get_standup` and `get_work_log` do the same. Auto-sync runs at most once every `github.autoSyncMinutes` (default 15). It stops after 10 seconds. If it stops early, the next auto-sync continues where it stopped. The warning names `gournal sync`, which catches up.
 
 - A failed sync never blocks the command. Gournal prints one warning line and uses the stored data.
 - Auto-sync is silent when `gh` is not installed. `gournal sync` reports it.
@@ -204,7 +204,7 @@ Gournal links GitHub activity to your entries. Links are derived data. Gournal r
 2. **Commit reference**: the entry has a commit ref of 7 or more hex characters. It must match exactly one commit.
 3. **Branch and time**: a `done` entry has the same repo and branch as an activity, and it is within 2 hours of that activity. Exactly one such entry must exist.
 
-Repo names are not case sensitive. Gournal shows linked activity under its entry in `standup` and `log`. A PR gets one line with its latest event (merged, opened, or reviewed). Commits get one line with a count.
+Repo names are not case sensitive. Gournal shows linked activity under its entry in `standup` and `log`. A PR gets one line with its most advanced event (merged, opened, or reviewed). Commits get one line with a count.
 
 #### Also happened
 Activity that no entry links to shows in the standup as one line:
@@ -220,7 +220,7 @@ Reviews count by distinct PR. Run `gournal standup --activity` to list every ite
 
 1. **MCP server**: it runs `claude mcp add --scope user gournal -- gournal mcp`. Gournal uses its full path when `gournal` on your `PATH` is a different install.
 2. **Skill**: it writes `~/.claude/skills/gournal/SKILL.md`. The skill tells Claude when to log work.
-3. **Stop hook** (off by default): it adds a hook to `~/.claude/settings.json`. When a session edits files, the hook asks Claude once to log the work. The hook never opens the database.
+3. **Stop hook** (off by default): it adds a hook to `~/.claude/settings.json`. When a session edits files and has logged nothing, the hook asks Claude once to log the work. The hook never opens the database.
 
 ```bash
 gournal setup claude
@@ -229,7 +229,7 @@ gournal setup claude --uninstall
 ```
 
 - `--yes`: apply the MCP and skill steps without asking. Without a terminal, `--yes` is required.
-- `--hook`: also add the Stop hook. With `--yes`, the hook needs `--hook`. In a terminal, the hook prompt defaults to no.
+- `--hook`: also add the Stop hook. With `--yes`, the hook needs `--hook`. In a terminal, the hook prompt defaults to no unless you pass `--hook`.
 - `--uninstall`: remove what setup added. It removes the MCP registration, the skill file (only if gournal wrote it), and the gournal hook. It changes nothing else.
 - If gournal is already registered with a different command, setup replaces it only when you answer yes in a terminal. The default is no.
 - Before the first change to `settings.json`, setup saves a copy as `settings.json.gournal-backup`. Gournal keeps that first copy.
