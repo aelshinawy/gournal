@@ -187,7 +187,7 @@ A restrained palette: tinted paper and ink neutrals plus one rust accent. Dark t
 - **Display** (600, clamp(2.5rem, 1.6rem + 4vw, 4.5rem), 1.02): the homepage headline only. Max 15em wide, balanced wrap.
 - **Headline** (600, clamp(1.875rem to 2.375rem), 1.15): section titles on the homepage and page titles in the docs.
 - **Title** (600, 1.5rem to 1.25rem, 1.3): feature tile titles, step titles, h3 in docs.
-- **Body** (400, 1.0625rem, 1.65): reading text, oldstyle numerals, 65 to 75ch measure in docs (46rem column).
+- **Body** (400, 1.0625rem, 1.65): reading text, oldstyle numerals. Docs use one shared 64rem column for prose and tables (chosen by Ahmed, 2026-11-15), so prose lines can run past 75ch on wide screens.
 - **Label** (500 to 600, 0.875rem): nav links, buttons, captions, hints, sidebar.
 - **Code** (400, 0.72rem to 0.95rem): commands, output, paths, and the site name.
 
@@ -202,7 +202,7 @@ The homepage is a ledger. A container of max 76rem with a fluid gutter (clamp(1r
 
 Sections are divided by a 1px rule and padded clamp(3rem, 2rem + 5vw, 7rem). Spacing follows the 4px-based scale (0.25rem to 7rem). Feature tiles sit in three columns divided by hairlines at 60rem and wider, become specimen-beside-text rows from 40rem to 60rem, and stack below 40rem.
 
-The docs keep Starlight's layout: one left sidebar, a 46rem content column, and the "On this page" rail. Wide tables and code scroll inside their own box. The page never scrolls sideways.
+The docs keep Starlight's layout: one left sidebar, a 64rem content column that fills the space between the sidebar and the rail on most laptop screens, and the "On this page" rail. Wide tables and code scroll inside their own box. The page never scrolls sideways.
 
 ## Elevation & Depth
 

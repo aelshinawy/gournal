@@ -116,8 +116,10 @@ test('configuration and environment pages list every descriptor', async () => {
   for (const k of CONFIG_KEY_DOCS) {
     expect(config).toContain(`\`${k.key}\``);
     expect(config).toContain(k.type.replace(/\|/g, '\\|'));
-    if (k.validation) expect(config).toContain(k.validation.replace(/\|/g, '\\|'));
+    if (k.validation) expect(config).toContain(`**Validation:** ${k.validation.replace(/\|/g, '\\|')}`);
   }
+  // Validation shares the Description cell, so the long text gets one wide column.
+  expect(config).toContain('| Key | Type | Default | Description |');
   const env = await get('environment.md');
   for (const v of ENV_VAR_DOCS) {
     expect(env).toContain(`\`${v.name}\``);

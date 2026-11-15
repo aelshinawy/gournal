@@ -34,7 +34,7 @@
   --sl-text-body: var(--g-text-base);
   --sl-text-code: 0.875rem;
   --sl-line-height: var(--g-leading-body);
-  --sl-content-width: 46rem;
+  --sl-content-width: 64rem;
   --sl-nav-height: 3.5rem;
 }
 
@@ -178,7 +178,6 @@ starlight-toc a[aria-current='true'] {
 }
 
 .sl-markdown-content :is(th, td) {
-  min-width: 8rem;
   padding: var(--g-space-2) var(--g-space-3);
   border-bottom: 1px solid var(--g-rule);
   vertical-align: top;
