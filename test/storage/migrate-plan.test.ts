@@ -190,3 +190,56 @@ test('an unchanged multi-tag entry is untouched', () => {
   expect(changes).toEqual([]);
   expect(repo.get(e.id)!.updatedAt).toBe(e.updatedAt);
 });
+
+describe('plans never lose the original text', () => {
+  test('a new summary without details keeps the original message in details', () => {
+    expect(byIndex(1).details).toBeNull();
+    apply(plan(item(B, 1, { summary: 'Reviewed second' })));
+    const e = byIndex(1);
+    expect(e.summary).toBe('Reviewed second');
+    expect(e.details).toBe(B.message);
+  });
+
+  test('the original message goes first, then edited details', () => {
+    repo.update(byIndex(1).id, { details: 'my own note' });
+    apply(plan(item(B, 1, { summary: 'Reviewed second' })));
+    expect(byIndex(1).details).toBe(`${B.message}\n\nmy own note`);
+  });
+
+  test('the dry run shows the final details', () => {
+    const { changes } = apply(plan(item(B, 1, { summary: 'Reviewed second' })), true);
+    expect(changes[0].after.details).toBe(B.message);
+    expect(byIndex(1).details).toBeNull();
+  });
+
+  test('an explicit details string that loses the message is rejected and nothing is written', () => {
+    const before = repo.list({ includeDeleted: true });
+    expect(() => apply(plan(item(A, 0, { summary: 'Shipped ranking' }), item(B, 1, { summary: 'Short', details: 'unrelated' })))).toThrow(
+      'Plan item 1 would lose text: summary plus details must contain the original message');
+    expect(repo.list({ includeDeleted: true })).toEqual(before);
+  });
+
+  test('an explicit details string that holds the message is accepted', () => {
+    apply(plan(item(B, 1, { summary: 'Short', details: `Context. ${B.message}` })));
+    expect(byIndex(1).details).toBe(`Context. ${B.message}`);
+  });
+
+  test('summary plus details holds the original message for every item of a mixed plan', () => {
+    const C = { timestamp: '2026-08-01T10:00:00.000Z', message: 'Line one\nLine two', project: 'a', tags: [] as string[] };
+    const D = { timestamp: '2026-08-02T10:00:00.000Z', message: `${'Long sentence '.repeat(12)}end`, project: 'a', tags: [] as string[] };
+    fs.writeFileSync(jsonPath, JSON.stringify([A, B, C, D]));
+    importLegacy(db, repo, config, jsonPath);
+    const all = [A, B, C, D];
+    apply(plan(
+      item(A, 0, { summary: 'New A' }),
+      item(B, 1, { summary: 'New B' }),
+      item(C, 2, { summary: 'New C' }),
+      item(D, 3, { summary: 'New D' }),
+    ));
+    all.forEach((src, i) => {
+      const e = byIndex(i);
+      expect(e.summary).toBe(`New ${'ABCD'[i]}`);
+      expect(e.summary.includes(src.message.trim()) || (e.details ?? '').includes(src.message.trim())).toBe(true);
+    });
+  });
+});

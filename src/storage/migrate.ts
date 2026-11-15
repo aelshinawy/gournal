@@ -155,6 +155,11 @@ export interface PlanChange {
 
 const KINDS: readonly string[] = ['done', 'blocker', 'next'];
 const view = (e: Entry): PlanView => ({ summary: e.summary, details: e.details, kind: e.kind, project: e.project, tags: e.tags, refs: e.refs });
+/** True when the original message (trimmed) is still in the summary or in the details. */
+const keepsText = (message: string, summary: string, details: string | null): boolean => {
+  const msg = message.trim();
+  return summary.includes(msg) || (details ?? '').includes(msg);
+};
 const sameList = (a: unknown[], b: unknown[]): boolean => a.length === b.length && a.every((x, i) => x === b[i]);
 
 interface Resolved { item: PlanItem; entryId: string; message: string; summary: string }
@@ -199,6 +204,9 @@ function validatePlan(db: DatabaseSync, jsonPath: string, plan: MigrationPlan): 
     if (item.details === null && check.summary !== src.message.trim()) {
       throw new Error(`Plan item ${i} would lose text: details may only be cleared when the summary is the full message`);
     }
+    if (typeof item.details === 'string' && !keepsText(src.message, check.summary, item.details)) {
+      throw new Error(`Plan item ${i} would lose text: summary plus details must contain the original message`);
+    }
     out.push({ item, entryId: row.entry_id, message: src.message, summary: check.summary });
   }
   return out;
@@ -237,9 +245,15 @@ export function applyPlan(
       const wantProject = r?.item.project ?? row.project;
       const newRefs = mergeRefs(row.refs, norm.refs);
       const tagsPatched = !sameList(norm.tags, row.tags) || newRefs.length !== row.refs.length;
+      let details = r && r.item.details !== undefined ? r.item.details : row.details;
+      if (r && r.item.details === undefined && !keepsText(r.message, r.summary, details)) {
+        // A new summary must not drop the original words. Put the message first, then any edited details.
+        const msg = r.message.trim();
+        details = details !== null && details !== '' && details !== msg ? `${msg}\n\n${details}` : msg;
+      }
       const after: PlanView = {
         summary: r ? r.summary : row.summary,
-        details: r && r.item.details !== undefined ? r.item.details : row.details,
+        details,
         kind: r?.item.kind ?? row.kind,
         // The repository aliases the project once. The patch carries the raw value.
         project: aliasProject(wantProject),
