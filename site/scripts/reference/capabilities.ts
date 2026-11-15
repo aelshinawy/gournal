@@ -61,7 +61,7 @@ export const CAPABILITIES: readonly Capability[] = [
     summary: 'Remove an entry, or bring back an entry that you removed. The undo command removes the last entry that you added on this device.',
     cli: ['undo', 'restore'],
     mcp: ['delete_entry'],
-    caution: 'A removed entry can be lost for good. Read the backups guide before you remove many entries.',
+    caution: 'A removed entry leaves your reports and searches. The entry stays in the database, and the restore command brings it back. Read the [backups guide](/gournal/docs/guides/data-safety-and-backups/) for backups.',
     related: ['edit', 'guides/data-safety-and-backups'],
   },
   {
@@ -170,7 +170,7 @@ export const CAPABILITIES: readonly Capability[] = [
     summary: 'Load entries from a bundle file. Use it to restore a journal or to move it to a new machine.',
     cli: ['import'],
     mcp: [],
-    caution: 'An import can add to or change the entries that you have. Make a backup first. Read the backups guide.',
+    caution: 'An import can add to or change the entries that you have. Make a backup first. Read the [backups guide](/gournal/docs/guides/data-safety-and-backups/).',
     related: ['export', 'guides/data-safety-and-backups', 'guides/migrating-from-0x'],
   },
   {
@@ -180,7 +180,7 @@ export const CAPABILITIES: readonly Capability[] = [
     summary: 'Remove all journal entries after you confirm.',
     cli: ['clear'],
     mcp: [],
-    caution: 'This command deletes data. Export your journal first. Read the backups guide.',
+    caution: 'This command removes every entry from your reports and searches. The entries stay in the database until you restore them one by one. Export your journal first. Read the [backups guide](/gournal/docs/guides/data-safety-and-backups/).',
     related: ['export', 'guides/data-safety-and-backups'],
   },
   {
