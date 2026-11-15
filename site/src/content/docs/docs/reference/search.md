@@ -57,7 +57,7 @@ Search journal entries. Every filter is optional, and filters combine.
 | `to` | `string` | no | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |
 | `limit` | `integer` | no | Most entries to return. The maximum is 500. Default: `50`. |
 | `order` | `"asc" \| "desc"` | no | desc puts the newest entries first. asc puts the oldest first. Default: `"desc"`. |
-| `includeDeleted` | `boolean` | no | Also return entries that you deleted. |
+| `includeDeleted` | `boolean` | no | Also return entries that you removed. |
 
 #### Output
 

@@ -107,6 +107,6 @@ A link follows one of three rules:
 2. **Commit reference.** The entry has a `commit` ref of at least 7 hex characters. It must match exactly one commit.
 3. **Branch and time.** A `done` entry has the same repository and branch as an activity, and is within 2 hours of it. Exactly one entry must fit.
 
-Linked activity shows under its entry in `standup` and `log`. Activity that is not linked to a shown done entry shows in the standup under `Also`. The standup prints an `Also:` line with counts, and one line for each pull request. Run `gournal standup --activity` to list every item.
+Linked activity shows under its entry in `standup` and `log`. Activity that is not linked to a shown done entry shows in the standup under `Also`. The standup prints an `Also:` line with counts, and one line for each merged or reviewed pull request. Opened pull requests are counted, and they get no line. Run `gournal standup --activity` to list every item.
 
 See [Standups and work logs](/gournal/docs/guides/standups-and-work-logs/) and [GitHub activity](/gournal/docs/guides/github-activity/).

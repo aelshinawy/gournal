@@ -178,7 +178,7 @@ export function buildProgram(io: CliIo): Command {
   program
     .command('restore')
     .argument('<id>', 'The full id or the last 8 characters of the removed entry.')
-    .description('Bring back a removed entry. Pass the full id or the last 8 characters.')
+    .description('Bring back a removed entry.')
     .action(async (id: string) => {
       await withJournal(({ repo }) => {
         const entry = repo.restore(id);
@@ -189,7 +189,7 @@ export function buildProgram(io: CliIo): Command {
   program
     .command('resolve')
     .argument('<id>', 'The full id or the last 8 characters of the entry.')
-    .description('Mark an open blocker or next entry as resolved. Pass the full id or the last 8 characters.')
+    .description('Mark an open blocker or next entry as resolved.')
     .action(async (id: string) => {
       await withJournal(({ repo }) => {
         const entry = repo.resolve(id);

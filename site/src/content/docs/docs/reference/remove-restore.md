@@ -23,7 +23,7 @@ gournal undo
 
 ### gournal restore
 
-Bring back a removed entry. Pass the full id or the last 8 characters.
+Bring back a removed entry.
 
 ```text
 gournal restore <id>
@@ -39,7 +39,7 @@ gournal restore <id>
 
 ### delete_entry
 
-Delete an entry. The entry stays in the database, so you can restore it with the CLI command `gournal restore <id>`.
+Remove an entry. The entry stays in the database, so you can restore it with the CLI command `gournal restore <id>`.
 
 #### Input
 

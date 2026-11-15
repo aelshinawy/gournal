@@ -242,8 +242,8 @@ export function createServer(deps: ServerDeps = {}): McpServer {
   server.registerTool(
     'delete_entry',
     {
-      title: 'Delete journal entry',
-      description: 'Delete an entry. The entry stays in the database, so you can restore it with the CLI command `gournal restore <id>`.',
+      title: 'Remove journal entry',
+      description: 'Remove an entry. The entry stays in the database, so you can restore it with the CLI command `gournal restore <id>`.',
       outputSchema: EntryResultSchema,
       inputSchema: { id: z.string().min(1).describe('Full id or the last 8 characters of the entry.') },
     },
@@ -304,7 +304,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
         to: z.string().optional().describe(OPTION_TEXT.to),
         limit: z.number().int().min(1).max(500).default(FIND_DEFAULT_LIMIT).describe(`${OPTION_TEXT.limit} The maximum is 500.`),
         order: z.enum(['asc', 'desc']).default('desc').describe('desc puts the newest entries first. asc puts the oldest first.'),
-        includeDeleted: z.boolean().optional().describe('Also return entries that you deleted.'),
+        includeDeleted: z.boolean().optional().describe('Also return entries that you removed.'),
       },
     },
     guarded((args: Query & { limit: number; order: 'asc' | 'desc' }, { repo }) => {

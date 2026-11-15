@@ -52,7 +52,7 @@ Gournal skips your reviews of your own pull requests. It skips pending reviews. 
 
 ## Limits
 
-Each search reads at most 1000 pull requests. The limit applies to the search for your own pull requests and to the search for pull requests that you reviewed. Gournal reads at most 300 commits for each of your own pull requests. It reads at most 100 reviews for each pull request that you reviewed. Gournal prints no warning when a limit cuts the result. To stay under the limits, use a narrower `--since` date.
+Each search reads at most 1000 pull requests. The limit applies to the search for your own pull requests and to the search for pull requests that you reviewed. Gournal reads at most 300 commits for each of your own pull requests. For each pull request that you reviewed, it reads the first 100 reviews, by any reviewer. Gournal prints no warning when a limit cuts the result. To stay under the limits, use a narrower `--since` date.
 
 ## Owners
 

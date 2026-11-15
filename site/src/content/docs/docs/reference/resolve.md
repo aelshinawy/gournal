@@ -11,7 +11,7 @@ Use this when a blocker is cleared or a planned step is done. The entry then sto
 
 ### gournal resolve
 
-Mark an open blocker or next entry as resolved. Pass the full id or the last 8 characters.
+Mark an open blocker or next entry as resolved.
 
 ```text
 gournal resolve <id>
