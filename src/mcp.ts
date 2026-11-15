@@ -8,13 +8,15 @@ import { generateCsvExport, generateMarkdownExport } from './export';
 import { filterByProject, filterByTags } from './util/entries.util';
 import { generateWorkLog } from './log';
 import { countBy } from './stats';
+import { VERSION } from './version';
+import { parseBound } from './util/date-bounds.util';
 import type { Entry } from './types';
 import type { ReportOptions } from './types/report-config';
 
 const textResult = (text: string) => ({ content: [{ type: 'text' as const, text }] });
 
 export function createServer(): McpServer {
-  const server = new McpServer({ name: 'gournal', version: '0.3.0' });
+  const server = new McpServer({ name: 'gournal', version: VERSION });
 
   const isoDate = z.string().refine(v => !isNaN(Date.parse(v)), {
     message: 'must be a valid ISO date/timestamp',
@@ -57,8 +59,8 @@ export function createServer(): McpServer {
     },
     async ({ project, from, to, limit }) => {
       let entries = filterByProject(await readEntries(), project);
-      if (from) entries = entries.filter(e => e.timestamp >= from);
-      if (to) entries = entries.filter(e => e.timestamp <= to);
+      if (from) entries = entries.filter(e => e.timestamp >= parseBound(from, 'from'));
+      if (to) entries = entries.filter(e => e.timestamp <= parseBound(to, 'to'));
       entries = [...entries].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, limit);
       return textResult(JSON.stringify(entries, null, 2));
     }

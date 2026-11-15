@@ -66,6 +66,18 @@ describe('MCP server tools', () => {
     expect((result.content as any[])[0].text).toContain('gournal');
   });
 
+  test('server reports the package version', async () => {
+    const client = await connectedClient();
+    expect(client.getServerVersion()?.version).toBe(require('../package.json').version);
+  });
+
+  test('list_entries "to" date includes that whole day', async () => {
+    mockedReadEntries.mockResolvedValue([{ ...entries[0], timestamp: new Date(2026, 6, 13, 23, 30).toISOString() }]);
+    const client = await connectedClient();
+    const res = await client.callTool({ name: 'list_entries', arguments: { to: '2026-07-13' } });
+    expect(JSON.parse((res.content as any)[0].text)).toHaveLength(1);
+  });
+
   test('add_entry falls back to git-detected project when omitted', async () => {
     mockedGetProjectName.mockReturnValue('detected-project');
     const client = await connectedClient();

@@ -13,16 +13,16 @@ import type { Entry } from './types';
 import { format } from 'date-fns';
 import inquirer from 'inquirer';
 import fs from 'fs-extra';
-import path from 'path';
-
-const { version } = fs.readJsonSync(path.join(__dirname, '..', 'package.json'));
+import { VERSION } from './version';
+import { parseBound } from './util/date-bounds.util';
+import { clearConfirmQuestion } from './prompts';
 
 const program = new Command();
 
 program
   .name('gournal')
   .description('CLI development journal with Git integration')
-  .version(version);
+  .version(VERSION);
 
 program
   .command('add <message>')
@@ -45,12 +45,7 @@ program
     .description('Clear all journal entries')
     .action(async () => {
       const { confirm } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'confirm',
-          message: chalk.red(`Are you sure you want to clear all gournal entries?`),
-          default: true,
-        },
+        { ...clearConfirmQuestion, message: chalk.red(clearConfirmQuestion.message) },
       ]);
       if (!confirm) return;
       await updateEntries(() => []);
@@ -174,8 +169,8 @@ program
   .action(async (query: string, options: { project?: string; tags?: string; from?: string; to?: string }) => {
     let entries = filterByProject(await readEntries(), options.project);
     entries = filterByTags(entries, options.tags ? options.tags.split(',').filter(Boolean) : undefined);
-    if (options.from) entries = entries.filter(e => e.timestamp >= options.from!);
-    if (options.to) entries = entries.filter(e => e.timestamp <= options.to!);
+    if (options.from) entries = entries.filter(e => e.timestamp >= parseBound(options.from!, 'from'));
+    if (options.to) entries = entries.filter(e => e.timestamp <= parseBound(options.to!, 'to'));
 
     const results = entries.filter(entry => entry.message.toLowerCase().includes(query.toLowerCase()));
 
