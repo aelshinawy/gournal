@@ -10,6 +10,11 @@ export interface ListQuery {
 }
 
 export interface EntryRepository {
+  /**
+   * Run fn in one transaction. All writes inside commit together or not at all.
+   * A write inside fn joins the open transaction.
+   */
+  transaction<T>(fn: () => T): T;
   add(input: NewEntryInput): Entry;
   /** Full id or unique suffix of 6 or more chars. Throws AmbiguousIdError on more than one match. */
   get(idOrSuffix: string): Entry | null;

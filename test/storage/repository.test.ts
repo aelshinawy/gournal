@@ -220,3 +220,14 @@ test('add and update reject an empty summary', () => {
   expect(() => repo.update(e.id, { summary: '' })).toThrow('summary is empty');
   expect(repo.get(e.id)!.summary).toBe('ok');
 });
+
+test('transaction commits nested writes together', () => {
+  const ids = repo.transaction(() => [repo.add({ summary: 'a', ...base }).id, repo.add({ summary: 'b', ...base }).id]);
+  expect(repo.list().map((e) => e.id).sort()).toEqual([...ids].sort());
+});
+test('transaction rolls back every nested write on error and stays usable', () => {
+  expect(() => repo.transaction(() => { repo.add({ summary: 'a', ...base }); throw new Error('boom'); })).toThrow('boom');
+  expect(repo.list()).toHaveLength(0);
+  repo.add({ summary: 'after', ...base });
+  expect(repo.list()).toHaveLength(1);
+});

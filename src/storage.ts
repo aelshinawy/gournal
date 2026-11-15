@@ -4,65 +4,27 @@ import crypto from 'crypto';
 import { format } from 'date-fns';
 import type { Entry } from './types';
 import { withLock, type LockOptions } from './lock';
+import {
+  CorruptJournalError,
+  backupsDir,
+  latestBackup as latestBackupFromLegacy,
+  listBackups,
+  readLegacyEntries,
+} from './storage/legacy-json';
 
 const DATA_DIR = path.join(process.env.HOME || process.env.USERPROFILE!, '.gournal');
 export const ENTRIES_PATH = path.join(DATA_DIR, 'entries.json');
 
-const BACKUP_PATTERN = /^entries-\d{4}-\d{2}-\d{2}\.json$/;
 const BACKUP_KEEP = 7;
 
-export class CorruptJournalError extends Error {
-  readonly path: string;
-  readonly latestBackup: string | null;
+export { CorruptJournalError };
 
-  constructor(filePath: string, latestBackup: string | null) {
-    super(
-      `Journal file ${filePath} is not valid. Latest backup: ${latestBackup ?? 'none'}. Gournal did not change the file.`
-    );
-    this.name = 'CorruptJournalError';
-    this.path = filePath;
-    this.latestBackup = latestBackup;
-  }
+export function latestBackup(filePath = ENTRIES_PATH): Promise<string | null> {
+  return latestBackupFromLegacy(filePath);
 }
 
-function backupsDir(filePath: string): string {
-  return path.join(path.dirname(filePath), 'backups');
-}
-
-async function listBackups(filePath: string): Promise<string[]> {
-  let names: string[];
-  try {
-    names = await fs.readdir(backupsDir(filePath));
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
-    throw err;
-  }
-  return names.filter(n => BACKUP_PATTERN.test(n)).sort();
-}
-
-export async function latestBackup(filePath = ENTRIES_PATH): Promise<string | null> {
-  const names = await listBackups(filePath);
-  return names.length ? path.join(backupsDir(filePath), names[names.length - 1]) : null;
-}
-
-export async function readEntries(filePath = ENTRIES_PATH): Promise<Entry[]> {
-  let text: string;
-  try {
-    text = await fs.readFile(filePath, 'utf8');
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
-    throw err;
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new CorruptJournalError(filePath, await latestBackup(filePath));
-  }
-  if (!Array.isArray(parsed)) {
-    throw new CorruptJournalError(filePath, await latestBackup(filePath));
-  }
-  return parsed as Entry[];
+export function readEntries(filePath = ENTRIES_PATH): Promise<Entry[]> {
+  return readLegacyEntries(filePath);
 }
 
 export async function writeEntriesAtomic(entries: Entry[], filePath: string): Promise<void> {

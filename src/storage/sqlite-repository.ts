@@ -29,7 +29,11 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
   const normalize = (tags: string[]) => normalizeTags(tags, config.tagAliases, { ticketPrefixes: config.ticketPrefixes });
   const aliasProject = (p: string): string => (Object.hasOwn(config.projectAliases, p) ? config.projectAliases[p] : p);
 
+  // True while this repository holds an open transaction. Nested writes then join it.
+  let inTransaction = false;
+
   function write<T>(fn: () => T): T {
+    if (inTransaction) return fn();
     try {
       backupDbIfNeeded(db, dbPath);
     } catch (err) {
@@ -40,6 +44,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
       }
     }
     db.exec('BEGIN IMMEDIATE');
+    inTransaction = true;
     try {
       const result = fn();
       db.exec('COMMIT');
@@ -47,6 +52,8 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
     } catch (err) {
       try { db.exec('ROLLBACK'); } catch { /* ignore */ }
       throw err;
+    } finally {
+      inTransaction = false;
     }
   }
 
@@ -94,6 +101,8 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
   }
 
   return {
+    transaction: write,
+
     add(input) {
       checkSummary(input.summary);
       return write(() => {
