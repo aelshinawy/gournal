@@ -3,7 +3,7 @@ import { hasLineBreak, mergeRefs, newId, normalizeTags, summaryLength, MAX_SUMMA
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref } from '../core';
 import type { EntryRepository, ListQuery } from '../core/repository';
 import { backupDbIfNeeded } from './backup';
-import type { Config } from './config';
+import type { Config } from '../core';
 import { hydrateRows, replaceRefs as replaceRefRows, replaceTags as replaceTagRows } from './entry-rows';
 import type { Row } from './entry-rows';
 

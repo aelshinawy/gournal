@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { CONFIG_DEFAULTS } from '../../src/core';
 import { loadConfig } from '../../src/storage/config';
 import { gournalHome } from '../../src/storage/home';
 
@@ -16,11 +17,11 @@ test('loadConfig creates a stable deviceId', () => {
   const a = loadConfig(dir); const b = loadConfig(dir);
   expect(a.deviceId).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
   expect(b).toEqual(a);
-  expect(a).toEqual({ deviceId: a.deviceId, projectAliases: {}, tagAliases: {}, ticketPrefixes: [] });
+  expect(a).toEqual({ deviceId: a.deviceId, projectAliases: {}, tagAliases: {}, ticketPrefixes: [], ...CONFIG_DEFAULTS });
 });
 test('loadConfig fills missing keys and keeps existing values', () => {
   fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify({ deviceId: 'D1', tagAliases: { a: 'b' } }));
-  expect(loadConfig(dir)).toEqual({ deviceId: 'D1', projectAliases: {}, tagAliases: { a: 'b' }, ticketPrefixes: [] });
+  expect(loadConfig(dir)).toEqual({ deviceId: 'D1', projectAliases: {}, tagAliases: { a: 'b' }, ticketPrefixes: [], ...CONFIG_DEFAULTS });
 });
 test('loadConfig creates the folder and leaves no temp files', () => {
   const sub = path.join(dir, 'nested', 'home');
@@ -72,4 +73,22 @@ test.each(['projectAliases', 'tagAliases'])('%s with an alias chain is rejected'
     fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ deviceId: 'D', [key]: { a: 'b', b: 'c' } }));
     expect(() => loadConfig(home)).toThrow('alias chain at "a"');
   } finally { fs.rmSync(home, { recursive: true, force: true }); }
+});
+test('new settings are not written to the file', () => {
+  const file = path.join(dir, 'config.json');
+  const text = JSON.stringify({ deviceId: 'D', projectAliases: {}, tagAliases: {}, ticketPrefixes: [] }, null, 2) + '\n';
+  fs.writeFileSync(file, text);
+  expect(loadConfig(dir).staleAfterDays).toBe(14);
+  expect(fs.readFileSync(file, 'utf8')).toBe(text);
+});
+test('a first-run file holds only the Phase 1 keys', () => {
+  loadConfig(dir);
+  expect(Object.keys(JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'))).sort())
+    .toEqual(['deviceId', 'projectAliases', 'tagAliases', 'ticketPrefixes']);
+});
+test('loadConfig sends warnings to the warn hook', () => {
+  fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify({ deviceId: 'D', projectAliases: {}, tagAliases: {}, ticketPrefixes: [], staleAfterDays: -1 }));
+  const warn = jest.fn();
+  expect(loadConfig(dir, { warn }).staleAfterDays).toBe(14);
+  expect(warn).toHaveBeenCalledWith(expect.stringContaining('staleAfterDays must be a positive integer; using 14'));
 });

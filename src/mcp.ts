@@ -10,7 +10,7 @@ import { VERSION } from './adapters/version';
 import { parseBound } from './util/date-bounds.util';
 import { checkSummary, closeTags, normalizeTags, type Entry, type EntryPatch } from './core';
 import type { EntryRepository } from './core/repository';
-import type { Config } from './storage/config';
+import type { Config } from './core';
 import { openJournal } from './storage/journal';
 import { toLegacy } from './legacy-view';
 import type { ReportOptions } from './types/report-config';

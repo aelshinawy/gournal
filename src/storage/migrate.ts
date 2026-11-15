@@ -4,7 +4,7 @@ import { checkSummary, extractRefs, mergeRefs, normalizeTags, splitSummary } fro
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref } from '../core';
 import type { EntryRepository } from '../core/repository';
 import { snapshotDb } from './backup';
-import type { Config } from './config';
+import type { Config } from '../core';
 import { CorruptJournalError, readLegacyEntriesSync } from './legacy-json';
 import type { LegacyEntry } from './legacy-json';
 
