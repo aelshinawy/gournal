@@ -111,8 +111,11 @@ export async function runSync(
       report.linked = activity.relinkActivity(up.ids);
       repo.setState(SYNC_STATE.login, fetched.login);
       // A partial sync keeps the cursor. The next sync repeats the gap, and the upsert makes that harmless.
+      // A --since later than the cursor must leave it, or the gap before --since is never fetched.
       if (fetched.complete) {
-        repo.setState(SYNC_STATE.cursor, maxIso(cursor, opts.now.toISOString()));
+        if (cursorDate === null || isNaN(cursorDate.getTime()) || since.getTime() <= cursorDate.getTime()) {
+          repo.setState(SYNC_STATE.cursor, maxIso(cursor, opts.now.toISOString()));
+        }
         repo.setState(SYNC_STATE.lastSyncAt, opts.now.toISOString());
       }
     });

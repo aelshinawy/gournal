@@ -30,14 +30,17 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let home: string;
 let journal: Journal;
 let other: Journal;
+const savedNoAuto = process.env.GOURNAL_NO_AUTOSYNC;
 beforeEach(() => {
+  delete process.env.GOURNAL_NO_AUTOSYNC; // the global setup sets it; the gate tests need it unset
   home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-sync-'));
   journal = openJournal(home);
   other = openJournal(home);
 });
 afterEach(() => {
   jest.restoreAllMocks();
-  delete process.env.GOURNAL_NO_AUTOSYNC;
+  if (savedNoAuto === undefined) delete process.env.GOURNAL_NO_AUTOSYNC;
+  else process.env.GOURNAL_NO_AUTOSYNC = savedNoAuto;
   journal.close();
   other.close();
   fs.rmSync(home, { recursive: true, force: true });
@@ -77,11 +80,19 @@ test('--since backfills but never moves the cursor back', async () => {
   const r = await runSync(journal, fakeGh(routes(older)), { since: older, auto: false, now: later });
   expect(r.since).toBe(older.toISOString());
   expect(r.status).toBe('ok');
-  expect(Date.parse(cursor()!)).toBeGreaterThanOrEqual(NOW.getTime());
-  // A complete sync with a --since in the future of the cursor start still stores its own start.
+  expect(cursor()).toBe(later.toISOString());
+  // A sync that starts before the stored cursor must not move it back.
   const evenLater = new Date(NOW.getTime() - 5 * DAY);
   await runSync(journal, fakeGh(routes(older)), { since: older, auto: false, now: evenLater });
-  expect(Date.parse(cursor()!)).toBeGreaterThanOrEqual(later.getTime());
+  expect(cursor()).toBe(later.toISOString());
+});
+
+test('a manual --since later than the cursor leaves the cursor unchanged', async () => {
+  await runSync(journal, fakeGh(routes(new Date(NOW.getTime() - 30 * DAY))), { auto: false, now: NOW });
+  const since = new Date(NOW.getTime() + DAY);
+  const r = await runSync(journal, fakeGh(routes(since)), { since, auto: false, now: new Date(NOW.getTime() + 2 * DAY) });
+  expect(r.status).toBe('ok');
+  expect(cursor()).toBe(NOW.toISOString());
 });
 
 test('timeout keeps partial activity and keeps the cursor', async () => {
@@ -251,4 +262,27 @@ describe('relinkAfterWrite', () => {
     const warnings = write.mock.calls.filter((c) => String(c[0]).includes('relink'));
     expect(warnings.length).toBeLessThanOrEqual(1);
   });
+});
+
+test('a legacy-imported entry with a pr ref links to existing activity', async () => {
+  await runSync(journal, fakeGh(routes(new Date(NOW.getTime() - 30 * DAY))), { auto: false, now: NOW });
+  const legacyHome = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-sync-legacy-'));
+  try {
+    const first = openJournal(legacyHome);
+    first.activity.upsert(journal.activity.find());
+    first.close();
+    fs.writeFileSync(path.join(legacyHome, 'entries.json'), JSON.stringify([
+      { timestamp: '2026-11-05T10:00:00.000Z', message: 'Merged https://github.com/acme/widgets/pull/5 after review', project: 'widgets', tags: [] },
+    ]));
+    const reopened = openJournal(legacyHome); // imports entries.json on open
+    try {
+      const entry = reopened.repo.find()[0];
+      expect(entry.refs).toContainEqual(expect.objectContaining({ type: 'pr', value: '5' }));
+      expect(reopened.activity.linkedTo([entry.id])[entry.id]?.length).toBeGreaterThan(0);
+    } finally {
+      reopened.close();
+    }
+  } finally {
+    fs.rmSync(legacyHome, { recursive: true, force: true });
+  }
 });
