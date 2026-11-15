@@ -3,7 +3,10 @@ import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { DatabaseSync } from 'node:sqlite';
+import { format, startOfWeek } from 'date-fns';
 import { runIn } from './helpers/run-cli';
+import { openJournal } from '../src/storage/journal';
+import { ftsTest } from './fts5';
 
 const mkHome = () => fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cli-v2-'));
 const rows = (home: string, sql = 'SELECT id, summary, details, status, deleted_at FROM entries ORDER BY created_at') => {
@@ -229,6 +232,165 @@ describe('bundle restore with migrated entries', () => {
       expect(rows(home, 'SELECT id FROM entries WHERE deleted_at IS NOT NULL').length).toBe(2);
     } finally {
       fs.rmSync(other, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('gournal CLI reads on Query and renderers', () => {
+  let home: string;
+  beforeEach(() => { home = mkHome(); });
+  afterEach(() => fs.rmSync(home, { recursive: true, force: true }));
+  const run = (...args: string[]) => runIn(home, args);
+  // eslint-disable-next-line no-control-regex
+  const plain = (s: string) => s.replace(/\u001b\[[0-9;]*m/g, '');
+  const daysAgo = (n: number, hour = 10) => {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    d.setHours(hour, 0, 0, 0);
+    return d.toISOString();
+  };
+  const seed = (items: { summary: string; kind?: 'done' | 'blocker' | 'next'; createdAt: string; details?: string }[]) => {
+    const j = openJournal(home);
+    try {
+      return items.map((i) => j.repo.add({ project: 'p', source: 'cli', ...i }));
+    } finally {
+      j.close();
+    }
+  };
+
+  test('standup shows an open blocker from an earlier day', async () => {
+    seed([{ summary: 'Stuck on CI', kind: 'blocker', createdAt: daysAgo(2) }]);
+    const r = await run('standup');
+    expect(r.status).toBe(0);
+    expect(plain(r.stdout)).toContain('Blockers');
+    expect(plain(r.stdout)).toContain('Stuck on CI');
+  });
+
+  test('a resolved blocker leaves the standup', async () => {
+    const [b] = seed([{ summary: 'Stuck on CI', kind: 'blocker', createdAt: daysAgo(2) }]);
+    expect((await run('resolve', b.id.slice(-8))).status).toBe(0);
+    const r = await run('standup');
+    expect(plain(r.stdout)).not.toContain('Blockers');
+    expect(plain(r.stdout)).not.toContain('Stuck on CI');
+  });
+
+  test('staleAfterDays from config.json moves items to Stale', async () => {
+    fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ staleAfterDays: 1 }));
+    seed([{ summary: 'Old blocker', kind: 'blocker', createdAt: daysAgo(2) }]);
+    const r = plain((await run('standup')).stdout);
+    expect(r).toContain('Stale: 1 open item older than 1 days');
+    expect(r).not.toContain('Blockers');
+  });
+
+  test('weekStartsOn 0 changes the weekly title', async () => {
+    seed([{ summary: 'x', createdAt: new Date().toISOString() }]);
+    const title = async () => plain((await run('standup', '--week')).stdout).match(/Weekly \((.*?) - /)![1];
+    expect(await title()).toBe(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'MMM dd'));
+    fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ weekStartsOn: 0 }));
+    expect(await title()).toBe(format(startOfWeek(new Date(), { weekStartsOn: 0 }), 'MMM dd'));
+  });
+
+  test('find --kind blocker,next --status open lists only open items', async () => {
+    const [b] = seed([
+      { summary: 'blocker one', kind: 'blocker', createdAt: daysAgo(1) },
+      { summary: 'blocker two', kind: 'blocker', createdAt: daysAgo(1) },
+      { summary: 'next one', kind: 'next', createdAt: daysAgo(1) },
+      { summary: 'done one', createdAt: daysAgo(1) },
+    ]);
+    await run('resolve', b.id.slice(-8));
+    const r = await run('find', 'one', '--kind', 'blocker,next', '--status', 'open');
+    expect(r.stdout).toContain('Found 1 entries:');
+    expect(r.stdout).toContain('next one');
+    expect(r.stdout).not.toContain('blocker one');
+    expect(r.stdout).not.toContain('done one');
+  });
+
+  test('find rejects a bad kind, status, and limit before opening the journal', async () => {
+    const k = await run('find', 'x', '--kind', 'done,wat');
+    expect(k.status).toBe(1);
+    expect(k.stderr).toContain('Unknown kind "wat". Use done, blocker, or next.');
+    const s = await run('find', 'x', '--status', 'closed');
+    expect(s.status).toBe(1);
+    expect(s.stderr).toContain('Unknown status "closed". Use open or resolved.');
+    const l = await run('find', 'x', '-n', '0');
+    expect(l.status).toBe(1);
+    expect(l.stderr).toContain('limit must be a positive integer');
+    expect(fs.existsSync(path.join(home, 'gournal.db'))).toBe(false);
+  });
+
+  test('find -n limits the results', async () => {
+    seed([
+      { summary: 'alpha a', createdAt: daysAgo(3) },
+      { summary: 'alpha b', createdAt: daysAgo(2) },
+    ]);
+    expect((await run('find', 'alpha', '-n', '1')).stdout).toContain('Found 1 entries:');
+  });
+
+  test('find uses text search over details', async () => {
+    seed([{ summary: 'plain', details: 'contains zebra word', createdAt: daysAgo(1) }]);
+    expect((await run('find', 'zebra')).stdout).toContain('Found 1 entries:');
+  });
+
+  test('log --from --to covers whole local days', async () => {
+    const late = new Date();
+    late.setDate(late.getDate() - 3);
+    late.setHours(23, 30, 0, 0);
+    seed([
+      { summary: 'late entry', createdAt: late.toISOString() },
+      { summary: 'outside entry', createdAt: daysAgo(5) },
+    ]);
+    const day = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const r = await run('log', '--from', day(late), '--to', day(late));
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain('late entry');
+    expect(r.stdout).not.toContain('outside entry');
+  });
+
+  test('a bad --from exits 1 with Invalid date, before opening the journal', async () => {
+    for (const cmd of ['standup', 'log']) {
+      const r = await run(cmd, '--from', 'soon');
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain('Invalid date: soon');
+    }
+    const e = await run('export', '--to', 'soon');
+    expect(e.status).toBe(1);
+    expect(fs.existsSync(path.join(home, 'gournal.db'))).toBe(false);
+  });
+
+  test('export --from --to narrows md and csv output', async () => {
+    seed([
+      { summary: 'in range', createdAt: '2026-03-10T10:00:00.000Z' },
+      { summary: 'out of range', createdAt: '2026-01-10T10:00:00.000Z' },
+    ]);
+    const md = await run('export', '--from', '2026-03-09', '--to', '2026-03-11');
+    expect(md.stdout).toContain('in range');
+    expect(md.stdout).not.toContain('out of range');
+    const csv = await run('export', '-f', 'csv', '--from', '2026-03-09');
+    expect(csv.stdout).toContain('in range');
+    expect(csv.stdout).not.toContain('out of range');
+  });
+
+  ftsTest('index rebuild prints the count', async () => {
+    seed([{ summary: 'one', createdAt: daysAgo(1) }]);
+    const r = await run('index', 'rebuild');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain('Search index rebuilt: 1 entries.');
+  });
+
+  test('index rebuild without FTS5 refuses and keeps the daily backup slot', async () => {
+    seed([{ summary: 'one', createdAt: daysAgo(1) }]);
+    fs.rmSync(path.join(home, 'backups'), { recursive: true, force: true }); // the seed write took the day's backup
+    const prev = process.env.GOURNAL_DISABLE_FTS5;
+    process.env.GOURNAL_DISABLE_FTS5 = '1';
+    try {
+      const r = await run('index', 'rebuild');
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain('This Node build has no FTS5; the search index cannot be rebuilt.');
+      const dir = path.join(home, 'backups');
+      const daily = fs.existsSync(dir) ? fs.readdirSync(dir).filter((n) => /^gournal-\d{4}-\d{2}-\d{2}\.db$/.test(n)) : [];
+      expect(daily).toEqual([]);
+    } finally {
+      if (prev === undefined) delete process.env.GOURNAL_DISABLE_FTS5; else process.env.GOURNAL_DISABLE_FTS5 = prev;
     }
   });
 });

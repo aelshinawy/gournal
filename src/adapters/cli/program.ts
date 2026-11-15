@@ -1,15 +1,12 @@
 import { Command, CommanderError } from 'commander';
 import chalk from 'chalk';
 import { resolveIdentity } from '../../sources';
-import { generateStandupReport } from '../../report';
-import { generateWorkLog } from '../../log';
-import { generateStats } from '../../stats';
-import { generateCsvExport, generateMarkdownExport } from '../../export';
 import { startMcpServer } from '../../mcp';
-import { checkSummary, shortId } from '../../core';
-import type { Kind } from '../../core';
-import { toLegacy } from '../../legacy-view';
-import { format } from 'date-fns';
+import { buildStandup, buildStats, buildWorkLog, checkSummary, resolvePeriod, resolveQuery, shortId } from '../../core';
+import type { Kind, Query, Status } from '../../core';
+import {
+  entryLinesText, exportCsv, exportMarkdown, projectCountsText, standupText, statsText, tagCountsText, workLogText,
+} from '../../render';
 import inquirer from 'inquirer';
 import fs from 'fs-extra';
 import path from 'path';
@@ -20,7 +17,7 @@ import type { Journal } from '../../storage/journal';
 import { exportBundle, importBundle } from '../../storage/bundle';
 import { backupDbIfNeeded } from '../../storage/backup';
 import { gournalHome } from '../../storage/home';
-import { rebuildSearchIndex } from '../../storage/schema';
+import { hasFts5, rebuildSearchIndex } from '../../storage/schema';
 import { importLegacy, applyPlan, renderPlanDiff } from '../../storage/migrate';
 import type { MigrationPlan } from '../../storage/migrate';
 
@@ -34,6 +31,41 @@ export interface CliIo {
 
 const KINDS: Kind[] = ['done', 'blocker', 'next'];
 const splitList = (v?: string): string[] => (v ? v.split(',').map(x => x.trim()).filter(Boolean) : []);
+const STATUSES: Status[] = ['open', 'resolved'];
+const NO_FTS5_MESSAGE = 'This Node build has no FTS5; the search index cannot be rebuilt.';
+
+interface PeriodCliOptions {
+  yesterday?: boolean; week?: boolean; month?: boolean;
+  from?: string; to?: string; project?: string; repo?: string; tags?: string;
+}
+interface FindCliOptions {
+  project?: string; tags?: string; kind?: string; status?: string; repo?: string; from?: string; to?: string; limit?: string;
+}
+
+/** Build one Query from CLI options. Validate every value here, so a bad option fails before the journal opens. */
+function buildQuery(options: Partial<FindCliOptions>, text?: string): Query {
+  const kind = splitList(options.kind);
+  for (const k of kind) {
+    if (!KINDS.includes(k as Kind)) throw new Error(`Unknown kind "${k}". Use done, blocker, or next.`);
+  }
+  if (options.status !== undefined && !STATUSES.includes(options.status as Status)) {
+    throw new Error(`Unknown status "${options.status}". Use open or resolved.`);
+  }
+  const query: Query = {
+    project: options.project,
+    repo: options.repo,
+    tags: splitList(options.tags),
+    text,
+    kind: kind.length > 0 ? (kind as Kind[]) : undefined,
+    status: options.status as Status | undefined,
+    from: options.from,
+    to: options.to,
+    limit: options.limit === undefined ? undefined : Number(options.limit),
+  };
+  resolveQuery(query, {}); // throws on a bad date or limit
+  return query;
+}
+
 const stripNewline = (text: string): string => text.replace(/\n$/, '');
 
 export function buildProgram(io: CliIo): Command {
@@ -149,16 +181,23 @@ export function buildProgram(io: CliIo): Command {
 
   program
     .command('standup')
-    .description('Generate standup report')
+    .description('Generate standup report: Done, open Blockers and Next items, and a Stale line')
     .option('-y, --yesterday', 'Include yesterday\'s entries')
     .option('-w, --week', 'Show weekly summary')
     .option('-m, --month', 'Show monthly summary')
+    .option('--from <date>', 'Start date (inclusive, local day or ISO timestamp)')
+    .option('--to <date>', 'End date (inclusive, local day or ISO timestamp)')
     .option('-p, --project <project>', 'Filter by project name')
+    .option('--repo <owner/name>', 'Filter by repository')
     .option('-t, --tags <tags>', 'Comma-separated tags')
-    .action(async (options) => {
-      await withJournal(({ repo }) => {
-        const entries = repo.find({ project: options.project, tags: splitList(options.tags) }).map(e => toLegacy(e));
-        io.out(generateStandupReport(entries, options));
+    .action(async (options: PeriodCliOptions) => {
+      const base = buildQuery(options);
+      await withJournal(({ repo, config }) => {
+        const now = new Date();
+        const period = resolvePeriod(options, now, config.weekStartsOn);
+        const done = repo.find({ ...base, kind: ['done'], from: period.start.toISOString(), to: period.end.toISOString() });
+        const open = repo.find({ ...base, kind: ['blocker', 'next'], status: 'open', to: period.end.toISOString() });
+        io.out(standupText(buildStandup({ period, done, open, now, staleAfterDays: config.staleAfterDays })));
       });
     });
 
@@ -168,12 +207,17 @@ export function buildProgram(io: CliIo): Command {
     .option('-y, --yesterday', 'Include yesterday\'s entries')
     .option('-w, --week', 'Show weekly log')
     .option('-m, --month', 'Show monthly log')
+    .option('--from <date>', 'Start date (inclusive, local day or ISO timestamp)')
+    .option('--to <date>', 'End date (inclusive, local day or ISO timestamp)')
     .option('-p, --project <project>', 'Filter by project name')
+    .option('--repo <owner/name>', 'Filter by repository')
     .option('-t, --tags <tags>', 'Comma-separated tags')
-    .action(async (options) => {
-      await withJournal(({ repo }) => {
-        const entries = repo.find({ project: options.project, tags: splitList(options.tags) }).map(e => ({ ...toLegacy(e), id: e.id }));
-        io.out(generateWorkLog(entries, options));
+    .action(async (options: PeriodCliOptions) => {
+      const base = buildQuery(options);
+      await withJournal(({ repo, config }) => {
+        const period = resolvePeriod(options, new Date(), config.weekStartsOn);
+        const entries = repo.find({ ...base, from: period.start.toISOString(), to: period.end.toISOString() });
+        io.out(workLogText(buildWorkLog(period, entries)));
       });
     });
 
@@ -181,10 +225,10 @@ export function buildProgram(io: CliIo): Command {
     .command('stats')
     .description('Show entry counts by project/tag and your current daily streak')
     .option('-p, --project <project>', 'Filter by project name')
-    .action(async (options) => {
+    .action(async (options: { project?: string }) => {
+      const query = buildQuery({ project: options.project });
       await withJournal(({ repo }) => {
-        const entries = repo.find({ project: options.project }).map(e => toLegacy(e));
-        io.out(generateStats(entries));
+        io.out(statsText(buildStats(repo.find(query), new Date())));
       });
     });
 
@@ -193,12 +237,7 @@ export function buildProgram(io: CliIo): Command {
     .description('List distinct tags with entry counts')
     .action(async () => {
       await withJournal(({ repo }) => {
-        const counts = repo.tagCounts().map(c => [c.tag, c.count] as const);
-        if (counts.length === 0) {
-          io.out(chalk.yellow('No tags found.'));
-          return;
-        }
-        counts.forEach(([tag, count]) => io.out(`${chalk.magenta(`#${tag}`)}  ${count}`));
+        io.out(tagCountsText(repo.tagCounts()));
       });
     });
 
@@ -207,12 +246,7 @@ export function buildProgram(io: CliIo): Command {
     .description('List distinct projects with entry counts')
     .action(async () => {
       await withJournal(({ repo }) => {
-        const counts = repo.projectCounts().map(c => [c.project, c.count] as const);
-        if (counts.length === 0) {
-          io.out(chalk.yellow('No projects found.'));
-          return;
-        }
-        counts.forEach(([project, count]) => io.out(`${chalk.blue(project)}  ${count}`));
+        io.out(projectCountsText(repo.projectCounts()));
       });
     });
 
@@ -222,12 +256,15 @@ export function buildProgram(io: CliIo): Command {
     .option('-f, --format <format>', 'Output format: md, csv, or bundle', 'md')
     .option('-p, --project <project>', 'Filter by project name (md and csv only)')
     .option('-t, --tags <tags>', 'Comma-separated tags (md and csv only)')
+    .option('--from <date>', 'Start date (inclusive, md and csv only)')
+    .option('--to <date>', 'End date (inclusive, md and csv only)')
     .option('-o, --output <file>', 'Write to a file instead of stdout')
-    .action(async (options: { format: string; project?: string; tags?: string; output?: string }) => {
+    .action(async (options: { format: string; project?: string; tags?: string; from?: string; to?: string; output?: string }) => {
       const exportFormat = options.format.toLowerCase();
       if (exportFormat !== 'md' && exportFormat !== 'csv' && exportFormat !== 'bundle') {
         throw new Error(`Unknown format "${options.format}". Use md, csv, or bundle.`);
       }
+      const query = buildQuery(options);
 
       await withJournal(async ({ repo, db, config }) => {
         let output: string;
@@ -237,8 +274,8 @@ export function buildProgram(io: CliIo): Command {
           output = JSON.stringify(bundle, null, 2);
           count = bundle.entries.length;
         } else {
-          const entries = repo.find({ project: options.project, tags: splitList(options.tags) }).map(e => toLegacy(e, { withDetails: true }));
-          output = exportFormat === 'csv' ? generateCsvExport(entries) : generateMarkdownExport(entries);
+          const entries = repo.find(query);
+          output = exportFormat === 'csv' ? exportCsv(entries) : exportMarkdown(entries);
           count = entries.length;
         }
 
@@ -287,25 +324,22 @@ export function buildProgram(io: CliIo): Command {
     });
 
   program
-    .command('find <query>')
+    .command('find <text>')
     .description('Find entries by keyword')
     .option('-p, --project <project>', 'Filter by project name')
     .option('-t, --tags <tags>', 'Comma-separated tags')
+    .option('-k, --kind <kinds>', 'Comma-separated kinds: done, blocker, next')
+    .option('--status <status>', 'open or resolved')
+    .option('--repo <owner/name>', 'Filter by repository')
     .option('--from <date>', 'ISO date lower bound (inclusive)')
     .option('--to <date>', 'ISO date upper bound (inclusive)')
-    .action(async (query: string, options: { project?: string; tags?: string; from?: string; to?: string }) => {
+    .option('-n, --limit <n>', 'Show at most n entries')
+    .action(async (text: string, options: FindCliOptions) => {
+      const query = buildQuery(options, text);
       await withJournal(({ repo }) => {
-        const results = repo.find({ project: options.project, tags: splitList(options.tags), from: options.from, to: options.to, text: query });
-
+        const results = repo.find(query);
         io.out(chalk.bold(`Found ${results.length} entries:\n`));
-        results.forEach(entry => {
-          io.out(
-            `${chalk.gray(format(new Date(entry.createdAt), 'MMM EEE dd - HH:mm'))} ` +
-            `${chalk.gray(shortId(entry.id))} ` +
-            `${chalk.blue(`[${entry.project}]`)} ${entry.summary} ` +
-            `${entry.tags.map(t => chalk.magenta(`#${t}`)).join(' ')}`
-          );
-        });
+        if (results.length > 0) io.out(entryLinesText(results));
       });
     });
 
@@ -360,6 +394,8 @@ export function buildProgram(io: CliIo): Command {
     .description('Drop and recreate the full-text search index. Run it only when every gournal process uses a Node build with FTS5.')
     .action(async () => {
       await withJournal(({ db }) => {
+        // Check FTS5 first, so a refusal does not use up the daily backup slot.
+        if (!hasFts5(db)) throw new Error(NO_FTS5_MESSAGE);
         try {
           backupDbIfNeeded(db, path.join(io.home, 'gournal.db'));
         } catch (err) {
