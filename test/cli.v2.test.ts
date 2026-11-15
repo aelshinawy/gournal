@@ -80,9 +80,9 @@ describe('gournal CLI on the SQLite journal', () => {
     try {
       const imp = runIn(home2, ['import', file]);
       expect(imp.status).toBe(0);
-      expect(imp.stdout).toContain('Imported: 2 new, 0 updated, 0 unchanged.');
+      expect(imp.stdout).toContain('Imported: 2 new, 0 updated, 0 unchanged, 0 duplicates merged.');
       expect(rows(home2).map((r) => r.id)).toEqual(rows(home).map((r) => r.id));
-      expect(runIn(home2, ['import', file]).stdout).toContain('Imported: 0 new, 0 updated, 2 unchanged.');
+      expect(runIn(home2, ['import', file]).stdout).toContain('Imported: 0 new, 0 updated, 2 unchanged, 0 duplicates merged.');
       fs.writeFileSync(file, '{nope');
       const bad = runIn(home2, ['import', file]);
       expect(bad.status).toBe(1);
@@ -144,5 +144,49 @@ describe('gournal CLI on the SQLite journal', () => {
     expect(r.status).toBe(1);
     expect(r.stdout).toBe('');
     expect(r.stderr).toContain('Unknown format "xml". Use md, csv, or bundle.');
+  });
+});
+
+describe('bundle restore with migrated entries', () => {
+  const legacy = [
+    { timestamp: '2026-07-29T10:00:00.000Z', message: 'One', project: 'a', tags: [] as string[] },
+    { timestamp: '2026-07-30T10:00:00.000Z', message: 'Two', project: 'a', tags: [] as string[] },
+  ];
+  let home: string;
+  beforeEach(() => {
+    home = mkHome();
+    fs.writeFileSync(path.join(home, 'entries.json'), JSON.stringify(legacy));
+  });
+  afterEach(() => fs.rmSync(home, { recursive: true, force: true }));
+  const live = () => rows(home, 'SELECT id FROM entries WHERE deleted_at IS NULL').length;
+
+  test('export, delete the database, import: still 2 live entries', () => {
+    expect(runIn(home, ['stats']).status).toBe(0);
+    const file = path.join(home, 'b.json');
+    expect(runIn(home, ['export', '--format', 'bundle', '-o', file]).status).toBe(0);
+    for (const f of ['gournal.db', 'gournal.db-wal', 'gournal.db-shm']) fs.rmSync(path.join(home, f), { force: true });
+    const imp = runIn(home, ['import', file]);
+    expect(imp.status).toBe(0);
+    expect(imp.stdout).toContain('Imported: 2 new, 0 updated, 0 unchanged, 0 duplicates merged.');
+    expect(live()).toBe(2);
+    expect(rows(home, 'SELECT id FROM entries').length).toBe(2);
+  });
+
+  test('an already migrated database merges the duplicates of a bundle of the same lines', () => {
+    const other = mkHome();
+    try {
+      fs.writeFileSync(path.join(other, 'entries.json'), JSON.stringify(legacy));
+      expect(runIn(other, ['stats']).status).toBe(0);
+      const file = path.join(other, 'b.json');
+      expect(runIn(other, ['export', '--format', 'bundle', '-o', file]).status).toBe(0);
+      expect(runIn(home, ['stats']).status).toBe(0);
+      const imp = runIn(home, ['import', file]);
+      expect(imp.status).toBe(0);
+      expect(imp.stdout).toContain('Imported: 2 new, 0 updated, 0 unchanged, 2 duplicates merged.');
+      expect(live()).toBe(2);
+      expect(rows(home, 'SELECT id FROM entries WHERE deleted_at IS NOT NULL').length).toBe(2);
+    } finally {
+      fs.rmSync(other, { recursive: true, force: true });
+    }
   });
 });

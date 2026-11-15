@@ -111,3 +111,9 @@ test('a failing legacy import never blocks the journal and is retried on the nex
   j = openJournal(home);
   try { expect(j.repo.list()).toHaveLength(4); } finally { j.close(); }
 });
+
+test('legacyImport false opens without importing entries.json', () => {
+  fs.writeFileSync(jsonPath(), JSON.stringify(legacy(3)));
+  const j = openJournal(home, { legacyImport: false });
+  try { expect(j.repo.list()).toEqual([]); } finally { j.close(); }
+});

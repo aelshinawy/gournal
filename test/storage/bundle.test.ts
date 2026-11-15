@@ -34,7 +34,7 @@ test('round-trips all entries including deleted', () => {
   expect(bundle.entries).toHaveLength(2);
   const { d: db2, r: repo2 } = open('b.db');
   try {
-    expect(importBundle(db2, JSON.parse(JSON.stringify(bundle)))).toEqual({ inserted: 2, updated: 0, skipped: 0 });
+    expect(importBundle(db2, JSON.parse(JSON.stringify(bundle)))).toEqual({ inserted: 2, updated: 0, skipped: 0, deduplicated: 0 });
     expect(repo2.list({ includeDeleted: true })).toEqual(repo.list({ includeDeleted: true }));
   } finally { db2.close(); }
 });
@@ -43,7 +43,7 @@ test('later updatedAt wins on import and replaces tags and refs', () => {
   const e = repo.add({ summary: 'old', tags: ['a'], refs: [{ type: 'pr', value: '1' }], ...base });
   const bundle = exportBundle(db, config);
   const next = { ...bundle.entries[0], summary: 'new', tags: ['b', 'Not-Normalized'], refs: [], updatedAt: new Date(Date.parse(e.updatedAt) + 1000).toISOString() };
-  expect(importBundle(db, { ...bundle, entries: [next] })).toEqual({ inserted: 0, updated: 1, skipped: 0 });
+  expect(importBundle(db, { ...bundle, entries: [next] })).toEqual({ inserted: 0, updated: 1, skipped: 0, deduplicated: 0 });
   expect(repo.get(e.id)).toEqual(next);
   expect(ftsHits(db, 'new')).toEqual([e.id]);
   expect(ftsHits(db, 'old')).toEqual([]);
@@ -54,7 +54,7 @@ test('older and equal updatedAt are skipped', () => {
   const bundle = exportBundle(db, config);
   const older = { ...bundle.entries[0], summary: 'older', updatedAt: new Date(Date.parse(e.updatedAt) - 1000).toISOString() };
   const equal = { ...bundle.entries[0], summary: 'equal' };
-  expect(importBundle(db, { ...bundle, entries: [older, equal] })).toEqual({ inserted: 0, updated: 0, skipped: 2 });
+  expect(importBundle(db, { ...bundle, entries: [older, equal] })).toEqual({ inserted: 0, updated: 0, skipped: 2, deduplicated: 0 });
   expect(repo.get(e.id)!.summary).toBe('keep');
 });
 
@@ -110,7 +110,7 @@ test('summary limit counts code points: 120 emoji pass, 121 fail', () => {
 
 test('the same id twice in one bundle skips the second copy', () => {
   const e = goodEntry();
-  expect(importBundle(db, wrap([e, { ...e, summary: 'second' }]))).toEqual({ inserted: 1, updated: 0, skipped: 1 });
+  expect(importBundle(db, wrap([e, { ...e, summary: 'second' }]))).toEqual({ inserted: 1, updated: 0, skipped: 1, deduplicated: 0 });
   expect(repo.get(e.id)!.summary).toBe('s');
 });
 
@@ -164,4 +164,81 @@ test.each([
   expect(() => importBundle(db, { format: 'gournal-bundle', schemaVersion: 1, entries: [entry] }))
     .toThrow(`Bundle entry 0 is invalid: ${field}`);
   expect(repo.list({ includeDeleted: true })).toEqual([]);
+});
+
+describe('legacy map in bundles', () => {
+  const addLegacy = (d: DatabaseSync, r: EntryRepository, n: number, hash = 'h') => {
+    const e = r.add({ summary: `legacy ${n}`, ...base, source: 'migration' });
+    d.prepare('INSERT INTO legacy_map (legacy_index, timestamp, message_hash, occurrence, entry_id) VALUES (?, ?, ?, 0, ?)')
+      .run(n, `2026-07-0${n + 1}T00:00:00.000Z`, `${hash}${n}`, e.id);
+    return e;
+  };
+  const mapRows = (d: DatabaseSync) => d.prepare('SELECT legacy_index, entry_id FROM legacy_map ORDER BY legacy_index').all() as { legacy_index: number; entry_id: string }[];
+
+  test('export carries every legacy_map row', () => {
+    const e = addLegacy(db, repo, 0);
+    const bundle = exportBundle(db, config);
+    expect(bundle.schemaVersion).toBe(1);
+    expect(bundle.legacyMap).toEqual([{ legacyIndex: 0, timestamp: '2026-07-01T00:00:00.000Z', messageHash: 'h0', occurrence: 0, entryId: e.id }]);
+  });
+
+  test('a new key is inserted into legacy_map on import', () => {
+    const e = addLegacy(db, repo, 0);
+    const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
+    const { d: db2 } = open('b.db');
+    try {
+      expect(importBundle(db2, bundle)).toEqual({ inserted: 1, updated: 0, skipped: 0, deduplicated: 0 });
+      expect(mapRows(db2)).toEqual([{ legacy_index: 0, entry_id: e.id }]);
+    } finally { db2.close(); }
+  });
+
+  test('the same legacy line under two ids keeps the later one live and soft-deletes the other', () => {
+    const { d: db2, r: repo2 } = open('b.db');
+    try {
+      const mine = addLegacy(db, repo, 0);
+      const theirs = addLegacy(db2, repo2, 0);
+      db2.prepare('UPDATE entries SET updated_at = ? WHERE id = ?').run(Date.parse(mine.updatedAt) + 5000, theirs.id);
+      const bundle = JSON.parse(JSON.stringify(exportBundle(db2, config)));
+      expect(importBundle(db, bundle)).toEqual({ inserted: 1, updated: 0, skipped: 0, deduplicated: 1 });
+      expect(repo.get(theirs.id)!.deletedAt).toBeNull();
+      expect(repo.get(mine.id)!.deletedAt).not.toBeNull();
+      expect(mapRows(db)).toEqual([{ legacy_index: 0, entry_id: theirs.id }]);
+      // The loser is kept, never erased.
+      expect(repo.list({ includeDeleted: true })).toHaveLength(2);
+    } finally { db2.close(); }
+  });
+
+  test('when the local entry is later, it survives', () => {
+    const { d: db2, r: repo2 } = open('b.db');
+    try {
+      const theirs = addLegacy(db2, repo2, 0);
+      const mine = addLegacy(db, repo, 0);
+      db.prepare('UPDATE entries SET updated_at = ? WHERE id = ?').run(Date.parse(theirs.updatedAt) + 5000, mine.id);
+      const bundle = JSON.parse(JSON.stringify(exportBundle(db2, config)));
+      expect(importBundle(db, bundle).deduplicated).toBe(1);
+      expect(repo.get(mine.id)!.deletedAt).toBeNull();
+      expect(repo.get(theirs.id)!.deletedAt).not.toBeNull();
+      expect(mapRows(db)).toEqual([{ legacy_index: 0, entry_id: mine.id }]);
+    } finally { db2.close(); }
+  });
+
+  test('an old bundle without legacyMap still imports', () => {
+    repo.add({ summary: 'plain', ...base });
+    const { legacyMap: _drop, ...old } = exportBundle(db, config);
+    const { d: db2 } = open('b.db');
+    try {
+      expect(importBundle(db2, JSON.parse(JSON.stringify(old)))).toEqual({ inserted: 1, updated: 0, skipped: 0, deduplicated: 0 });
+    } finally { db2.close(); }
+  });
+
+  test('a bad legacyMap row is rejected and nothing is written', () => {
+    repo.add({ summary: 'plain', ...base });
+    const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
+    bundle.legacyMap = [{ legacyIndex: 'x' }];
+    const { d: db2 } = open('b.db');
+    try {
+      expect(() => importBundle(db2, bundle)).toThrow('Bundle legacyMap row 0 is invalid');
+      expect(db2.prepare('SELECT count(*) AS n FROM entries').get()).toEqual({ n: 0 });
+    } finally { db2.close(); }
+  });
 });

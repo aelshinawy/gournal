@@ -32,8 +32,8 @@ const shortId = (id: string): string => id.slice(-8);
 const splitList = (v?: string): string[] => (v ? v.split(',').map(x => x.trim()).filter(Boolean) : []);
 
 /** Open the journal once for a command and close it when the command ends. */
-const withJournal = async <T>(fn: (journal: Journal) => T | Promise<T>): Promise<T> => {
-  const journal = openJournal();
+const withJournal = async <T>(fn: (journal: Journal) => T | Promise<T>, opts: { legacyImport?: boolean } = {}): Promise<T> => {
+  const journal = openJournal(undefined, opts);
   try {
     return await fn(journal);
   } finally {
@@ -246,15 +246,24 @@ program
       if (err instanceof SyntaxError) throw new Error(`Bundle file ${file} is not valid JSON: ${err.message}`);
       throw err;
     }
-    await withJournal(({ db }) => {
+    await withJournal(({ db, repo, config }) => {
       try {
         backupDbIfNeeded(db, path.join(gournalHome(), 'gournal.db'));
       } catch (err) {
         process.stderr.write(`gournal: daily backup failed: ${(err as Error).message}\n`);
       }
       const r = importBundle(db, bundle);
-      console.log(chalk.green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged.`));
-    });
+      console.log(chalk.green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged, ${r.deduplicated} duplicates merged.`));
+      // The bundle's legacy keys are in place now. The legacy import adds only lines the bundle did not know.
+      const jsonPath = path.join(gournalHome(), 'entries.json');
+      if (fs.existsSync(jsonPath)) {
+        try {
+          importLegacy(db, repo, config, jsonPath);
+        } catch (err) {
+          process.stderr.write(`gournal: legacy import failed; will retry (${(err as Error).message})\n`);
+        }
+      }
+    }, { legacyImport: false });
   });
 
 program

@@ -11,9 +11,19 @@ export interface Bundle {
   exportedAt: string;
   deviceId: string;
   entries: Entry[];
+  /** Which legacy line each migrated entry came from. Optional on import, so older bundles still load. */
+  legacyMap?: LegacyMapRow[];
 }
 
-export interface ImportResult { inserted: number; updated: number; skipped: number }
+export interface LegacyMapRow {
+  legacyIndex: number;
+  timestamp: string;
+  messageHash: string;
+  occurrence: number;
+  entryId: string;
+}
+
+export interface ImportResult { inserted: number; updated: number; skipped: number; deduplicated: number }
 
 export function exportBundle(db: DatabaseSync, config: Config): Bundle {
   // One read transaction gives a consistent snapshot of entries, tags, and refs.
@@ -26,6 +36,9 @@ export function exportBundle(db: DatabaseSync, config: Config): Bundle {
       exportedAt: new Date().toISOString(),
       deviceId: config.deviceId,
       entries: hydrateRows(db, rows),
+      legacyMap: (db.prepare('SELECT legacy_index, timestamp, message_hash, occurrence, entry_id FROM legacy_map ORDER BY legacy_index, timestamp, occurrence').all() as
+        { legacy_index: number; timestamp: string; message_hash: string; occurrence: number; entry_id: string }[])
+        .map((r) => ({ legacyIndex: r.legacy_index, timestamp: r.timestamp, messageHash: r.message_hash, occurrence: r.occurrence, entryId: r.entry_id })),
     };
   } finally {
     try { db.exec('COMMIT'); } catch { /* ignore */ }
@@ -76,9 +89,20 @@ function invalidField(e: unknown): string | null {
   return null;
 }
 
+const invalidMapRow = (r: unknown): boolean => {
+  if (typeof r !== 'object' || r === null || Array.isArray(r)) return true;
+  const o = r as Record<string, unknown>;
+  return !(Number.isInteger(o.legacyIndex) && (o.legacyIndex as number) >= 0 && isStr(o.timestamp) && isStr(o.messageHash)
+    && Number.isInteger(o.occurrence) && (o.occurrence as number) >= 0 && isStr(o.entryId));
+};
+
 const ms = (v: string | null): number | null => (v === null ? null : Date.parse(v));
 
-/** Merge a bundle into the database by id. The later updatedAt wins. Values are written as given. */
+/**
+ * Merge a bundle into the database by id. The later updatedAt wins. Values are written as given.
+ * Then merge its legacy map. If one legacy line points to two live entries (one made by the
+ * local import, one from the bundle), the later updatedAt stays live and the other is soft deleted.
+ */
 export function importBundle(db: DatabaseSync, bundle: unknown): ImportResult {
   const b = bundle as Partial<Bundle> | null;
   if (typeof b !== 'object' || b === null || b.format !== 'gournal-bundle' || b.schemaVersion !== 1 || !Array.isArray(b.entries)) {
@@ -90,7 +114,13 @@ export function importBundle(db: DatabaseSync, bundle: unknown): ImportResult {
     if (bad) throw new Error(`Bundle entry ${i} is invalid: ${bad}`);
   });
 
-  const result: ImportResult = { inserted: 0, updated: 0, skipped: 0 };
+  if (b.legacyMap !== undefined && !Array.isArray(b.legacyMap)) throw new Error('Bundle legacyMap is invalid');
+  const map = (b.legacyMap ?? []) as unknown[];
+  map.forEach((r, i) => {
+    if (invalidMapRow(r)) throw new Error(`Bundle legacyMap row ${i} is invalid`);
+  });
+
+  const result: ImportResult = { inserted: 0, updated: 0, skipped: 0, deduplicated: 0 };
   db.exec('BEGIN IMMEDIATE');
   try {
     const find = db.prepare('SELECT updated_at FROM entries WHERE id = ?');
@@ -108,10 +138,38 @@ export function importBundle(db: DatabaseSync, bundle: unknown): ImportResult {
       replaceTags(db, e.id, e.tags);
       replaceRefs(db, e.id, e.refs);
     }
+    mergeLegacyMap(db, map as LegacyMapRow[], result);
     db.exec('COMMIT');
     return result;
   } catch (err) {
     try { db.exec('ROLLBACK'); } catch { /* ignore */ }
     throw err;
+  }
+}
+
+function mergeLegacyMap(db: DatabaseSync, map: LegacyMapRow[], result: ImportResult): void {
+  const entry = db.prepare('SELECT updated_at, deleted_at FROM entries WHERE id = ?');
+  const local = db.prepare('SELECT entry_id FROM legacy_map WHERE timestamp = ? AND message_hash = ? AND occurrence = ?');
+  const insert = db.prepare('INSERT INTO legacy_map (legacy_index, timestamp, message_hash, occurrence, entry_id) VALUES (?, ?, ?, ?, ?)');
+  const repoint = db.prepare('UPDATE legacy_map SET entry_id = ? WHERE timestamp = ? AND message_hash = ? AND occurrence = ?');
+  const hide = db.prepare('UPDATE entries SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL');
+  type E = { updated_at: number; deleted_at: number | null };
+  for (const r of map) {
+    const theirs = entry.get(r.entryId) as E | undefined;
+    if (!theirs) continue;
+    const known = local.get(r.timestamp, r.messageHash, r.occurrence) as { entry_id: string } | undefined;
+    if (!known) { insert.run(r.legacyIndex, r.timestamp, r.messageHash, r.occurrence, r.entryId); continue; }
+    if (known.entry_id === r.entryId) continue;
+    const mine = entry.get(known.entry_id) as E | undefined;
+    if (!mine) { repoint.run(r.entryId, r.timestamp, r.messageHash, r.occurrence); continue; }
+    // Only two live entries are duplicates. A deleted one is the user's choice, so leave both alone.
+    if (mine.deleted_at !== null || theirs.deleted_at !== null) continue;
+    // The later updatedAt survives. On a tie the smaller id survives, so every device picks the same one.
+    const keepTheirs = theirs.updated_at > mine.updated_at || (theirs.updated_at === mine.updated_at && r.entryId < known.entry_id);
+    const [winner, loser] = keepTheirs ? [r.entryId, known.entry_id] : [known.entry_id, r.entryId];
+    const now = Date.now();
+    hide.run(now, now, loser);
+    if (keepTheirs) repoint.run(winner, r.timestamp, r.messageHash, r.occurrence);
+    result.deduplicated++;
   }
 }
