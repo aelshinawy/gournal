@@ -14,3 +14,4 @@ export * from './stats';
 export * from './activity';
 export * from './linking';
 export type { EntryRepository, ActivityRepository, ActivityQuery } from './repository';
+export * from './docs-meta';
