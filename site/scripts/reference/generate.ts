@@ -4,6 +4,7 @@ import path from 'path';
 import { buildProgram } from '../../../src/adapters/cli';
 import { cliPages, type GeneratedPage } from './cli';
 import { configPage, environmentPage } from './config';
+import { mcpPages } from './mcp';
 
 export type { GeneratedPage };
 
@@ -11,10 +12,11 @@ export const REFERENCE_DIR = 'src/content/docs/docs/reference';
 
 /**
  * Paths the generator owns, relative to the reference folder. It deletes any other file in a
- * directory entry. Task 4 adds `{ dir: 'mcp' }` here.
+ * directory entry.
  */
 export const OWNED: ReadonlyArray<{ dir: string } | { file: string }> = [
   { dir: 'cli' },
+  { dir: 'mcp' },
   { file: 'configuration.md' },
   { file: 'environment.md' },
 ];
@@ -53,6 +55,7 @@ function readExamples(examplesDir: string, sub: string): Map<string, string> {
 export async function generateReference(opts: { examplesDir: string }): Promise<GeneratedPage[]> {
   const pages = [
     ...cliPages(inertProgram(), readExamples(opts.examplesDir, 'cli')),
+    ...(await mcpPages(readExamples(opts.examplesDir, 'mcp'))),
     configPage(),
     environmentPage(),
   ];
@@ -93,7 +96,7 @@ export async function writeReference(siteRoot: string): Promise<{ written: strin
 export function orphanExamples(pages: GeneratedPage[], examplesDir: string): string[] {
   const have = new Set(pages.map((p) => p.path));
   const orphans: string[] = [];
-  for (const sub of ['cli']) {
+  for (const sub of ['cli', 'mcp']) {
     for (const slug of readExamples(examplesDir, sub).keys()) {
       if (!have.has(`${sub}/${slug}.md`)) orphans.push(`${sub}/${slug}.md`);
     }

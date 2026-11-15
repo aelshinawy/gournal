@@ -136,3 +136,79 @@ test('generated pages contain no em dash and no package version', async () => {
     expect(p.content).not.toContain(version);
   }
 });
+
+// ---- MCP tool reference ----
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { createDocsServer, schemaRows } from '../site/scripts/reference/mcp';
+
+describe('MCP reference', () => {
+  const toolNames = async (): Promise<string[]> => {
+    const { server } = createDocsServer();
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const c = new Client({ name: 'docs-test', version: '0.0.0' });
+    await Promise.all([c.connect(ct), server.connect(st)]);
+    try { return (await c.listTools()).tools.map((t) => t.name).sort(); } finally { await c.close(); await server.close(); }
+  };
+
+  test('every MCP tool has a page', async () => {
+    const names = await toolNames();
+    expect(names).toHaveLength(12);
+    const pages = (await generateReference({ examplesDir })).map((p) => p.path);
+    const slugs = pages.filter((p) => p.startsWith('mcp/') && p !== 'mcp/output-shapes.md').map((p) => p.slice(4, -3)).sort();
+    expect(slugs).toEqual(names);
+    expect(pages).toContain('mcp/output-shapes.md');
+    expect(pages).not.toContain('mcp/placeholder.md');
+    // Starlight puts pages with a sidebar order first, so every page has one and output-shapes is last.
+    const order = async (n: string): Promise<number> => Number(/sidebar:\n {2}order: (\d+)/.exec(await get(`mcp/${n}.md`))?.[1]);
+    const orders = await Promise.all([...names, 'output-shapes'].map(order));
+    expect(orders).toEqual([...orders].sort((a, b) => a - b));
+    expect(new Set(orders).size).toBe(orders.length);
+  });
+
+  test('input tables list every field with its required flag', async () => {
+    const add = await get('mcp/add_entry.md');
+    expect(add).toContain('title: add_entry\n');
+    expect(add).toContain('## Input');
+    expect(add).toMatch(/^\| `summary` \| `string` \| no \|/m);
+    expect(add).toMatch(/^\| `refs` \| `object\[\]` \| no \|/m);
+    expect(add).toMatch(/^\| `refs.type` \| `"pr" \\\| "jira" \\\| "commit" \\\| "url"` \| yes \|/m);
+    expect(add).toMatch(/^\| `refs.value` \| `string` \| yes \|/m);
+    expect(add).toMatch(/^\| `tags` \| `string\[\]` \| no \|/m);
+    expect(schemaRows({ type: 'object', required: ['a'], properties: { a: { type: 'string', description: 'x|y' }, b: { type: ['integer', 'null'] } } } as never))
+      .toEqual([['`a`', '`string`', 'yes', 'x|y'], ['`b`', '`integer | null`', 'no', '']]);
+  });
+
+  test('shared output shapes appear once and tool pages link to them', async () => {
+    const shapes = await get('mcp/output-shapes.md');
+    expect(shapes.match(/^## Entry result$/gm)).toHaveLength(1);
+    expect(shapes.match(/^## Entry list$/gm)).toHaveLength(1);
+    const link = '/gournal/docs/reference/mcp/output-shapes/#entry-result';
+    for (const t of ['add_entry', 'update_entry']) {
+      const page = await get(`mcp/${t}.md`);
+      expect(page).toContain(link);
+      expect(page).not.toContain('| `entry` |');
+    }
+    expect(await get('mcp/list_entries.md')).toContain('/gournal/docs/reference/mcp/output-shapes/#entry-list');
+    // A shape used once renders inline.
+    expect(await get('mcp/get_standup.md')).toMatch(/^## Output/m);
+    expect(await get('mcp/get_standup.md')).not.toContain('output-shapes');
+    // A tool with no outputSchema says it returns text.
+    expect(await get('mcp/export_entries.md')).toContain('returns text content');
+  });
+
+  test('the MCP server used for docs touches no real home', async () => {
+    const before = fs.readdirSync(process.env.HOME as string).sort();
+    const { server, touched } = createDocsServer();
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const c = new Client({ name: 'docs-test', version: '0.0.0' });
+    await Promise.all([c.connect(ct), server.connect(st)]);
+    await c.listTools();
+    await c.close();
+    await server.close();
+    expect(touched()).toBe(false);
+    await generateReference({ examplesDir });
+    expect(fs.readdirSync(process.env.HOME as string).sort()).toEqual(before);
+    expect(fs.existsSync(path.join(process.env.HOME as string, '.gournal'))).toBe(false);
+  });
+});
