@@ -20,6 +20,14 @@ export default defineConfig({
           borderRadius: '8px'
         }
       },
+      head: [
+        {
+          // Code blocks that scroll need keyboard focus, so keyboard users can read the cut-off text.
+          tag: 'script',
+          content:
+            "addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('.expressive-code pre').forEach((p)=>{if(p.scrollWidth>p.clientWidth){p.tabIndex=0;}});});"
+        }
+      ],
       plugins: [starlightLinksValidator()],
       sidebar: [
         {
