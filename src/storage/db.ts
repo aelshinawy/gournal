@@ -10,7 +10,7 @@ export class CorruptDatabaseError extends Error {
   readonly path: string;
   readonly latestBackup: string | null;
   constructor(dbPath: string, latestBackup: string | null) {
-    super(`Database ${dbPath} is not valid. Latest backup: ${latestBackup ?? 'none'}. Gournal did not change the file.`);
+    super(`Database ${dbPath} is not valid. Latest backup: ${latestBackup ?? 'none'}. Gournal did not change the file. To restore, stop all gournal processes, move gournal.db, gournal.db-wal and gournal.db-shm aside, then copy the backup to gournal.db.`);
     this.name = 'CorruptDatabaseError';
     this.path = dbPath;
     this.latestBackup = latestBackup;

@@ -93,7 +93,7 @@ gournal import bundle.json
 - `gournal restore <id>`: restore a removed entry (`undo` and `clear` remove entries softly).
 - `gournal resolve <id>`: mark an open `blocker` or `next` entry as resolved.
 - `gournal export --format bundle [-o <file>]`: write every entry with all fields as JSON.
-- `gournal import <file>`: import a bundle. It adds new entries, updates changed ones, and skips unchanged ones.
+- `gournal import <file>`: import a bundle. It adds new entries, updates changed ones, and skips unchanged ones. It merges duplicates of migrated entries and soft deletes the older copy.
 - `gournal migrate`: import `entries.json` into the database. Entries that are already present are skipped.
 - `gournal migrate --plan <file> [--dry-run --diff <file>]`: apply a reviewed migration plan. See "Migration plans".
 
@@ -140,12 +140,20 @@ The plan file is JSON:
 - `index`, `timestamp`, and `messageHash` find the original item in `entries.json`. If one does not match, gournal writes nothing.
 - `summary` is required. It must be one line of at most 120 characters.
 - `details`, `kind`, `tags`, and `project` are optional. A missing field stays as it is.
-- The plan must not lose text. Set `details` to `null` only when the summary holds the full original message.
+- The plan must not lose text. The summary plus the details must contain the original message.
+- If you give a new `summary` and no `details`, gournal puts the original message in `details`.
+- If you give `details` that lose the original message, gournal rejects the plan.
+- Set `details` to `null` only when the summary holds the full original message.
 
 ### Data safety
 - Entries live in the SQLite database `~/.gournal/gournal.db`.
 - Gournal makes a daily backup in `~/.gournal/backups/` as `gournal-YYYY-MM-DD.db`. It keeps the newest 7.
-- To recover, stop all gournal processes. Then copy a backup over `gournal.db`.
+- To restore a backup:
+  1. Stop every gournal process. Close the Claude Code sessions, or kill the `gournal mcp` processes.
+  2. Move `gournal.db`, `gournal.db-wal`, and `gournal.db-shm` aside.
+  3. Copy the chosen `backups/gournal-YYYY-MM-DD.db` to `gournal.db`.
+- To restore from a bundle, run `gournal import <file>`. Gournal merges duplicates of migrated entries automatically.
+- `gournal migrate --plan` first saves a snapshot as `backups/gournal-pre-plan-<yyyyMMdd-HHmmss>.db`. Gournal never prunes snapshots.
 - `entries.json` from older versions is read-only. Gournal never writes to it. Gournal imports it into the database automatically, and `gournal migrate` imports it on request.
 - After an upgrade from 0.6.x or older, restart your MCP clients. Old servers keep running and write to `entries.json`, not to the database. Run `gournal migrate` to import those late entries.
 - Removed entries stay in the database. `restore` brings them back.

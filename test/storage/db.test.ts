@@ -52,7 +52,7 @@ test('refuses a text file and reports the latest backup', () => {
   expect(err).toBeInstanceOf(CorruptDatabaseError);
   expect(err.path).toBe(file);
   expect(err.latestBackup).toBe(path.join(dir, 'backups', 'gournal-2026-11-15.db'));
-  expect(err.message).toBe(`Database ${file} is not valid. Latest backup: ${err.latestBackup}. Gournal did not change the file.`);
+  expect(err.message).toBe(`Database ${file} is not valid. Latest backup: ${err.latestBackup}. Gournal did not change the file. To restore, stop all gournal processes, move gournal.db, gournal.db-wal and gournal.db-shm aside, then copy the backup to gournal.db.`);
 });
 test('with no backups the message says none', () => {
   fs.writeFileSync(file, Buffer.alloc(4096));
