@@ -60,10 +60,19 @@ jobs:
         run: |
           mkdir "$RUNNER_TEMP/release"
           npm pack --pack-destination "$RUNNER_TEMP/release"
+      # Trusted publishing needs npm 11.5.1 or later. Fail early with a clear message.
+      - name: Check the npm version
+        run: |
+          v="$(npm --version)"
+          if [ "$(printf '%s\n' 11.5.1 "$v" | sort -V | head -n1)" != "11.5.1" ]; then
+            echo "::error::npm $v is older than 11.5.1. Trusted publishing needs 11.5.1 or later."
+            exit 1
+          fi
+      # No token. npm signs in with the OIDC identity of this workflow (id-token: write).
+      # The trusted publisher on npmjs.com must name this file: release.yml.
       - name: Publish the tarball to npm
         run: npm publish "$RUNNER_TEMP"/release/*.tgz --tag "$NPM_TAG" --provenance --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TAG: ${{ steps.channel.outputs.npm_tag }}
       - name: Create the GitHub release
         run: |
