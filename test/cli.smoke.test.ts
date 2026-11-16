@@ -101,7 +101,8 @@ describe('real process', () => {
     const code = await new Promise<number | null>((resolve) => child.on('close', resolve));
     expect(stderr).not.toMatch(/EPIPE|\n\s+at /);
     expect(code).toBe(0);
-  });
+    // The seed of 3000 entries and a cold ts-node start are slow on a loaded Windows runner. The default 30 s is too short.
+  }, 90_000);
   test('clear with piped stdin deletes nothing', () => {
     spawnCli(['add', 'keep me']);
     const r = spawnCli(['clear'], 'y\n');
