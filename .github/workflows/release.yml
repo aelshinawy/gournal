@@ -60,20 +60,29 @@ jobs:
         run: |
           mkdir "$RUNNER_TEMP/release"
           npm pack --pack-destination "$RUNNER_TEMP/release"
-      # Trusted publishing needs npm 11.5.1 or later. Fail early with a clear message.
-      - name: Check the npm version
+      # Staged publishing needs npm 11.15.0 or later. Pin one exact version so the release does not drift.
+      - name: Install a pinned npm
         run: |
-          v="$(npm --version)"
-          if [ "$(printf '%s\n' 11.5.1 "$v" | sort -V | head -n1)" != "11.5.1" ]; then
-            echo "::error::npm $v is older than 11.5.1. Trusted publishing needs 11.5.1 or later."
-            exit 1
-          fi
+          npm install -g npm@12.2.0
+          npm --version
+      # This step stages the package. It does not publish it. The package stays private until
+      # a maintainer approves it with 2FA on npmjs.com (Staged Packages) or with npm stage approve.
       # No token. npm signs in with the OIDC identity of this workflow (id-token: write).
-      # The trusted publisher on npmjs.com must name this file: release.yml.
-      - name: Publish the tarball to npm
-        run: npm publish "$RUNNER_TEMP"/release/*.tgz --tag "$NPM_TAG" --provenance --access public
+      # The trusted publisher on npmjs.com must name this file (release.yml) and allow only staging.
+      - name: Stage the tarball on npm
+        run: npm stage publish "$RUNNER_TEMP"/release/*.tgz --tag "$NPM_TAG" --provenance --access public
         env:
           NPM_TAG: ${{ steps.channel.outputs.npm_tag }}
+      - name: Tell the maintainer to approve
+        run: |
+          {
+            echo "## Approve the npm release"
+            echo
+            echo "The package is staged and is not public yet."
+            echo "Open https://www.npmjs.com/package/gournal and approve it in the Staged Packages tab,"
+            echo "or run: npm stage list gournal, then npm stage approve <stage-id>."
+            echo "Approval asks for 2FA."
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Create the GitHub release
         run: |
           if [ "$PRERELEASE" = "true" ]; then
