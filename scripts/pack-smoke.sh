@@ -69,6 +69,20 @@ echo "pack-smoke: pack"
 tarball=$(npm pack --silent --pack-destination "$tmp/pack" | tail -n 1 | tr -d '\r')
 [ -f "$tmp/pack/$tarball" ] || fail "npm pack did not create $tarball"
 
+# The tarball must hold only the files that users need. A new top-level folder (for example
+# site/ or test/) must not ship by accident. Allowed: dist/, README.md, LICENSE, package.json.
+# List the tarball from its own folder. A drive path like C:/x makes GNU tar look for a host.
+echo "pack-smoke: check the tarball contents"
+(cd "$tmp/pack" && tar -tzf "$tarball") | tr -d '\r' >"$tmp/tarball.list"
+extra=$(grep -v -E '^package/(dist/.+|README\.md|LICENSE|package\.json)$' "$tmp/tarball.list" | grep -v -E '/$' || true)
+[ -z "$extra" ] || fail "the tarball has files outside the allowlist (dist/, README.md, LICENSE, package.json): $extra"
+grep -q -x 'package/dist/cli.js' "$tmp/tarball.list" || fail "the tarball has no package/dist/cli.js"
+# Size guard. The tarball was about 80 kB when this check was added. Raise the limit on purpose, not by accident.
+max_tarball_bytes=200000
+tarball_bytes=$(wc -c <"$tmp/pack/$tarball" | tr -d ' \r')
+[ "$tarball_bytes" -le "$max_tarball_bytes" ] || fail "the tarball is $tarball_bytes bytes. The limit is $max_tarball_bytes."
+echo "pack-smoke: tarball ok ($(wc -l <"$tmp/tarball.list" | tr -d ' ') entries, $tarball_bytes bytes)"
+
 echo "pack-smoke: install $tarball"
 npm install --global --prefix "$tmp/prefix" --no-audit --no-fund --loglevel=error "$tmp/pack/$tarball"
 if [ "$windows" -eq 1 ]; then
