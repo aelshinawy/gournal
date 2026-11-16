@@ -26,16 +26,23 @@ Gournal has four parts. Each part does one job.
 4. **The standup** is the report. It shows what you finished, what blocks you, and what comes next. It also shows the GitHub activity that matches your entries.
 
 ```text
- You (CLI)        AI agent (MCP)
-     \               /
-      v             v
-   +-----------------------+
-   |   journal (SQLite)    |
-   +-----------------------+
-      ^             |
-      |             v
- GitHub sync     standup, log,
- (gh CLI)        export
+INPUTS
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│       You       │  │    AI agent     │  │   GitHub sync   │
+│      (CLI)      │  │      (MCP)      │  │    (gh CLI)     │
+└────────┬────────┘  └────────┬────────┘  └────────┬────────┘
+         │                    │                    │
+         └────────────────────┼────────────────────┘
+                              ▼
+                     ┌─────────────────┐
+                     │     gournal     │
+                     └────────┬────────┘
+OUTPUTS                       │
+         ┌────────────────────┴────────────────────┐
+         ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│     standup     │  │       log       │  │     export      │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
 
 You and your agent write entries. GitHub sync adds activity. Gournal links activity to the entries it matches. The standup reads all of it.
