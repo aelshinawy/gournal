@@ -8,7 +8,7 @@ The last version on npm before this release is 0.5.0.
 Versions 0.6.0 to 0.8.0 were internal steps and were not published to npm.
 Their changes are in this file so that you can see how 0.9.0 grew from 0.5.0.
 
-## 0.9.0 (unreleased)
+## 0.9.0 (2026-11-16)
 
 ### Upgrading from 0.5.0
 
