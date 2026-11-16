@@ -5,6 +5,8 @@ import type { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
 import { ftsTest } from '../fts5';
 import { backupDbIfNeeded } from '../../src/storage/backup';
+import { asPlatform } from '../helpers/platform';
+import { rmTmp } from '../helpers/tmp';
 
 let dir: string; let file: string; let db: DatabaseSync;
 beforeEach(() => {
@@ -14,7 +16,7 @@ beforeEach(() => {
   db.prepare('INSERT INTO entries (id, created_at, updated_at, device_id, summary, details) VALUES (?, 1, 1, ?, ?, ?)')
     .run('E1', 'D', 'findable zebra', null);
 });
-afterEach(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+afterEach(() => { db.close(); rmTmp(dir); });
 
 test('removes stale temp files but keeps fresh ones', () => {
   const bdir = path.join(dir, 'backups');
@@ -61,4 +63,28 @@ test('the daily prune never removes a pre-plan snapshot', () => {
   backupDbIfNeeded(db, file, new Date(2026, 10, 15));
   expect(fs.existsSync(snap)).toBe(true);
   expect(fs.readdirSync(bdir).filter((n) => /^gournal-\d{4}-/.test(n))).toHaveLength(7);
+});
+
+test('the daily backup retries a Windows rename', () => {
+  const real = fs.renameSync.bind(fs);
+  let n = 0;
+  const spy = jest.spyOn(fs, 'renameSync').mockImplementation((a, b) => {
+    if (n++ === 0) throw Object.assign(new Error('EPERM'), { code: 'EPERM' });
+    real(a, b);
+  });
+  const saved = Object.getOwnPropertyDescriptor(process, 'platform')!;
+  Object.defineProperty(process, 'platform', { value: 'win32' });
+  let dest: string | null;
+  try { dest = backupDbIfNeeded(db, file, new Date(2026, 10, 15)); } finally { Object.defineProperty(process, 'platform', saved); spy.mockRestore(); }
+  expect(n).toBe(2);
+  expect(dest).toBe(path.join(dir, 'backups', 'gournal-2026-11-15.db'));
+  expect(fs.readdirSync(path.join(dir, 'backups'))).toEqual(['gournal-2026-11-15.db']);
+});
+test('the daily backup does not retry a rename on linux', () => {
+  const spy = jest.spyOn(fs, 'renameSync').mockImplementation(() => { throw Object.assign(new Error('EPERM'), { code: 'EPERM' }); });
+  try {
+    expect(() => asPlatform('linux', () => backupDbIfNeeded(db, file, new Date(2026, 10, 15)))).toThrow('EPERM');
+    expect(spy).toHaveBeenCalledTimes(1);
+  } finally { spy.mockRestore(); }
+  expect(fs.readdirSync(path.join(dir, 'backups'))).toEqual([]);
 });

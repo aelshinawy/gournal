@@ -1,4 +1,5 @@
 import { execFile, type ExecFileException } from 'child_process';
+import { resolveBin } from '../bin';
 
 export type GhErrorKind = 'missing' | 'auth' | 'rate-limit' | 'timeout' | 'network' | 'other';
 
@@ -27,11 +28,19 @@ function classify(err: ExecFileException, stderr: string): GhError {
   return new GhError('other', first);
 }
 
-export function execGh(bin?: string): GhRunner {
-  const file = bin ?? process.env.GOURNAL_GH ?? 'gh';
+/**
+ * The runner for the gh program.
+ * `prefixArgs` go before the gh arguments. Tests use them to run a Node script as gh.
+ * Production code leaves them empty.
+ */
+export function execGh(bin?: string, prefixArgs: readonly string[] = []): GhRunner {
+  // An explicit bin wins, then GOURNAL_GH, then `gh`. A bare name goes through the PATH scan,
+  // so libuv never searches the current folder. A value with a path separator stays as it is.
+  const configured = bin ?? process.env.GOURNAL_GH;
   return (args, opts) =>
     new Promise((resolve, reject) => {
-      execFile(file, args, { timeout: opts.timeoutMs, maxBuffer: MAX_BUFFER, windowsHide: true, env: process.env, encoding: 'utf8' }, (err, stdout, stderr) => {
+      const file = resolveBin(configured ?? 'gh');
+      execFile(file, [...prefixArgs, ...args], { timeout: opts.timeoutMs, maxBuffer: MAX_BUFFER, windowsHide: true, env: process.env, encoding: 'utf8' }, (err, stdout, stderr) => {
         if (err) reject(classify(err, String(stderr ?? '')));
         else resolve(String(stdout));
       });

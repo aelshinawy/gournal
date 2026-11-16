@@ -1,7 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { execFileSync } from 'child_process';
+import { execFileSync, spawnSync } from 'child_process';
 import { resolveIdentity } from '../../src/sources';
 
 const GIT = ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main'];
@@ -75,4 +75,60 @@ test('a folder outside git is uncategorized', () => {
 
 test('a missing folder is uncategorized', () => {
   expect(resolveIdentity('/no/such/dir', {}).project).toBe('uncategorized');
+});
+
+test('an empty repo with no commits still resolves the folder', () => {
+  const dir = path.join(base, 'fresh');
+  fs.mkdirSync(dir);
+  git(dir, 'init');
+  expect(resolveIdentity(dir, {})).toEqual({ project: 'fresh', repo: null, branch: 'main' });
+});
+
+test('a path with spaces and unicode resolves to the folder name', () => {
+  const dir = makeRepo('mi proyecto \u00e9\u00e8 \u65e5\u672c', null);
+  expect(resolveIdentity(dir, {}).project).toBe('mi proyecto \u00e9\u00e8 \u65e5\u672c');
+});
+
+// Git older than 2.31 does not know --path-format. It prints the unknown flag as the first output line.
+// The shim emulates that: it prints each --path-format argument back, then runs the real git without it.
+const shimTest = process.platform === 'win32' ? test.skip : test;
+shimTest('old git that echoes --path-format does not produce a project that starts with --', () => {
+  const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
+  const shimDir = path.join(base, 'shim');
+  fs.mkdirSync(shimDir);
+  // Old git prints the unknown flag, then relative paths. The shim strips the flag before it calls real git.
+  fs.writeFileSync(
+    path.join(shimDir, 'git'),
+    `#!/bin/sh
+for a in "$@"; do
+  case "$a" in
+    --path-format=*) echo "$a" ;;
+  esac
+done
+for a in "$@"; do
+  case "$a" in
+    --path-format=*) ;;
+    *) set -- "$@" "$a" ;;
+  esac
+  shift
+done
+exec "${realGit}" "$@"
+`,
+    { mode: 0o755 },
+  );
+  // No origin: the project comes from the folder name, which is where the bug shows.
+  const dir = makeRepo('scratch', null);
+  // Jest gives tests a copy of process.env that child processes do not see. Run the resolver in a child with the shim on PATH.
+  const root = path.join(__dirname, '..', '..');
+  const script = `const { resolveIdentity } = require(${JSON.stringify(path.join(root, 'src', 'sources'))});
+    process.stdout.write(JSON.stringify(resolveIdentity(${JSON.stringify(dir)}, {})));`;
+  const r = spawnSync(process.execPath, ['-r', 'ts-node/register/transpile-only', '-e', script], {
+    cwd: root,
+    env: { ...process.env, PATH: `${shimDir}${path.delimiter}${process.env.PATH}` },
+    encoding: 'utf8',
+  });
+  expect(r.status).toBe(0);
+  const id = JSON.parse(r.stdout);
+  expect(id.project.startsWith('--')).toBe(false);
+  expect(id).toEqual({ project: 'scratch', repo: null, branch: 'main' });
 });

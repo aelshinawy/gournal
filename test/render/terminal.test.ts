@@ -240,3 +240,48 @@ describe('terminal renderers with activity', () => {
     expect(out).not.toContain('Also');
   });
 });
+
+describe('terminal renderers strip control characters', () => {
+  let level: typeof chalk.level;
+  beforeEach(() => { level = chalk.level; chalk.level = 0; });
+  afterEach(() => { chalk.level = level; });
+
+  const HOSTILE = 'esc \x1b]0;PWNED\x07 \x1b[2J\x1b[31mred \x9b31m \x85 \x7f end';
+  // Tab and newline are legal in output as layout. Every other C0 control, DEL, and every C1 control are not.
+  const BAD = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/;
+  const noControl = (s: string) => expect(BAD.test(s)).toBe(false);
+
+  const bad = makeEntry({ createdAt: at(15, 9, 0), summary: HOSTILE, project: `pr${HOSTILE}`, tags: [`t${HOSTILE}`] });
+  const blocker = makeEntry({ createdAt: at(14, 9, 0), kind: 'blocker', status: 'open', summary: HOSTILE, project: `pr${HOSTILE}` });
+  const pr = makeActivity({ type: 'pr_merged', repo: `acme/${HOSTILE}`, pr: 4, title: `title ${HOSTILE}`, occurredAt: at(15, 8, 0).toISOString() });
+  const rev = makeActivity({ type: 'review', repo: 'octo/app', pr: 9, title: HOSTILE, occurredAt: at(15, 8, 30).toISOString() });
+  const commit = makeActivity({ type: 'commit', repo: 'acme/widgets', externalId: `ab\x1b[2Jcdef0123`, title: HOSTILE, occurredAt: at(15, 7, 0).toISOString() });
+  const std = (linked: Record<string, Activity[]>, unlinked: Activity[]) =>
+    buildStandup({ period: resolvePeriod({}, now, 1), done: [bad], open: [blocker], now, staleAfterDays: 14, linked, unlinked });
+
+  test('standup: entries, open items, PR titles, repos, and refs', () => {
+    const m = std({ [bad.id]: [pr] }, [rev, commit]);
+    for (const out of [standupText(m), standupText(m, { expandActivity: true })]) {
+      noControl(out);
+      expect(out).toContain('esc ]0;PWNED');
+    }
+  });
+
+  test('work log, stats, find lines, tag counts, and project counts', () => {
+    const log = buildWorkLog(resolvePeriod({}, now, 1), [bad], { [bad.id]: [pr] });
+    noControl(workLogText(log));
+    noControl(statsText(buildStats([bad], now)));
+    noControl(entryLinesText([bad]));
+    noControl(tagCountsText([{ tag: `t${HOSTILE}`, count: 1 }]));
+    noControl(projectCountsText([{ project: `p${HOSTILE}`, count: 1 }]));
+  });
+
+  test('chalk escape codes survive when color is on, and user escapes do not', () => {
+    chalk.level = 1;
+    const out = entryLinesText([bad]);
+    expect(out).toContain('\x1b[34m');
+    expect(out).not.toContain('\x1b]0;PWNED');
+    expect(out).not.toContain('\x1b[2J');
+    expect(out.replace(/\x1b\[[0-9;]*m/g, '')).not.toContain('\x1b');
+  });
+});

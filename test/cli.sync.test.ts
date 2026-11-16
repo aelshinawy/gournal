@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import { GhError, type GhRunner } from '../src/sources';
 import { runIn } from './helpers/run-cli';
+import { rmTmp } from './helpers/tmp';
 
 const fx = (n: string) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'github', n), 'utf8'));
 
@@ -21,14 +22,14 @@ function anyDateGh(): GhRunner & { calls: string[][] } {
     if (j.includes('blocked-org/vault')) return JSON.stringify({ ...fx('pull-acme-widgets-5.json'), number: 2 });
     if (j.includes('octo/app/pulls/9/reviews')) return JSON.stringify(fx('reviews-octo-app-9.json'));
     throw new GhError('other', `no route ${j}`);
-  }) as GhRunner & { calls: string[][] };
+  }) as unknown as GhRunner & { calls: string[][] };
   run.calls = calls;
   return run;
 }
 
 let home: string;
 beforeEach(() => { home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cli-sync-')); });
-afterEach(() => fs.rmSync(home, { recursive: true, force: true }));
+afterEach(() => rmTmp(home));
 
 test('gournal sync prints counts', async () => {
   const r = await runIn(home, ['sync'], { gh: anyDateGh() });

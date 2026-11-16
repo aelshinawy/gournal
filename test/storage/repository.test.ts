@@ -8,6 +8,7 @@ import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository, AmbiguousIdError } from '../../src/storage/sqlite-repository';
 import type { EntryRepository } from '../../src/core/repository';
 import { InvalidQueryError } from '../../src/core';
+import { rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository;
 beforeEach(() => {
@@ -18,7 +19,7 @@ beforeEach(() => {
   config.ticketPrefixes = ['sbdc'];
   repo = createRepository(db, config, dbPath);
 });
-afterEach(() => { db.close(); fs.rmSync(home, { recursive: true, force: true }); });
+afterEach(() => { db.close(); rmTmp(home); });
 
 const base = { project: 'p', source: 'cli' as const };
 
@@ -257,4 +258,44 @@ test.each([['CR', '\r'], ['U+2028', '\u2028'], ['U+2029', '\u2029']])('the repos
   expect(() => repo.add({ summary: `one${br}two`, ...base })).toThrow('summary must be one line');
   const e = repo.add({ summary: 'fine', ...base });
   expect(() => repo.update(e.id, { summary: `one${br}two` })).toThrow('summary must be one line');
+});
+
+describe('control characters are stripped on write', () => {
+  const dirty = (t: string) => `a\x1b]0;${t}\x07b\x1b[2Jc\x9bd\x7fe`;
+  const clean = (t: string) => `a]0;${t}b[2Jcde`;
+
+  test('add strips every single-line field and keeps tab and newline in details', () => {
+    const e = repo.add({
+      summary: dirty('s'), details: 'line1\n\tline2\x1b[31m\r\x00end', project: dirty('p'), repo: dirty('r'), branch: dirty('b'),
+      agent: dirty('g'), source: 'cli', tags: [dirty('Tag')], refs: [{ type: 'url', value: dirty('u'), repo: dirty('rr') }],
+    });
+    expect(e.summary).toBe(clean('s'));
+    expect(e.details).toBe('line1\n\tline2[31mend');
+    expect(e).toMatchObject({ project: clean('p'), repo: clean('r'), branch: clean('b'), agent: clean('g') });
+    expect(e.tags).toEqual([clean('tag').toLowerCase()]);
+    expect(e.refs).toEqual([{ type: 'url', value: clean('u'), repo: clean('rr') }]);
+    expect(repo.get(e.id)).toEqual(e);
+  });
+
+  test('update strips the same fields', () => {
+    const e = repo.add({ ...base, summary: 'x' });
+    const u = repo.update(e.id, {
+      summary: dirty('s'), details: 'a\nb\x1b', project: dirty('p'), repo: dirty('r'), branch: dirty('b'),
+      tags: [dirty('Tag')], refs: [{ type: 'url', value: dirty('u') }],
+    });
+    expect(u).toMatchObject({ summary: clean('s'), details: 'a\nb', project: clean('p'), repo: clean('r'), branch: clean('b'), tags: [clean('tag').toLowerCase()] });
+    expect(u.refs).toEqual([{ type: 'url', value: clean('u') }]);
+  });
+
+  test('a project of only control characters falls back to the default project on add and update', () => {
+    const e = repo.add({ summary: 's', project: '\x1b\x07', source: 'cli' });
+    expect(e.project).toBe('uncategorized');
+    const other = repo.add({ summary: 't', project: 'real', source: 'cli' });
+    expect(repo.update(other.id, { project: '\x1b\x9b' }).project).toBe('uncategorized');
+  });
+
+  test('a summary of only control characters is empty, and a line break still fails', () => {
+    expect(() => repo.add({ ...base, summary: '\x1b\x07' })).toThrow('summary is empty');
+    expect(() => repo.add({ ...base, summary: 'one\ntwo' })).toThrow('summary must be one line');
+  });
 });

@@ -9,7 +9,7 @@ Find an old entry when you remember a word from it. Add filters to narrow a larg
 
 ## CLI: gournal find
 
-Search your entries for words. Every word must match. The oldest entries come first.
+Search your entries for words. Every word must match. The oldest entries come first. Matching can differ between Node builds: with FTS5 a word matches the start of whole words, and without FTS5 it matches any part of the text.
 
 ```text
 gournal find <text> [options]

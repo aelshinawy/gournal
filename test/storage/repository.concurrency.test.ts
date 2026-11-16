@@ -4,6 +4,7 @@ import path from 'path';
 import { spawn } from 'child_process';
 import { openDb } from '../../src/storage/db';
 import { hasFts5 } from '../fts5';
+import { rmTmp } from '../helpers/tmp';
 
 const fixture = path.join(__dirname, '..', 'fixtures', 'repo-writer.ts');
 
@@ -24,7 +25,7 @@ function runWriter(home: string, id: number, count: number): Promise<void> {
 describe('concurrent repository writers', () => {
   let home: string;
   beforeEach(() => { home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-conc-')); });
-  afterEach(() => fs.rmSync(home, { recursive: true, force: true }));
+  afterEach(() => rmTmp(home));
 
   test('no entry is lost under 8 concurrent writers', async () => {
     await Promise.all(Array.from({ length: 8 }, (_, id) => runWriter(home, id, 25)));

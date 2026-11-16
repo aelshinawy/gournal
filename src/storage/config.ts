@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { newId, normalizeConfig, type Config } from '../core';
+import { FILE_MODE, ensurePrivateDir, publishExclusive, renameWithRetry, sleepSync, tightenFile } from './private-files';
 
 export type { Config };
 
@@ -9,7 +10,15 @@ export interface LoadConfigHooks {
   beforePublish?: () => void;
   /** Receives config warnings. Default: stderr, once per distinct message per process. */
   warn?: (msg: string) => void;
+  /** Test seam. Waits between two polls of an empty config file. Default: a blocking sleep. */
+  sleep?: (ms: number) => void;
+  /** Test seam. The clock for the wait on an empty config file. Default: Date.now. */
+  now?: () => number;
 }
+
+/** How long to wait for an empty config file to get its content, and how often to look. */
+const EMPTY_WAIT_MS = 500;
+const EMPTY_POLL_MS = 20;
 
 const warned = new Set<string>();
 function defaultWarn(msg: string): void {
@@ -40,6 +49,39 @@ function readRaw(file: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
+type Wait = Pick<LoadConfigHooks, 'sleep' | 'now'>;
+
+/**
+ * Wait up to 500 ms, polling every 20 ms, for a config file to get content. A first run without
+ * hard links creates the file empty and then renames the finished file onto it.
+ * It returns 'missing' when the file is gone, and 'empty' when it is still empty after the wait.
+ */
+function waitForContent(file: string, wait: Wait): 'ready' | 'empty' | 'missing' {
+  const sleep = wait.sleep ?? sleepSync;
+  const now = wait.now ?? Date.now;
+  const deadline = now() + EMPTY_WAIT_MS;
+  for (;;) {
+    try {
+      if (fs.statSync(file).size > 0) return 'ready';
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return 'missing';
+      throw err;
+    }
+    if (now() >= deadline) return 'empty';
+    sleep(EMPTY_POLL_MS);
+  }
+}
+
+function emptyConfig(file: string): Error {
+  return new Error(`Config ${file} is empty. An earlier first run was interrupted. Delete the file and run gournal again.`);
+}
+
+/** Read a config file that exists. An empty file gets the bounded wait first. gournal never repairs or deletes it. */
+function readExisting(file: string, wait: Wait): Record<string, unknown> {
+  if (waitForContent(file, wait) === 'empty') throw emptyConfig(file);
+  return readRaw(file);
+}
+
 function tempPath(file: string): string {
   return path.join(path.dirname(file), `.config.${process.pid}.${newId()}.tmp`);
 }
@@ -47,17 +89,18 @@ function tempPath(file: string): string {
 export function loadConfig(home: string, hooks: LoadConfigHooks = {}): Config {
   const file = path.join(home, 'config.json');
   const warn = hooks.warn ?? defaultWarn;
-  fs.mkdirSync(home, { recursive: true });
+  ensurePrivateDir(home);
 
   if (fs.existsSync(file)) {
-    const raw = readRaw(file);
+    tightenFile(file);
+    const raw = readExisting(file, hooks);
     const { config, changed } = normalizeConfig(file, raw, warn);
     if (changed) {
       // Existing file: atomic replace. The deviceId is already on disk, so it stays stable.
       const tmp = tempPath(file);
       try {
-        fs.writeFileSync(tmp, JSON.stringify(persisted(raw, config), null, 2) + '\n', 'utf8');
-        fs.renameSync(tmp, file);
+        fs.writeFileSync(tmp, JSON.stringify(persisted(raw, config), null, 2) + '\n', { encoding: 'utf8', mode: FILE_MODE });
+        renameWithRetry(tmp, file);
       } finally {
         fs.rmSync(tmp, { force: true });
       }
@@ -65,20 +108,30 @@ export function loadConfig(home: string, hooks: LoadConfigHooks = {}): Config {
     return config;
   }
 
-  // First run. Publish with a hard link: it fails if another process created the file first.
+  // First run. Publish without replacing: a hard link fails if another process created the file first.
+  // Without hard links, publishExclusive claims the file with an exclusive create. Either way the loser gets EEXIST.
   const { config } = normalizeConfig(file, {}, warn);
   const tmp = tempPath(file);
   try {
-    fs.writeFileSync(tmp, JSON.stringify(persisted({}, config), null, 2) + '\n', 'utf8');
+    fs.writeFileSync(tmp, JSON.stringify(persisted({}, config), null, 2) + '\n', { encoding: 'utf8', mode: FILE_MODE });
     hooks.beforePublish?.();
-    try {
-      fs.linkSync(tmp, file);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
-      // Another process won. Use the deviceId it wrote.
+    for (let attempt = 0; ; attempt++) {
+      let how: 'link' | 'rename';
+      try {
+        how = publishExclusive(tmp, file);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+        // Another process won. Use the deviceId it wrote.
+        const state = waitForContent(file, hooks);
+        if (state === 'empty') throw emptyConfig(file);
+        // The winner removed its claim, because its own rename failed. Publish once more.
+        if (state === 'missing' && attempt === 0) continue;
+        return normalizeConfig(file, readRaw(file), warn).config;
+      }
+      if (how === 'link') return config;
+      // The fallback path: use what is on disk.
       return normalizeConfig(file, readRaw(file), warn).config;
     }
-    return config;
   } finally {
     fs.rmSync(tmp, { force: true });
   }

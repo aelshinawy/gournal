@@ -8,6 +8,6 @@ Gournal reads these environment variables.
 
 | Name | Default | Description |
 |------|---------|-------------|
-| `GOURNAL_HOME` | `.gournal` in `$HOME`, then `$USERPROFILE`, then the OS home folder | The folder for all gournal data. |
+| `GOURNAL_HOME` | `.gournal` in your profile folder. On Windows, gournal uses `USERPROFILE`, then the OS home folder, and ignores `HOME`. On macOS and Linux, gournal uses `HOME`, then `USERPROFILE`, then the OS home folder. | The folder for all gournal data. |
 | `GOURNAL_NO_AUTOSYNC` | Not set | Set it to `1` to turn off auto-sync. Any other value leaves auto-sync on. |
 | `GOURNAL_GH` | `gh` on your `PATH` | The path of the `gh` binary. |

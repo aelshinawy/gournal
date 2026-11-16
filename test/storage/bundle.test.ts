@@ -9,6 +9,7 @@ import { createRepository } from '../../src/storage/sqlite-repository';
 import { exportBundle, importBundle } from '../../src/storage/bundle';
 import { createActivityRepository } from '../../src/storage/activity-repository';
 import type { EntryRepository } from '../../src/core/repository';
+import { rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository;
 function open(name: string) {
@@ -21,7 +22,7 @@ beforeEach(() => {
   config = loadConfig(home);
   ({ d: db, r: repo } = open('a.db'));
 });
-afterEach(() => { db.close(); fs.rmSync(home, { recursive: true, force: true }); });
+afterEach(() => { db.close(); rmTmp(home); });
 
 const base = { project: 'p', source: 'cli' as const };
 const ftsHits = (d: DatabaseSync, q: string) =>
@@ -320,5 +321,55 @@ describe('activity in bundles', () => {
     const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
     bundle.activity = [{ id: 'nope' }];
     expect(() => importBundle(db, bundle, config)).toThrow(/activity 0 is invalid/);
+  });
+});
+
+describe('bundle import strips control characters', () => {
+  const dirty = (t: string) => `a\x1b]0;${t}\x07b\x1b[2Jc\x9bd\x7fe`;
+  const clean = (t: string) => `a]0;${t}b[2Jcde`;
+  const dirtyEntry = (updatedAt: string) => {
+    const e = repo.add({ summary: 'seed', ...base });
+    const b = exportBundle(db, config);
+    return {
+      id: e.id,
+      bundle: b,
+      next: {
+        ...b.entries[0],
+        summary: dirty('s'), details: 'l1\n\tl2\x1b[31m\x00end', project: dirty('p'), repo: dirty('r'), branch: dirty('b'),
+        agent: dirty('g'), tags: ['t\x1b', 'x\x07', 't', '\x1b'], refs: [{ type: 'url' as const, value: dirty('u'), repo: dirty('rr') }, { type: 'pr' as const, value: '\x1b' }],
+        updatedAt,
+      },
+    };
+  };
+  const expected = {
+    summary: clean('s'), details: 'l1\n\tl2[31mend', project: clean('p'), repo: clean('r'), branch: clean('b'), agent: clean('g'),
+    tags: ['t', 'x'], refs: [{ type: 'url', value: clean('u'), repo: clean('rr') }],
+  };
+
+  test('an update removes the bytes from every field', () => {
+    const { id, bundle, next } = dirtyEntry(new Date(Date.now() + 5000).toISOString());
+    expect(importBundle(db, { ...bundle, entries: [next] }).updated).toBe(1);
+    expect(repo.get(id)).toMatchObject(expected);
+  });
+
+  test('an insert removes the bytes from every field', () => {
+    const { bundle, next } = dirtyEntry(new Date().toISOString());
+    const { d: db2, r: repo2 } = open('c.db');
+    try {
+      expect(importBundle(db2, { ...bundle, entries: [next] }).inserted).toBe(1);
+      expect(repo2.get(next.id)).toMatchObject(expected);
+    } finally { db2.close(); }
+  });
+
+  test('a project of only control characters falls back to the default project', () => {
+    const { id, bundle, next } = dirtyEntry(new Date(Date.now() + 5000).toISOString());
+    importBundle(db, { ...bundle, entries: [{ ...next, project: '\x1b\x07' }] });
+    expect(repo.get(id)?.project).toBe('uncategorized');
+  });
+
+  test('a summary of only control characters fails the import and changes nothing', () => {
+    const { id, bundle, next } = dirtyEntry(new Date(Date.now() + 5000).toISOString());
+    expect(() => importBundle(db, { ...bundle, entries: [{ ...next, summary: '\x1b\x07' }] })).toThrow('Bundle entry 0 is invalid: summary');
+    expect(repo.get(id)?.summary).toBe('seed');
   });
 });

@@ -6,6 +6,19 @@ export interface IdentityDeps {
   /** File paths of the client roots. [] when the client has no roots capability. */
   roots: () => Promise<string[]>;
   processCwd: () => string;
+  /** Test seam. The default is process.platform. */
+  platform?: NodeJS.Platform;
+}
+
+/**
+ * An agent in Git Bash can pass `/c/Users/x/repo`. Native git on Windows cannot read that path.
+ * On Windows, a leading single drive letter segment becomes `C:/Users/x/repo`. `/c` becomes `C:/`.
+ * Every other path stays as it is.
+ */
+export function msysToWindowsPath(dir: string, platform: NodeJS.Platform = process.platform): string {
+  if (platform !== 'win32') return dir;
+  const m = /^\/([a-zA-Z])(?:\/(.*))?$/.exec(dir);
+  return m ? `${m[1]!.toUpperCase()}:/${m[2] ?? ''}` : dir;
 }
 
 /**
@@ -21,7 +34,10 @@ export async function resolveCallIdentity(
   const needsBase = args.project === undefined || args.repo === undefined || args.branch === undefined;
   if (needsBase) {
     // A relative cwd would resolve against the server's own cwd, so it counts as absent.
-    let dir = args.cwd && path.isAbsolute(args.cwd) ? args.cwd : undefined;
+    const platform = deps.platform ?? process.platform;
+    const given = args.cwd ? msysToWindowsPath(args.cwd, platform) : undefined;
+    const isAbsolute = platform === 'win32' ? path.win32.isAbsolute : path.isAbsolute;
+    let dir = given && isAbsolute(given) ? given : undefined;
     if (!dir) {
       try { dir = (await deps.roots())[0]; } catch { dir = undefined; }
     }

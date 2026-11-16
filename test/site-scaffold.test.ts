@@ -2,6 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execFileSync, spawnSync } from 'child_process';
+import { npmCli, npmCommand } from './helpers/npm';
 
 const root = path.resolve(__dirname, '..');
 const docsRoot = path.join(root, 'site/src/content/docs/docs');
@@ -25,8 +26,12 @@ const SINGLE_PAGES = [
   'resources/troubleshooting'
 ];
 
-test('package tarball stays dist only', () => {
-  const out = execFileSync('npm', ['pack', '--dry-run', '--json'], { encoding: 'utf8', cwd: root });
+// Windows has no runnable `npm`, only `npm.cmd`. Without the npm script the test cannot run there.
+const canRunNpm = process.platform !== 'win32' || npmCli() !== null;
+
+(canRunNpm ? test : test.skip)('package tarball stays dist only', () => {
+  const npm = npmCommand(['pack', '--dry-run', '--json']);
+  const out = execFileSync(npm.command, npm.args, { encoding: 'utf8', cwd: root });
   const parsed = JSON.parse(out);
   // Some npm versions return an array, others an object keyed by package name.
   const info = Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0];

@@ -18,7 +18,7 @@ module.exports = {
       comment: 'core is pure: no Node built-in modules and no I/O or UI packages.',
       severity: 'error',
       from: { path: SRC + 'core/' },
-      to: { path: '(?:^|/)node_modules/(chalk|fs-extra|inquirer|commander|@modelcontextprotocol)(?:/|$)' },
+      to: { path: '(?:^|/)node_modules/(chalk|inquirer|commander|@modelcontextprotocol)(?:/|$)' },
     },
     {
       name: 'layer-order',

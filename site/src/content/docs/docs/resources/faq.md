@@ -19,7 +19,7 @@ See [Standups and work logs](/gournal/docs/guides/standups-and-work-logs/).
 
 ## An entry has the project `uncategorized`
 
-Gournal finds the project from the directory where you add the entry. A directory that is not in a git repository gives `uncategorized`. Git older than 2.31 gives `uncategorized` too. Add the entry from inside the repository. Or set the project with a [project alias](/gournal/docs/guides/configuration/#project-aliases). An agent must pass `cwd` or `project`. See [Logging with AI agents](/gournal/docs/guides/logging-with-ai-agents/#how-the-project-is-found).
+Gournal finds the project from the directory where you add the entry. A directory that is not in a git repository gives `uncategorized`. Git older than 2.7 gives `uncategorized` too. Add the entry from inside the repository. Or set the project with a [project alias](/gournal/docs/guides/configuration/#project-aliases). An agent must pass `cwd` or `project`. See [Logging with AI agents](/gournal/docs/guides/logging-with-ai-agents/#how-the-project-is-found).
 
 ## `gournal add` says the summary was long
 
@@ -43,7 +43,7 @@ Setup asks questions, so it needs a terminal. Without one, run `gournal setup cl
 
 ## Setup says the `claude` CLI was not found
 
-Setup prints the command to run yourself. Install Claude Code, and then run the printed command. Or run `gournal setup claude` again. See [Claude Code setup](/gournal/docs/guides/claude-code-setup/).
+Setup prints the command to run yourself. It exits with code 1, because it registered nothing. Install Claude Code, and then run the printed command. Or run `gournal setup claude` again. See [Claude Code setup](/gournal/docs/guides/claude-code-setup/).
 
 ## My agent does not use the new alias or setting
 

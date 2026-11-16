@@ -1,4 +1,6 @@
-import fs from 'fs-extra';
+import fs from 'fs';
 import path from 'path';
 
-export const VERSION: string = fs.readJsonSync(path.join(__dirname, '..', '..', 'package.json')).version;
+const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8')) as { version: string };
+
+export const VERSION: string = pkg.version;

@@ -2,6 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { runIn } from './helpers/run-cli';
+import { rmTmp } from './helpers/tmp';
 
 test('find rejects an invalid --from even when the journal is empty', async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-'));
@@ -10,7 +11,7 @@ test('find rejects an invalid --from even when the journal is empty', async () =
     expect(res.status).toBe(1);
     expect(res.stderr).toContain('Invalid date: garbage');
   } finally {
-    fs.rmSync(home, { recursive: true, force: true });
+    rmTmp(home);
   }
 });
 
@@ -25,6 +26,6 @@ test('find with blank text matches nothing', async () => {
     expect(res.status).toBe(0);
     expect(res.stdout).toContain('Found 0 entries:');
   } finally {
-    fs.rmSync(home, { recursive: true, force: true });
+    rmTmp(home);
   }
 });

@@ -13,5 +13,9 @@ export default {
   testMatch: ['**/*.test.ts'],
   // Git worktrees under .claude/ hold full copies of the test suite.
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/.claude/'],
-  modulePathIgnorePatterns: ['<rootDir>/.claude/']
+  modulePathIgnorePatterns: ['<rootDir>/.claude/'],
+  collectCoverageFrom: ['src/**/*.ts'],
+  coverageThreshold: {
+    global: { lines: 90, statements: 90, functions: 90, branches: 85 }
+  }
 };

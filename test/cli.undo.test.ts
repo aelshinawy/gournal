@@ -2,6 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { runIn } from './helpers/run-cli';
+import { rmTmp } from './helpers/tmp';
 
 describe('gournal undo', () => {
   let home: string;
@@ -12,7 +13,7 @@ describe('gournal undo', () => {
     home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-'));
   });
   afterEach(() => {
-    fs.rmSync(home, { recursive: true, force: true });
+    rmTmp(home);
   });
 
   test('removes the last entry it reports, one at a time', async () => {

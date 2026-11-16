@@ -1,0 +1,10 @@
+# Keep text files as LF in the working tree on every platform.
+# Generated docs are compared byte for byte, so a CRLF checkout on Windows breaks the tests.
+* text=auto eol=lf
+
+*.gif binary
+*.mp4 binary
+*.webm binary
+*.png binary
+*.jpg binary
+*.woff2 binary

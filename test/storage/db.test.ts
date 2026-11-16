@@ -3,10 +3,13 @@ import os from 'os';
 import path from 'path';
 import { openDb, CorruptDatabaseError } from '../../src/storage/db';
 import { hasFts5, ftsTest } from '../fts5';
+import { loadConfig } from '../../src/storage/config';
+import { runIn } from '../helpers/run-cli';
+import { rmTmp } from '../helpers/tmp';
 
 let dir: string; let file: string;
 beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-db-')); file = path.join(dir, 'gournal.db'); });
-afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+afterEach(() => rmTmp(dir));
 
 const ins = (db: any, id: string, summary: string, details: string | null = null) =>
   db.prepare('INSERT INTO entries (id, created_at, updated_at, device_id, summary, details) VALUES (?, 1, 1, ?, ?, ?)').run(id, 'D', summary, details);
@@ -137,4 +140,34 @@ test('the latest backup ignores names that are not daily backups', () => {
   let err: any;
   try { openDb(file); } catch (e) { err = e; }
   expect(err.latestBackup).toBe(path.join(b, 'gournal-2026-11-15.db'));
+});
+
+// A directory without write permission stops SQLite from creating the WAL file.
+const readOnlyTest = process.platform === 'win32' || (process.getuid && process.getuid() === 0) ? test.skip : test;
+
+readOnlyTest('a home that is not writable gives a message with the path', () => {
+  openDb(file).close();
+  fs.chmodSync(dir, 0o500);
+  try {
+    expect(() => openDb(file)).toThrow(
+      new Error(`gournal home ${dir} is not writable. Fix its permissions or set GOURNAL_HOME.`),
+    );
+  } finally {
+    fs.chmodSync(dir, 0o700);
+  }
+});
+
+readOnlyTest('the CLI prints the not-writable message without a stack and exits 1', async () => {
+  // A used home has its config file. Without it, loadConfig must write one and fails first.
+  loadConfig(dir);
+  openDb(file).close();
+  fs.chmodSync(dir, 0o500);
+  try {
+    const r = await runIn(dir, ['stats']);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toBe(`gournal home ${dir} is not writable. Fix its permissions or set GOURNAL_HOME.`);
+    expect(r.stderr).not.toMatch(/\n\s+at /);
+  } finally {
+    fs.chmodSync(dir, 0o700);
+  }
 });

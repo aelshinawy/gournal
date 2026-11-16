@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { spawn } from 'child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { openJournal } from '../../src/storage/journal';
+import { rmTmp } from '../helpers/tmp';
 
 let home: string;
 let stderr: jest.SpyInstance;
@@ -12,7 +13,7 @@ beforeEach(() => {
   home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-journal-'));
   stderr = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
 });
-afterEach(() => { stderr.mockRestore(); fs.rmSync(home, { recursive: true, force: true }); });
+afterEach(() => { stderr.mockRestore(); rmTmp(home); });
 
 const jsonPath = () => path.join(home, 'entries.json');
 const legacy = (n: number) => Array.from({ length: n }, (_, i) => ({

@@ -4,13 +4,14 @@ import path from 'path';
 import { CONFIG_DEFAULTS } from '../../src/core';
 import { loadConfig } from '../../src/storage/config';
 import { gournalHome } from '../../src/storage/home';
+import { rmTmp } from '../helpers/tmp';
 
 let dir: string;
 const savedHome = process.env.GOURNAL_HOME;
 beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cfg-')); });
 afterEach(() => {
   if (savedHome === undefined) delete process.env.GOURNAL_HOME; else process.env.GOURNAL_HOME = savedHome;
-  fs.rmSync(dir, { recursive: true, force: true });
+  rmTmp(dir);
 });
 
 test('loadConfig creates a stable deviceId', () => {
@@ -72,7 +73,7 @@ test.each(['projectAliases', 'tagAliases'])('%s with an alias chain is rejected'
   try {
     fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ deviceId: 'D', [key]: { a: 'b', b: 'c' } }));
     expect(() => loadConfig(home)).toThrow('alias chain at "a"');
-  } finally { fs.rmSync(home, { recursive: true, force: true }); }
+  } finally { rmTmp(home); }
 });
 test('new settings are not written to the file', () => {
   const file = path.join(dir, 'config.json');
@@ -91,4 +92,161 @@ test('loadConfig sends warnings to the warn hook', () => {
   const warn = jest.fn();
   expect(loadConfig(dir, { warn }).staleAfterDays).toBe(14);
   expect(warn).toHaveBeenCalledWith(expect.stringContaining('staleAfterDays must be a positive integer; using 14'));
+});
+
+describe('first run without hard links', () => {
+  afterEach(() => jest.restoreAllMocks());
+  const failLink = (code: string) =>
+    jest.spyOn(fs, 'linkSync').mockImplementation(() => { throw Object.assign(new Error(code), { code }); });
+
+  test.each(['EPERM', 'ENOSYS', 'ENOTSUP', 'EXDEV', 'EINVAL'])('a link that fails with %s still publishes the config', (code) => {
+    failLink(code);
+    const c = loadConfig(dir);
+    const file = path.join(dir, 'config.json');
+    expect(JSON.parse(fs.readFileSync(file, 'utf8')).deviceId).toBe(c.deviceId);
+    expect(loadConfig(dir)).toEqual(c);
+    expect(fs.readdirSync(dir)).toEqual(['config.json']);
+  });
+
+  test('the fallback keeps the deviceId of a process that won the race', () => {
+    const file = path.join(dir, 'config.json');
+    const winner = { deviceId: 'WINNER', projectAliases: {}, tagAliases: {}, ticketPrefixes: [] };
+    // The other process creates the file after our link fails and before our claim.
+    jest.spyOn(fs, 'linkSync').mockImplementation(() => {
+      fs.writeFileSync(file, JSON.stringify(winner));
+      throw Object.assign(new Error('EPERM'), { code: 'EPERM' });
+    });
+    expect(loadConfig(dir).deviceId).toBe('WINNER');
+    expect(JSON.parse(fs.readFileSync(file, 'utf8')).deviceId).toBe('WINNER');
+    expect(fs.readdirSync(dir)).toEqual(['config.json']);
+  });
+
+  test('the fallback keeps the deviceId of a winner that is still renaming its file', () => {
+    const file = path.join(dir, 'config.json');
+    const winner = { deviceId: 'WINNER', projectAliases: {}, tagAliases: {}, ticketPrefixes: [] };
+    // The winner has claimed the file (empty) and has not renamed its finished file onto it yet.
+    jest.spyOn(fs, 'linkSync').mockImplementation(() => {
+      fs.writeFileSync(file, '');
+      throw Object.assign(new Error('EPERM'), { code: 'EPERM' });
+    });
+    const realStat = fs.statSync.bind(fs);
+    let calls = 0;
+    jest.spyOn(fs, 'statSync').mockImplementation(((p: fs.PathLike, o?: unknown) => {
+      if (p === file && ++calls === 2) fs.writeFileSync(file, JSON.stringify(winner));
+      return realStat(p, o as never);
+    }) as typeof fs.statSync);
+    expect(loadConfig(dir).deviceId).toBe('WINNER');
+  });
+
+  test('two loads in a row without hard links agree on one deviceId', () => {
+    failLink('EPERM');
+    const a = loadConfig(dir);
+    const b = loadConfig(dir);
+    expect(b.deviceId).toBe(a.deviceId);
+  });
+});
+
+test('the config rewrite retries a Windows rename', () => {
+  const file = path.join(dir, 'config.json');
+  fs.writeFileSync(file, JSON.stringify({ deviceId: 'D1' }));
+  const real = fs.renameSync.bind(fs);
+  let n = 0;
+  const spy = jest.spyOn(fs, 'renameSync').mockImplementation((a, b) => {
+    if (n++ === 0) throw Object.assign(new Error('EPERM'), { code: 'EPERM' });
+    real(a, b);
+  });
+  const saved = Object.getOwnPropertyDescriptor(process, 'platform')!;
+  Object.defineProperty(process, 'platform', { value: 'win32' });
+  try { loadConfig(dir); } finally { Object.defineProperty(process, 'platform', saved); spy.mockRestore(); }
+  expect(n).toBe(2);
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).deviceId).toBe('D1');
+  expect(fs.readdirSync(dir)).toEqual(['config.json']);
+});
+
+describe('an empty config file', () => {
+  afterEach(() => jest.restoreAllMocks());
+  const GOOD = { deviceId: 'D1', projectAliases: {}, tagAliases: {}, ticketPrefixes: [] };
+  /** A fake clock: sleep moves it forward, so that the tests do not wait. */
+  const clock = (onSleep: (n: number) => void = () => undefined) => {
+    let t = 0; let n = 0;
+    return { now: () => t, sleep: (ms: number) => { t += ms; onSleep(++n); }, count: () => n };
+  };
+
+  test('an empty config that gets its content during the wait is read', () => {
+    const file = path.join(dir, 'config.json');
+    fs.writeFileSync(file, '');
+    const c = clock((n) => { if (n === 3) fs.writeFileSync(file, JSON.stringify(GOOD)); });
+    expect(loadConfig(dir, { sleep: c.sleep, now: c.now }).deviceId).toBe('D1');
+    expect(c.count()).toBe(3);
+  });
+
+  test('an empty config that stays empty gives a plain message and is not changed', () => {
+    const file = path.join(dir, 'config.json');
+    fs.writeFileSync(file, '');
+    const c = clock();
+    expect(() => loadConfig(dir, { sleep: c.sleep, now: c.now })).toThrow(
+      new Error(`Config ${file} is empty. An earlier first run was interrupted. Delete the file and run gournal again.`),
+    );
+    expect(fs.readFileSync(file, 'utf8')).toBe('');
+    // The wait lasts 500 ms, with a poll every 20 ms.
+    expect(c.count()).toBe(25);
+    expect(fs.readdirSync(dir)).toEqual(['config.json']);
+  });
+
+  test('a non-empty file with invalid JSON keeps the old error and does not wait', () => {
+    const file = path.join(dir, 'config.json');
+    fs.writeFileSync(file, '{nope');
+    const c = clock();
+    expect(() => loadConfig(dir, { sleep: c.sleep, now: c.now })).toThrow(/is not valid JSON object: .*gournal did not change it\./);
+    expect(c.count()).toBe(0);
+  });
+
+  const eperm = () => Object.assign(new Error('EPERM'), { code: 'EPERM' });
+
+  test('a first run that finds the winner claim empty and stuck gives the same message', () => {
+    const file = path.join(dir, 'config.json');
+    jest.spyOn(fs, 'linkSync').mockImplementation(() => { fs.writeFileSync(file, ''); throw eperm(); });
+    const c = clock();
+    expect(() => loadConfig(dir, { sleep: c.sleep, now: c.now })).toThrow(`Config ${file} is empty. An earlier first run was interrupted.`);
+    expect(fs.readdirSync(dir)).toEqual(['config.json']);
+  });
+
+  test('a winner that removes its claim makes the loser publish once more', () => {
+    const file = path.join(dir, 'config.json');
+    let links = 0;
+    // The first link call shows a claim from another process. That process fails its rename and removes the claim.
+    jest.spyOn(fs, 'linkSync').mockImplementation(() => {
+      if (links++ === 0) fs.writeFileSync(file, '');
+      throw eperm();
+    });
+    const c = clock((n) => { if (n === 1) fs.rmSync(file); });
+    const config = loadConfig(dir, { sleep: c.sleep, now: c.now });
+    expect(links).toBe(2);
+    expect(JSON.parse(fs.readFileSync(file, 'utf8')).deviceId).toBe(config.deviceId);
+    expect(fs.readdirSync(dir)).toEqual(['config.json']);
+  });
+});
+
+test('a first run without hard links never overwrites a winner that appears after the last existence check', () => {
+  const file = path.join(dir, 'config.json');
+  const winner = JSON.stringify({ deviceId: 'WINNER', projectAliases: {}, tagAliases: {}, ticketPrefixes: [] });
+  // The link fails with no side effect. The winner shows up just before the claim or before any rename onto the target.
+  jest.spyOn(fs, 'linkSync').mockImplementation(() => { throw Object.assign(new Error('EPERM'), { code: 'EPERM' }); });
+  const realOpen = fs.openSync.bind(fs);
+  const realRename = fs.renameSync.bind(fs);
+  const plant = () => { if (!fs.existsSync(file)) fs.writeFileSync(file, winner); };
+  jest.spyOn(fs, 'openSync').mockImplementation(((p: fs.PathLike, ...rest: unknown[]) => {
+    if (p === file) plant();
+    return (realOpen as (...a: unknown[]) => number)(p, ...rest);
+  }) as typeof fs.openSync);
+  jest.spyOn(fs, 'renameSync').mockImplementation((from, to) => {
+    if (to === file) plant();
+    realRename(from, to);
+  });
+  try {
+    expect(loadConfig(dir).deviceId).toBe('WINNER');
+    expect(JSON.parse(fs.readFileSync(file, 'utf8')).deviceId).toBe('WINNER');
+  } finally {
+    jest.restoreAllMocks();
+  }
 });

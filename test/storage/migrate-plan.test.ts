@@ -9,6 +9,7 @@ import { createRepository } from '../../src/storage/sqlite-repository';
 import { importLegacy, applyPlan, renderPlanDiff } from '../../src/storage/migrate';
 import type { MigrationPlan, PlanItem } from '../../src/storage/migrate';
 import type { EntryRepository } from '../../src/core/repository';
+import { rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository;
 let jsonPath: string; let dbPath: string; let stderr: jest.SpyInstance;
@@ -37,7 +38,7 @@ beforeEach(() => {
   remake(loadConfig(home));
   importLegacy(db, repo, config, jsonPath);
 });
-afterEach(() => { stderr.mockRestore(); db.close(); fs.rmSync(home, { recursive: true, force: true }); });
+afterEach(() => { stderr.mockRestore(); db.close(); rmTmp(home); });
 
 test('plan replaces summaries on an already migrated database and keeps details', () => {
   const before = byIndex(0);

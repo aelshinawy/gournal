@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { summaryLength, MAX_SUMMARY } from '../core';
+import { summaryLength, MAX_SUMMARY, stripControl, cleanDetails, cleanOpt, cleanProject, cleanRefs } from '../core';
 import { newId } from '../core';
 import type { Activity, Entry } from '../core';
 import type { Config } from '../core';
@@ -135,6 +135,23 @@ const invalidMapRow = (r: unknown): boolean => {
     && (o.importedAt === undefined || isNullOr(o.importedAt, isIso)));
 };
 
+/** Strip control characters from an entry's text fields. Only an empty summary fails, as it does in the repository. */
+function cleanEntry(e: Entry, i: number): Entry {
+  const summary = stripControl(e.summary);
+  if (summary.trim().length === 0) throw new Error(`Bundle entry ${i} is invalid: summary`);
+  return {
+    ...e,
+    summary,
+    details: cleanDetails(e.details) ?? null,
+    project: cleanProject(e.project),
+    repo: cleanOpt(e.repo) ?? null,
+    branch: cleanOpt(e.branch) ?? null,
+    agent: cleanOpt(e.agent) ?? null,
+    tags: [...new Set(e.tags.map(stripControl).filter((t) => t !== ''))],
+    refs: cleanRefs(e.refs),
+  };
+}
+
 const ms = (v: string | null): number | null => (v === null ? null : Date.parse(v));
 
 /**
@@ -148,11 +165,13 @@ export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config)
   if (typeof b !== 'object' || b === null || b.format !== 'gournal-bundle' || b.schemaVersion !== 1 || !Array.isArray(b.entries)) {
     throw new Error('Not a gournal bundle');
   }
-  const entries = b.entries as unknown[];
-  entries.forEach((e, i) => {
+  const rawEntries = b.entries as unknown[];
+  rawEntries.forEach((e, i) => {
     const bad = invalidField(e);
     if (bad) throw new Error(`Bundle entry ${i} is invalid: ${bad}`);
   });
+  // Strip control characters on write, the same as the repository does. A stripped field is never rejected.
+  const entries = (rawEntries as Entry[]).map((e, i) => cleanEntry(e, i));
 
   if (b.legacyMap !== undefined && !Array.isArray(b.legacyMap)) throw new Error('Bundle legacyMap is invalid');
   const map = (b.legacyMap ?? []) as unknown[];
@@ -177,7 +196,7 @@ export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config)
       resolved_at, resolved_by_entry_id, project, repo, branch, source, agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     const update = db.prepare(`UPDATE entries SET created_at = ?, updated_at = ?, deleted_at = ?, device_id = ?, summary = ?, details = ?,
       kind = ?, status = ?, resolved_at = ?, resolved_by_entry_id = ?, project = ?, repo = ?, branch = ?, source = ?, agent = ? WHERE id = ?`);
-    for (const e of entries as Entry[]) {
+    for (const e of entries) {
       const existing = find.get(e.id) as { updated_at: number } | undefined;
       const updatedAt = Date.parse(e.updatedAt);
       if (existing && existing.updated_at >= updatedAt) { result.skipped++; continue; }

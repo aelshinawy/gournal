@@ -3,6 +3,7 @@ import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
 import { BACKUP_PATTERN } from './backup';
 import { ensureSearchIndex, migrateSchema } from './schema';
+import { ensurePrivateDir, ensurePrivateFile, tightenBackups, tightenDbFiles } from './private-files';
 
 export { ensureSearchIndex, migrateSchema, SCHEMA_VERSION } from './schema';
 
@@ -36,8 +37,19 @@ function isCorruption(err: unknown): boolean {
   return e?.errcode === 26 || e?.errcode === 11 || /SQLITE_NOTADB|SQLITE_CORRUPT|not a database|malformed/i.test(text);
 }
 
+function isReadOnly(err: unknown): boolean {
+  const e = err as { errcode?: number; message?: string };
+  // The low byte of an extended code is the primary code. 8 = SQLITE_READONLY (1544 = READONLY_DIRECTORY).
+  return (typeof e?.errcode === 'number' && (e.errcode & 0xff) === 8) || /readonly database/i.test(e?.message ?? '');
+}
+
 export function openDb(dbPath: string): DatabaseSync {
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  const home = path.dirname(dbPath);
+  ensurePrivateDir(home);
+  // Create the file as 0600 before SQLite does. SQLite copies its mode to the WAL and SHM files.
+  ensurePrivateFile(dbPath);
+  tightenDbFiles(dbPath);
+  tightenBackups(home);
   const db = new DatabaseSync(dbPath);
   try {
     // The first statement reads the file header. It fails on a non-database file.
@@ -49,6 +61,7 @@ export function openDb(dbPath: string): DatabaseSync {
   } catch (err) {
     try { db.close(); } catch { /* ignore */ }
     if (isCorruption(err)) throw new CorruptDatabaseError(dbPath, latestBackup(dbPath));
+    if (isReadOnly(err)) throw new Error(`gournal home ${home} is not writable. Fix its permissions or set GOURNAL_HOME.`);
     throw err;
   }
   return db;

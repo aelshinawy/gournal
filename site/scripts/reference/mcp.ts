@@ -108,7 +108,7 @@ function atom(v: JSONSchema, root: JSONSchema): string {
       return `${inner.includes(' | ') ? `(${inner})` : inner}[]`;
     }
     case undefined: return v.properties || v.additionalProperties ? 'object' : 'any';
-    default: return v.type;
+    default: return String(v.type);
   }
 }
 

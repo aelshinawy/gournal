@@ -4,19 +4,18 @@ import { execGh, resolveIdentity, type GhRunner } from '../../sources';
 import { maybeAutoSync, parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
 import { startMcpServer } from '../mcp';
 import { standupModel, workLogModel } from '../reports';
-import { EXPORT_FORMATS, KINDS, OPTION_TEXT, STATUSES, buildStats, checkSummary, resolveQuery, shortId } from '../../core';
+import { EXPORT_FORMATS, KINDS, OPTION_TEXT, STATUSES, buildStats, checkSummary, resolveQuery, shortId, stripControl } from '../../core';
 import type { Kind, Query, Status } from '../../core';
 import {
   entryLinesText, exportCsv, exportMarkdown, projectCountsText, standupText, statsText, tagCountsText, workLogText,
 } from '../../render';
 import inquirer from 'inquirer';
-import fs from 'fs-extra';
+import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import { VERSION } from '../version';
 import { clearConfirmQuestion } from './prompts';
 import { execFileRunner, setupClaude, stopHook, type CommandRunner } from '../setup';
-import { openJournal, exportBundle, importBundle, backupDbIfNeeded, gournalHome, hasFts5, rebuildSearchIndex, importLegacy, applyPlan, renderPlanDiff } from '../../storage';
+import { openJournal, exportBundle, importBundle, backupDbIfNeeded, gournalHome, userHomePath, hasFts5, rebuildSearchIndex, importLegacy, applyPlan, renderPlanDiff, writePrivateFile, writeExportFile, assertExportTarget, assertTargetDir } from '../../storage';
 import type { Journal, MigrationPlan } from '../../storage';
 
 export interface CliIo {
@@ -27,7 +26,7 @@ export interface CliIo {
   isTTY: boolean;
   /** Test seam. The default runs the real gh. */
   gh?: GhRunner;
-  /** The user's home, for `setup claude`. `home` above is the gournal home. Default: os.homedir() at call time. */
+  /** The user's home, for `setup claude`. `home` above is the gournal home. Default: the profile folder at call time (os.homedir(), or USERPROFILE on Windows). */
   userHome?: string;
   /** Test seam for `setup claude`. The default asks with inquirer. */
   confirm?: (message: string, def: boolean) => Promise<boolean>;
@@ -171,7 +170,7 @@ export function buildProgram(io: CliIo): Command {
           return;
         }
         const removed = repo.softDelete(latest.id);
-        io.out(chalk.green(`✓ Removed: ${removed.summary} (restore with gournal restore ${shortId(removed.id)})`));
+        io.out(chalk.green(`✓ Removed: ${stripControl(removed.summary)} (restore with gournal restore ${shortId(removed.id)})`));
       });
     });
 
@@ -182,7 +181,7 @@ export function buildProgram(io: CliIo): Command {
     .action(async (id: string) => {
       await withJournal(({ repo }) => {
         const entry = repo.restore(id);
-        io.out(chalk.green(`✓ Restored: ${entry.summary}`));
+        io.out(chalk.green(`✓ Restored: ${stripControl(entry.summary)}`));
       });
     });
 
@@ -193,7 +192,7 @@ export function buildProgram(io: CliIo): Command {
     .action(async (id: string) => {
       await withJournal(({ repo }) => {
         const entry = repo.resolve(id);
-        io.out(chalk.green(`✓ Resolved: ${entry.summary}`));
+        io.out(chalk.green(`✓ Resolved: ${stripControl(entry.summary)}`));
       });
     });
 
@@ -276,13 +275,16 @@ export function buildProgram(io: CliIo): Command {
     .option('-t, --tags <tags>', `${OPTION_TEXT.tags} Separate tags with commas.`)
     .option('--from <date>', OPTION_TEXT.from)
     .option('--to <date>', OPTION_TEXT.to)
-    .option('-o, --output <file>', 'Write the output to this file instead of the terminal.')
-    .action(async (options: { format: string; project?: string; tags?: string; from?: string; to?: string; output?: string }) => {
+    .option('-o, --output <file>', 'Write the output to this file instead of the terminal. The file mode is 0600. Gournal refuses to write through a symlink.')
+    .option('--force', 'Replace the output file if it exists. Without this option, gournal stops when the file exists.')
+    .action(async (options: { format: string; project?: string; tags?: string; from?: string; to?: string; output?: string; force?: boolean }) => {
       const exportFormat = options.format.toLowerCase();
       if (!(EXPORT_FORMATS as readonly string[]).includes(exportFormat)) {
         throw new Error(`Unknown format "${options.format}". Use md, csv, or bundle.`);
       }
       const query = buildQuery(options);
+      // Check the target before any work, so a refusal costs nothing.
+      if (options.output) assertExportTarget(options.output, options.force === true);
 
       await withJournal(async ({ repo, db, config }) => {
         let output: string;
@@ -298,7 +300,7 @@ export function buildProgram(io: CliIo): Command {
         }
 
         if (options.output) {
-          await fs.writeFile(options.output, output);
+          writeExportFile(options.output, output, options.force === true);
           io.out(chalk.green(`✓ Exported ${count} entries to ${options.output}`));
         } else {
           io.out(output);
@@ -345,7 +347,7 @@ export function buildProgram(io: CliIo): Command {
   program
     .command('find')
     .argument('<text>', 'Words to search for. Every word must match.')
-    .description('Search your entries for words. Every word must match. The oldest entries come first.')
+    .description('Search your entries for words. Every word must match. The oldest entries come first. Matching can differ between Node builds: with FTS5 a word matches the start of whole words, and without FTS5 it matches any part of the text.')
     .option('-p, --project <project>', OPTION_TEXT.project)
     .option('-t, --tags <tags>', `${OPTION_TEXT.tags} Separate tags with commas.`)
     .option('-k, --kind <kinds>', `${OPTION_TEXT.kind} Separate kinds with commas.`)
@@ -373,6 +375,8 @@ export function buildProgram(io: CliIo): Command {
       if (options.diff && !options.dryRun) throw new Error('--diff only applies with --dry-run');
       if (options.dryRun && !options.plan) throw new Error('--dry-run needs --plan <file>');
       if (options.dryRun && !options.diff) throw new Error('--dry-run needs --diff <file>');
+      // Check the diff folder before any work, so a missing folder gives a clear message.
+      if (options.dryRun && options.diff) assertTargetDir(options.diff);
       const jsonPath = path.join(io.home, 'entries.json');
       const journal = openJournal(io.home);
       try {
@@ -391,13 +395,7 @@ export function buildProgram(io: CliIo): Command {
         const { changes, snapshot } = applyPlan(journal.db, journal.repo, journal.config, jsonPath, plan, { dryRun: !!options.dryRun });
         if (options.dryRun) {
           const target = options.diff as string;
-          const tmp = path.join(path.dirname(path.resolve(target)), `.${path.basename(target)}.${process.pid}.tmp`);
-          try {
-            fs.writeFileSync(tmp, renderPlanDiff(changes));
-            fs.renameSync(tmp, target);
-          } finally {
-            fs.rmSync(tmp, { force: true });
-          }
+          writePrivateFile(target, renderPlanDiff(changes));
           io.out(`Dry run: ${changes.length} entries would change. Diff written to ${target}.`);
         } else {
           if (snapshot) io.out(`Snapshot: ${snapshot}`);
@@ -449,7 +447,7 @@ export function buildProgram(io: CliIo): Command {
     .action(async (options: { uninstall?: boolean; yes?: boolean; hook?: boolean }) => {
       const code = await setupClaude({
         out: io.out, err: io.err, isTTY: io.isTTY,
-        home: io.userHome ?? os.homedir(),
+        home: io.userHome ?? userHomePath(),
         confirm: io.confirm ?? inquirerConfirm,
         exec: io.exec ?? execFileRunner,
       }, { uninstall: options.uninstall === true, yes: options.yes === true, hook: options.hook === true });

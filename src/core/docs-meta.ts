@@ -98,7 +98,7 @@ export const CONFIG_KEY_DOCS: readonly ConfigKeyDoc[] = [
 export const ENV_VAR_DOCS: readonly EnvVarDoc[] = [
   {
     name: 'GOURNAL_HOME',
-    default: '`.gournal` in `$HOME`, then `$USERPROFILE`, then the OS home folder',
+    default: '`.gournal` in your profile folder. On Windows, gournal uses `USERPROFILE`, then the OS home folder, and ignores `HOME`. On macOS and Linux, gournal uses `HOME`, then `USERPROFILE`, then the OS home folder.',
     description: 'The folder for all gournal data.',
   },
   {

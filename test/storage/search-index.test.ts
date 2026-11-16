@@ -9,6 +9,7 @@ import { createRepository } from '../../src/storage/sqlite-repository';
 import { exportBundle, importBundle } from '../../src/storage/bundle';
 import { ftsTest } from '../fts5';
 import { runIn } from '../helpers/run-cli';
+import { rmTmp } from '../helpers/tmp';
 
 // GOURNAL_DISABLE_FTS5=1 makes the detection function report "no FTS5", like an official Linux Node build.
 const FLAG = 'GOURNAL_DISABLE_FTS5';
@@ -21,7 +22,7 @@ beforeEach(() => {
   config = loadConfig(dir);
   restoreFlag();
 });
-afterEach(() => { restoreFlag(); fs.rmSync(dir, { recursive: true, force: true }); });
+afterEach(() => { restoreFlag(); rmTmp(dir); });
 
 const realFts5 = (d: DatabaseSync): boolean => {
   try { d.exec('CREATE VIRTUAL TABLE temp.t5 USING fts5(a)'); return true; } catch { return false; }

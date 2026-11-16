@@ -5,6 +5,7 @@ import { GhError, type GhRunner } from '../src/sources';
 import { openJournal, type Journal } from '../src/storage/journal';
 import { AUTO_SYNC_BUDGET_MS, SYNC_LEASE, SYNC_STATE, maybeAutoSync, relinkAfterWrite, runSync } from '../src/adapters/sync';
 import { fakeGh } from './helpers/fake-gh';
+import { rmTmp } from './helpers/tmp';
 
 const fx = (n: string) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'github', n), 'utf8'));
 const NOW = new Date('2026-11-15T12:00:00.000Z');
@@ -43,7 +44,7 @@ afterEach(() => {
   else process.env.GOURNAL_NO_AUTOSYNC = savedNoAuto;
   journal.close();
   other.close();
-  fs.rmSync(home, { recursive: true, force: true });
+  rmTmp(home);
 });
 
 const cursor = () => journal.repo.getState(SYNC_STATE.cursor);
@@ -375,6 +376,6 @@ test('a legacy-imported entry with a pr ref links to existing activity', async (
       reopened.close();
     }
   } finally {
-    fs.rmSync(legacyHome, { recursive: true, force: true });
+    rmTmp(legacyHome);
   }
 });

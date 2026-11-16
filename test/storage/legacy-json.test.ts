@@ -2,6 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { CorruptJournalError, readLegacyEntries } from '../../src/storage/legacy-json';
+import { rmTmp } from '../helpers/tmp';
 
 describe('legacy entries.json reader', () => {
   let dir: string;
@@ -11,7 +12,7 @@ describe('legacy entries.json reader', () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-legacy-'));
     file = path.join(dir, 'entries.json');
   });
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+  afterEach(() => rmTmp(dir));
 
   test('missing file reads as empty', async () => {
     expect(await readLegacyEntries(file)).toEqual([]);

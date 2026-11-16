@@ -39,7 +39,10 @@ if (!fs.existsSync(builtHome)) {
 }
 
 describeBuilt('built homepage', () => {
-  const html = fs.existsSync(builtHome) ? fs.readFileSync(builtHome, 'utf8') : '';
+  let html = '';
+  beforeAll(() => {
+    html = fs.readFileSync(builtHome, 'utf8');
+  });
 
   test('homepage links and assets carry the base path', () => {
     const urls = [...html.matchAll(/\s(?:href|src|poster|srcset)="([^"]*)"/g)].map((m) => m[1]);
@@ -116,13 +119,16 @@ describeBuilt('share image and social cards', () => {
   const OG_URL = 'https://aelshinawy.github.io/gournal/og.png';
   const OG_ALT = 'A gournal standup in the terminal: done work by project, blockers, next items, and linked GitHub activity.';
   const docsPage = path.join(root, 'site/dist/docs/start-here/introduction/index.html');
-  const pages: Record<string, string> = {
-    homepage: fs.readFileSync(builtHome, 'utf8'),
-    'docs page': fs.existsSync(docsPage) ? fs.readFileSync(docsPage, 'utf8') : ''
-  };
+  // Read the build lazily. Jest runs a skipped describe body, so a read here would throw without a build.
+  const pages: Record<string, string> = {};
+  beforeAll(() => {
+    pages.homepage = fs.readFileSync(builtHome, 'utf8');
+    pages['docs page'] = fs.existsSync(docsPage) ? fs.readFileSync(docsPage, 'utf8') : '';
+  });
 
-  for (const [name, html] of Object.entries(pages)) {
+  for (const name of ['homepage', 'docs page']) {
     test(`the ${name} has one absolute og:image and a large twitter card`, () => {
+      const html = pages[name];
       expect(html).not.toBe('');
       const og = [...html.matchAll(/<meta\s+property="og:image"\s+content="([^"]*)"/g)].map((m) => m[1]);
       expect(og).toEqual([OG_URL]);

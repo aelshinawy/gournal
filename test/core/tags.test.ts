@@ -37,3 +37,5 @@ test('with ticketPrefixes, only matching tags convert', () =>
   }));
 test('pr-N tags always become pr refs', () =>
   expect(normalizeTags(['pr-401'])).toEqual({ tags: [], refs: [{ type: 'pr', value: '401' }] }));
+test('control characters are stripped from tags, whitespace controls become a dash', () =>
+  expect(normalizeTags(['a\x1b[31mb', 'x\ty', '\x07', 'pr-\x1b4']).tags).toEqual(['a[31mb', 'x-y']));

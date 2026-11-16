@@ -6,8 +6,42 @@ description: Install gournal with npm, check the install, and optionally sign in
 ## Requirements
 
 - **Node.js 22.13 or newer.** Run `node --version` to check.
-- **Git 2.31 or newer.** Gournal uses Git to find the project, the repository, and the branch of a directory. With Git older than 2.31, or without Git, gournal puts entries in the `uncategorized` project and records no repository or branch.
+- **Git 2.7 or newer.** Gournal uses Git to find the project, the repository, and the branch of a directory. With Git older than 2.7, or without Git, gournal puts entries in the `uncategorized` project and records no repository or branch.
 - **The GitHub CLI (`gh`), optional.** You need it only for [GitHub sync](/gournal/docs/guides/github-activity/).
+- **On Windows, Git for Windows.** Gournal runs `git`, so `git.exe` must be on your `PATH`. The Git for Windows installer does this.
+
+## Supported platforms
+
+Gournal supports macOS, Linux, and Windows. CI runs the test suite on all three. A few tests that check file mode bits skip on Windows. CI also installs the packed package, runs the commands, and runs `gournal setup claude` against a test copy of the `claude` command.
+
+Gournal needs Node.js 22.13 or newer because it uses the `node:sqlite` module. Node.js still marks `node:sqlite` as experimental, so it can change in a later Node.js release. Gournal hides the Node.js warning about this.
+
+Keep your journal on a local disk. Gournal uses SQLite in WAL mode, and WAL mode does not work on network drives. If your gournal home folder is on a network drive, the journal can lock up or become damaged.
+
+### macOS and Linux
+
+Use a current release of macOS or Linux. Install Node.js 22.13 or newer and Git. The default data folder is `~/.gournal`.
+
+### Windows
+
+Gournal supports Windows on x64, as a native program. CI runs on Windows Server 2025 with Node.js 22.13 and 24. Use Node.js 22.13 or newer. Install gournal with `npm install -g gournal`.
+
+1. Install Git for Windows. Gournal runs `git`.
+2. The GitHub CLI (`gh`) is optional.
+3. Gournal looks for `git.exe` and `gh.exe` in the absolute folders of your `PATH`. It ignores `.cmd` and `.bat` files. It skips the current folder and relative `PATH` entries. Put Git for Windows on your `PATH`. The `gh` CLI is optional.
+4. The default data folder is `%USERPROFILE%\.gournal`. Windows ignores the `HOME` variable. Set `GOURNAL_HOME` to use a different folder.
+5. `gournal setup claude` registers the MCP server with the full path to `node.exe` and to the gournal script. It never uses the short `gournal` command. If your Node.js version changes, for example with nvm-windows or fnm, run `gournal setup claude` again in a terminal. Answer yes to replace the MCP registration. `--yes` keeps the old registration.
+6. `gournal setup claude --hook` writes the Stop hook in exec form, so no shell has to quote the path. If you installed Claude Code with npm (`claude.cmd`), setup runs it through `cmd.exe`. Gournal runs an npm-installed `claude.cmd` only when it finds it in an absolute folder of your `PATH`. It never runs a `claude.cmd` or `claude.bat` from the current folder.
+
+These limits apply on Windows.
+
+- **File permissions.** Gournal cannot set the 0700 and 0600 file modes on Windows. The journal depends on the permissions of your profile folder. These permissions normally block other standard users. Administrators and the system can still read your files. Do not put `GOURNAL_HOME` on a shared folder.
+- **Terminal.** In mintty, standard input is not a terminal. Gournal treats it as not interactive. `gournal setup claude` prints its plan and exits with code 1 until you pass `--yes`. Use Windows Terminal, PowerShell, or cmd to get prompts.
+- **Search.** The Node.js build on the Windows CI runner has no FTS5. On such a build, `gournal find` matches substrings. See [Search entries](/gournal/docs/reference/search/) for how matching differs between Node.js builds. Run `gournal index rebuild` to check. It fails with "This Node build has no FTS5" when the build lacks FTS5.
+
+### WSL
+
+Gournal counts WSL as Linux. Install gournal inside WSL. Run `gournal setup claude` inside WSL too.
 
 ## Install gournal
 
@@ -36,7 +70,7 @@ Skip this step if you do not want GitHub activity in your standups. Everything e
 
 ## Where gournal keeps data
 
-Gournal keeps its data in `~/.gournal`. Set the `GOURNAL_HOME` environment variable to use a different folder. See [Environment variables](/gournal/docs/reference/environment/).
+Gournal keeps its data in `~/.gournal`. On Windows, this is `%USERPROFILE%\.gournal`. Set the `GOURNAL_HOME` environment variable to use a different folder. See [Environment variables](/gournal/docs/reference/environment/).
 
 ## Upgrade
 
@@ -46,7 +80,7 @@ Run `npm install -g gournal` again to get the newest version. If you upgrade fro
 
 1. Remove the Claude Code setup: `gournal setup claude --uninstall`. See [Claude Code setup](/gournal/docs/guides/claude-code-setup/#undo-it).
 2. Remove the package: `npm uninstall -g gournal`.
-3. Optional: delete the data folder, `~/.gournal` (or the folder in `GOURNAL_HOME`). This deletes your journal, your settings, and your backups. Export a bundle first if you want a copy. See [Data safety and backups](/gournal/docs/guides/data-safety-and-backups/#bundles).
+3. Optional: delete the data folder, `~/.gournal` (`%USERPROFILE%\.gournal` on Windows, or the folder in `GOURNAL_HOME`). This deletes your journal, your settings, and your backups. Export a bundle first if you want a copy. See [Data safety and backups](/gournal/docs/guides/data-safety-and-backups/#bundles).
 
 Steps 1 and 2 keep your journal. Run step 1 before step 2, because `gournal setup claude --uninstall` needs the `gournal` command.
 

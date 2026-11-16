@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a problem in gournal.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report a security vulnerability here. Read SECURITY.md.
+        Remove private journal text from any output that you paste.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Say what you did, what you expected, and what you got.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Give the exact commands.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: gournal-version
+    attributes:
+      label: gournal version
+      description: Run `gournal --version`.
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      description: Run `node --version`.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+    validations:
+      required: true

@@ -8,6 +8,7 @@ import { createRepository } from '../../src/storage/sqlite-repository';
 import { importLegacy } from '../../src/storage/migrate';
 import { exportBundle, importBundle } from '../../src/storage/bundle';
 import type { EntryRepository } from '../../src/core/repository';
+import { rmTmp } from '../helpers/tmp';
 
 interface Side { db: DatabaseSync; repo: EntryRepository }
 let home: string; let config: Config; let stderr: jest.SpyInstance; let sides: Side[];
@@ -24,7 +25,7 @@ beforeEach(() => {
   stderr = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
   sides = [];
 });
-afterEach(() => { stderr.mockRestore(); for (const s of sides) s.db.close(); fs.rmSync(home, { recursive: true, force: true }); });
+afterEach(() => { stderr.mockRestore(); for (const s of sides) s.db.close(); rmTmp(home); });
 
 /** A database that has imported entries.json by itself. */
 function side(name: string): Side {

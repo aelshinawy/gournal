@@ -4,6 +4,7 @@ import path from 'path';
 import { openJournal } from '../../src/storage/journal';
 import type { Journal } from '../../src/storage/journal';
 import type { NewActivityInput } from '../../src/core';
+import { rmTmp } from '../helpers/tmp';
 
 let home: string;
 let journal: Journal;
@@ -17,7 +18,7 @@ afterEach(() => {
   jest.restoreAllMocks();
   journal.close();
   other.close();
-  fs.rmSync(home, { recursive: true, force: true });
+  rmTmp(home);
 });
 
 const REPO = 'acme/widgets';

@@ -1,12 +1,11 @@
 import { resolveProjectAlias } from './query';
+import { DEFAULT_PROJECT } from './sanitize';
 
 export interface RepoIdentity {
   project: string;
   repo: string | null;
   branch: string | null;
 }
-
-const UNCATEGORIZED = 'uncategorized';
 
 /** 'owner/name' from a git remote URL, or null when the URL has no owner and name. */
 export function parseRemoteUrl(url: string): string | null {
@@ -36,5 +35,5 @@ export function projectFor(
     const mapped = resolveProjectAlias(key, aliases);
     if (mapped !== key) return mapped;
   }
-  return repoName ?? facts.folder ?? UNCATEGORIZED;
+  return repoName ?? facts.folder ?? DEFAULT_PROJECT;
 }

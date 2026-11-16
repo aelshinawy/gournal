@@ -1,6 +1,7 @@
 node_modules/
 .env
 dist/
+coverage/
 .claude/
 .superpowers/
 site/node_modules/
@@ -10,3 +11,7 @@ site/.astro/
 .impeccable/review/
 .impeccable/build/
 .impeccable/config.local.json
+docs/superpowers/
+docs/audits/
+.impeccable/
+PRODUCT.md

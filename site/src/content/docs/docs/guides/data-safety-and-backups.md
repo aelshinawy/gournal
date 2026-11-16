@@ -35,6 +35,8 @@ $ gournal import bundle.json
 Imported: 0 new, 0 updated, 3 unchanged, 0 duplicates merged.
 ```
 
+Add `--force` to replace an earlier bundle. A scheduled backup needs `--force`, or a dated file name such as `bundle-2026-07-31.json`.
+
 `gournal import` adds new entries, updates changed ones, and skips unchanged ones. See [`gournal export`](/gournal/docs/reference/export/) for the formats and [`gournal import`](/gournal/docs/reference/import/).
 
 ## Restore from a backup

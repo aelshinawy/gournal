@@ -42,10 +42,15 @@ describe('stopHook', () => {
       tool('mcp__gournal__add_entry'),
       tool('mcp__plugin_gournal_gournal__add_entry'),
       tool('Bash', { command: 'gournal add "did it" -p x' }),
+      tool('PowerShell', { command: 'gournal add "did it" -p x' }),
     ]) {
       const i = input(transcript([tool('MultiEdit'), logged]), {}, `s-${logged.length}`);
       expect(await stopHook(i, home, now)).toBeNull();
     }
+  });
+  test('a PowerShell command that is not gournal add does not count as logged', async () => {
+    const i = input(transcript([tool('Edit'), tool('PowerShell', { command: 'Get-ChildItem' })]));
+    expect(await stopHook(i, home, now)).toBe(EXPECTED);
   });
   test('does nothing for a session with no edits', async () => {
     const i = input(transcript([tool('Read'), tool('Bash', { command: 'ls' })]));

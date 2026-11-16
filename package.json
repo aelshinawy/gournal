@@ -13,8 +13,12 @@
   ],
   "scripts": {
     "build": "tsc",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prepublishOnly": "npm run clean && npm run build && npm test",
     "dev": "ts-node src/cli.ts",
     "test": "jest",
+    "test:ci": "jest --coverage",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "lint": "depcruise src --config .dependency-cruiser.cjs",
     "check:dashes": "node scripts/check-dashes.mjs",
     "docs:gen": "node -r ts-node/register/transpile-only site/scripts/reference/run.ts"
@@ -31,27 +35,29 @@
     "developer-tools",
     "git"
   ],
-  "author": "",
+  "author": "Ahmed El-Shinawy",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/aelshinawy/gournal"
   },
+  "bugs": {
+    "url": "https://github.com/aelshinawy/gournal/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "A developer's command-line journal with Git integration: log work, generate standup reports, and export your history to Markdown or CSV.",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "chalk": "^4.1.2",
     "commander": "^13.1.0",
     "date-fns": "^4.1.0",
-    "fs-extra": "^11.3.0",
     "inquirer": "^12.3.3",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@swc/jest": "^0.2.37",
-    "@types/chalk": "^0.4.31",
-    "@types/fs-extra": "^11.0.4",
-    "@types/inquirer": "^9.0.7",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.12.0",
     "dependency-cruiser": "18.7.0",

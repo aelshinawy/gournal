@@ -10,6 +10,7 @@ import { InvalidQueryError } from '../../src/core';
 import type { NewEntryInput } from '../../src/core';
 import type { EntryRepository } from '../../src/core/repository';
 import { ftsMatchExpression, likePattern } from '../../src/storage/search';
+import { rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository;
 beforeEach(() => {
@@ -20,7 +21,7 @@ beforeEach(() => {
   config.projectAliases = { 'gournal-old': 'gournal' };
   repo = createRepository(db, config, dbPath);
 });
-afterEach(() => { db.close(); fs.rmSync(home, { recursive: true, force: true }); });
+afterEach(() => { db.close(); rmTmp(home); });
 
 const seed = (summary: string, extra: Partial<NewEntryInput> = {}) =>
   repo.add({ summary, project: 'p', source: 'cli', ...extra });
@@ -46,13 +47,13 @@ test('project filter is case-insensitive and matches alias keys', () => {
   expect(summaries({ project: 'gournal' }).sort()).toEqual(['a', 'legacy', 'upper']);
 });
 test('kind, status, repo, and source filter', () => {
-  seed('blk', { kind: 'blocker', repo: 'acme/x', source: 'mcp' });
+  seed('blk', { kind: 'blocker', repo: 'acme/widgets', source: 'mcp' });
   seed('nxt', { kind: 'next' });
   seed('done');
   const resolved = seed('blk2', { kind: 'blocker' });
   repo.resolve(resolved.id);
   expect(summaries({ kind: ['blocker', 'next'], status: 'open' }).sort()).toEqual(['blk', 'nxt']);
-  expect(summaries({ repo: 'Acme/X' })).toEqual(['blk']);
+  expect(summaries({ repo: 'Acme/Widgets' })).toEqual(['blk']);
   expect(summaries({ source: 'mcp' })).toEqual(['blk']);
   expect(summaries({ kind: [] })).toHaveLength(4);
 });
@@ -128,4 +129,38 @@ test('match expression and like pattern helpers', () => {
   expect(ftsMatchExpression(['\u0000'])).toBe('');
   expect(ftsMatchExpression(['a\u0000b'])).toBe('"ab"*');
   expect(likePattern('50%')).toBe('%50\\%%');
+});
+
+// Search differs by Node build. These tests pin each mode for one fixture. The `find` help text says so.
+// With FTS5 a word matches the start of whole words. Without FTS5 it matches any part of the text.
+describe('search modes', () => {
+  const FIXTURE = 'fixed gournal bug in parser';
+  const searchWith = (disableFts5: boolean, text: string): string[] => {
+    const prev = process.env.GOURNAL_DISABLE_FTS5;
+    if (disableFts5) process.env.GOURNAL_DISABLE_FTS5 = '1'; else delete process.env.GOURNAL_DISABLE_FTS5;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-modes-'));
+    const dbPath = path.join(dir, 'gournal.db');
+    const modeDb = openDb(dbPath);
+    try {
+      const modeRepo = createRepository(modeDb, loadConfig(dir), dbPath);
+      modeRepo.add({ summary: FIXTURE, project: 'p', source: 'cli' });
+      expect(modeRepo.searchMode()).toBe(disableFts5 ? 'like' : 'fts');
+      return modeRepo.find({ text }).map((e) => e.summary);
+    } finally {
+      modeDb.close();
+      rmTmp(dir);
+      if (prev === undefined) delete process.env.GOURNAL_DISABLE_FTS5; else process.env.GOURNAL_DISABLE_FTS5 = prev;
+    }
+  };
+
+  ftsTest('with FTS5, a word matches the start of whole words', () => {
+    expect(searchWith(false, 'gournal')).toEqual([FIXTURE]);
+    expect(searchWith(false, 'gour')).toEqual([FIXTURE]);
+    expect(searchWith(false, 'ournal')).toEqual([]);
+  });
+  test('without FTS5, a word matches any part of the text', () => {
+    expect(searchWith(true, 'gournal')).toEqual([FIXTURE]);
+    expect(searchWith(true, 'gour')).toEqual([FIXTURE]);
+    expect(searchWith(true, 'ournal')).toEqual([FIXTURE]);
+  });
 });

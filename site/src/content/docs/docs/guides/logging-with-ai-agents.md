@@ -51,7 +51,7 @@ Gournal fills the project, the repository, and the branch of an entry in this or
 4. The working directory of the server process. Gournal uses it only when the call has no `project`.
 5. The project `uncategorized`.
 
-A directory that is not in a git repository gives the project `uncategorized`. Git older than 2.31 gives `uncategorized` too, and gournal records no repository or branch. A project alias in `config.json` renames the project. See [Core concepts](/gournal/docs/start-here/core-concepts/#projects-and-identity).
+A directory that is not in a git repository gives the project `uncategorized`. Git older than 2.7 gives `uncategorized` too, and gournal records no repository or branch. A project alias in `config.json` renames the project. See [Core concepts](/gournal/docs/start-here/core-concepts/#projects-and-identity).
 
 Example: this call has `project` and `cwd`. Gournal takes the repository and the branch from `cwd`.
 

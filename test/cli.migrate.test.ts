@@ -4,6 +4,10 @@ import os from 'os';
 import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
 import { runIn } from './helpers/run-cli';
+import { rmTmp } from './helpers/tmp';
+
+// The path separator is a backslash on Windows. Escape each part before it joins a regex.
+const escapeRe = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 describe('gournal migrate', () => {
   let home: string;
@@ -27,7 +31,7 @@ describe('gournal migrate', () => {
     home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cli-migrate-'));
     fs.writeFileSync(path.join(home, 'entries.json'), JSON.stringify([entry]));
   });
-  afterEach(() => { fs.rmSync(home, { recursive: true, force: true }); });
+  afterEach(() => { rmTmp(home); });
 
   test('plain migrate reports the import counts', async () => {
     const r = await run('migrate');
@@ -78,7 +82,7 @@ describe('gournal migrate', () => {
     const r = await run('migrate', '--plan', writePlan('Reviewed summary'));
     expect(r.status).toBe(0);
     expect(r.stdout).toContain('Updated 1 entries.');
-    expect(r.stdout).toMatch(new RegExp(`Snapshot: ${fs.realpathSync(home).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/backups/gournal-pre-plan-\\d{8}-\\d{6}(-\\d+)?\\.db`));
+    expect(r.stdout).toMatch(new RegExp(`Snapshot: ${escapeRe(fs.realpathSync(home))}${escapeRe(path.sep)}backups${escapeRe(path.sep)}gournal-pre-plan-\\d{8}-\\d{6}(-\\d+)?\\.db`));
     expect(summaries()).toEqual(['Reviewed summary']);
   });
 

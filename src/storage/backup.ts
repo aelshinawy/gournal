@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 import type { DatabaseSync } from 'node:sqlite';
+import { createPrivateTemp, ensurePrivateDir, renameWithRetry } from './private-files';
 
 export const BACKUP_PATTERN = /^gournal-\d{4}-\d{2}-\d{2}\.db$/;
 const BACKUP_KEEP = 7;
@@ -19,15 +19,15 @@ const pad = (n: number) => String(n).padStart(2, '0');
  */
 export function snapshotDb(db: DatabaseSync, dbPath: string, now: Date = new Date()): string {
   const dir = path.join(path.dirname(dbPath), 'backups');
-  fs.mkdirSync(dir, { recursive: true });
+  ensurePrivateDir(dir);
   const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
   let dest = path.join(dir, `gournal-pre-plan-${stamp}.db`);
   // Two runs in one second keep both files.
   for (let n = 2; fs.existsSync(dest); n++) dest = path.join(dir, `gournal-pre-plan-${stamp}-${n}.db`);
-  const tmp = `${dest}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  const tmp = createPrivateTemp(dest);
   try {
     db.prepare('VACUUM INTO ?').run(tmp);
-    fs.renameSync(tmp, dest);
+    renameWithRetry(tmp, dest);
   } catch (err) {
     fs.rmSync(tmp, { force: true });
     throw err;
@@ -43,12 +43,12 @@ export function backupDbIfNeeded(db: DatabaseSync, dbPath: string, now: Date = n
   const dir = path.join(path.dirname(dbPath), 'backups');
   const dest = path.join(dir, `gournal-${localDay(now)}.db`);
   if (fs.existsSync(dest)) return null;
-  fs.mkdirSync(dir, { recursive: true });
+  ensurePrivateDir(dir);
   // Copy to a temp name, then rename, so a crash never leaves a partial backup.
-  const tmp = `${dest}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  const tmp = createPrivateTemp(dest);
   try {
     db.prepare('VACUUM INTO ?').run(tmp);
-    fs.renameSync(tmp, dest);
+    renameWithRetry(tmp, dest);
   } catch (err) {
     fs.rmSync(tmp, { force: true });
     throw err;

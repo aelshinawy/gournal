@@ -9,6 +9,7 @@ import { openJournal } from '../src/storage/journal';
 import { ftsTest } from './fts5';
 import { GhError, type GhRunner } from '../src/sources';
 import type { NewActivityInput } from '../src/core';
+import { rmTmp } from './helpers/tmp';
 
 const mkHome = () => fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cli-v2-'));
 const rows = (home: string, sql = 'SELECT id, summary, details, status, deleted_at FROM entries ORDER BY created_at') => {
@@ -20,7 +21,7 @@ const suffix = (stdout: string) => /\(([0-9A-Z]{8})\)/.exec(stdout)![1];
 describe('gournal CLI on the SQLite journal', () => {
   let home: string;
   beforeEach(() => { home = mkHome(); });
-  afterEach(() => fs.rmSync(home, { recursive: true, force: true }));
+  afterEach(() => rmTmp(home));
   const run = (...args: string[]) => runIn(home, args);
 
   test('add -k blocker, then resolve', async () => {
@@ -87,7 +88,7 @@ describe('gournal CLI on the SQLite journal', () => {
       expect(bad.status).toBe(1);
       expect(bad.stderr).toContain(`Bundle file ${file} is not valid JSON:`);
     } finally {
-      fs.rmSync(home2, { recursive: true, force: true });
+      rmTmp(home2);
     }
   });
 
@@ -156,7 +157,7 @@ describe('gournal CLI on the SQLite journal', () => {
       g('init'); g('remote', 'add', 'origin', 'git@github.com:acme/collection-app.git');
       g('commit', '--allow-empty', '-m', 'i'); g('checkout', '-b', 'lane-b');
     });
-    afterEach(() => fs.rmSync(tmpBase, { recursive: true, force: true }));
+    afterEach(() => rmTmp(tmpBase));
     const stored = () => rows(home, 'SELECT project, repo, branch FROM entries');
 
     test('project, repo, and branch come from the cwd', async () => {
@@ -182,7 +183,7 @@ describe('bundle restore with migrated entries', () => {
     home = mkHome();
     fs.writeFileSync(path.join(home, 'entries.json'), JSON.stringify(legacy));
   });
-  afterEach(() => fs.rmSync(home, { recursive: true, force: true }));
+  afterEach(() => rmTmp(home));
   const live = () => rows(home, 'SELECT id FROM entries WHERE deleted_at IS NULL').length;
 
   test('export, delete the database, import: still 2 live entries', async () => {
@@ -212,10 +213,10 @@ describe('bundle restore with migrated entries', () => {
         expect((await runIn(fresh, ['import', file])).status).toBe(0);
         expect(fs.readdirSync(path.join(fresh, 'backups')).filter((n) => /^gournal-\d{4}-\d{2}-\d{2}\.db$/.test(n))).toHaveLength(1);
       } finally {
-        fs.rmSync(fresh, { recursive: true, force: true });
+        rmTmp(fresh);
       }
     } finally {
-      fs.rmSync(other, { recursive: true, force: true });
+      rmTmp(other);
     }
   });
 
@@ -233,7 +234,7 @@ describe('bundle restore with migrated entries', () => {
       expect(live()).toBe(2);
       expect(rows(home, 'SELECT id FROM entries WHERE deleted_at IS NOT NULL').length).toBe(2);
     } finally {
-      fs.rmSync(other, { recursive: true, force: true });
+      rmTmp(other);
     }
   });
 });
@@ -241,7 +242,7 @@ describe('bundle restore with migrated entries', () => {
 describe('gournal CLI reads on Query and renderers', () => {
   let home: string;
   beforeEach(() => { home = mkHome(); });
-  afterEach(() => fs.rmSync(home, { recursive: true, force: true }));
+  afterEach(() => rmTmp(home));
   const run = (...args: string[]) => runIn(home, args);
   // eslint-disable-next-line no-control-regex
   const plain = (s: string) => s.replace(/\u001b\[[0-9;]*m/g, '');
@@ -419,7 +420,7 @@ describe('gournal CLI reads on Query and renderers', () => {
 
   test('index rebuild without FTS5 refuses and keeps the daily backup slot', async () => {
     seed([{ summary: 'one', createdAt: daysAgo(1) }]);
-    fs.rmSync(path.join(home, 'backups'), { recursive: true, force: true }); // the seed write took the day's backup
+    rmTmp(path.join(home, 'backups')); // the seed write took the day's backup
     const prev = process.env.GOURNAL_DISABLE_FTS5;
     process.env.GOURNAL_DISABLE_FTS5 = '1';
     try {
@@ -440,7 +441,7 @@ describe('standup and log with GitHub activity', () => {
   const savedNoAuto = process.env.GOURNAL_NO_AUTOSYNC;
   beforeEach(() => { home = mkHome(); });
   afterEach(() => {
-    fs.rmSync(home, { recursive: true, force: true });
+    rmTmp(home);
     if (savedNoAuto === undefined) delete process.env.GOURNAL_NO_AUTOSYNC; else process.env.GOURNAL_NO_AUTOSYNC = savedNoAuto;
   });
 
@@ -541,7 +542,7 @@ describe('standup and log with GitHub activity', () => {
       const q = await runIn(home2, ['log'], { gh: missing });
       expect(q.stderr).toBe('');
       expect(q.stdout).toContain('Other');
-    } finally { fs.rmSync(home2, { recursive: true, force: true }); }
+    } finally { rmTmp(home2); }
   });
 
   test('a bad option fails before any sync runs', async () => {

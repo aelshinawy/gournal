@@ -5,7 +5,11 @@ import path from 'path';
 // Runs once in the parent process, before any worker forks. Workers and spawned children inherit
 // this env, so os.homedir() (native, reads the real HOME) and child processes stay isolated too.
 export default function globalSetup(): void {
-  const realHome = process.env.GOURNAL_REAL_HOME || process.env.HOME || process.env.USERPROFILE || os.homedir();
+  // On Windows the profile is USERPROFILE. HOME can come from Git Bash, and gournal ignores it there.
+  const profile = process.platform === 'win32'
+    ? process.env.USERPROFILE || process.env.HOME
+    : process.env.HOME || process.env.USERPROFILE;
+  const realHome = process.env.GOURNAL_REAL_HOME || profile || os.homedir();
   const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-test-home-')));
   process.env.GOURNAL_REAL_HOME = realHome;
   process.env.GOURNAL_HOME = temp;

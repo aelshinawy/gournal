@@ -24,7 +24,8 @@ gournal export [options]
 | `-t, --tags <tags>` | Only entries that have all of these tags. Separate tags with commas. |  |
 | `--from <date>` | Only entries from this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |  |
 | `--to <date>` | Only entries up to this date (inclusive). Use a local day (YYYY-MM-DD) or an ISO timestamp. |  |
-| `-o, --output <file>` | Write the output to this file instead of the terminal. |  |
+| `-o, --output <file>` | Write the output to this file instead of the terminal. The file mode is 0600. Gournal refuses to write through a symlink. |  |
+| `--force` | Replace the output file if it exists. Without this option, gournal stops when the file exists. |  |
 
 ## MCP tool: export_entries
 

@@ -1,6 +1,9 @@
 import { summarizeLinked } from '../core';
 import type { Activity, ActivityCounts } from '../core';
 
+/** Remove control characters before a user-derived or GitHub-derived string reaches a terminal. One helper for every sink. */
+export { stripControl } from '../core';
+
 /** Pick the singular or plural word for a count. Chalk-free: terminal and markdown renderers share it. */
 export const plural = (n: number, one: string, many: string): string => (n === 1 ? one : many);
 

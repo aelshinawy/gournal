@@ -31,7 +31,7 @@ This run used `--yes --hook` in a clean home folder that has no `claude` CLI:
 ```console
 $ gournal setup claude --yes --hook
 MCP server: register gournal for all projects (claude mcp add --scope user gournal -- gournal mcp).
-MCP server: the claude CLI was not found. Run this command yourself:
+MCP server: the claude CLI was not found on PATH. Run this command yourself:
   claude mcp add --scope user gournal -- gournal mcp
 Skill: write /Users/you/.claude/skills/gournal/SKILL.md.
 Skill: installed.
@@ -39,7 +39,7 @@ Stop hook: add "gournal hook stop" to /Users/you/.claude/settings.json.
 Stop hook: added.
 ```
 
-When the `claude` CLI is missing, gournal prints the command, and you run it yourself. When `claude` is installed, gournal runs the command for you.
+When the `claude` CLI is missing, gournal prints the command, and you run it yourself. Nothing is registered in that case, so setup finishes the skill and hook steps and then exits with code 1. When `claude` is installed, gournal runs the command for you.
 
 Run the command again at any time. A step that is already done prints `already set up`.
 

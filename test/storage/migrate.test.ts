@@ -8,6 +8,7 @@ import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
 import { importLegacy, legacyKey, mechanicalEntry } from '../../src/storage/migrate';
 import type { EntryRepository } from '../../src/core/repository';
+import { rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository; let jsonPath: string;
 let stderr: jest.SpyInstance;
@@ -25,7 +26,7 @@ beforeEach(() => {
   jsonPath = path.join(home, 'entries.json');
   stderr = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
 });
-afterEach(() => { stderr.mockRestore(); db.close(); fs.rmSync(home, { recursive: true, force: true }); });
+afterEach(() => { stderr.mockRestore(); db.close(); rmTmp(home); });
 
 const writeLegacy = (items: unknown[]) => fs.writeFileSync(jsonPath, JSON.stringify(items, null, 2));
 const legacyA = { timestamp: '2026-07-28T14:35:23.997Z', message: 'Shipped SBDC-1748 (PR #327). Scoped the ranking.', project: 'tcb', tags: ['Performance', 'SBDC-1748'] };

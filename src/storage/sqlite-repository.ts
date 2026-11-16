@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { hasLineBreak, mergeRefs, newId, normalizeTags, resolveProjectAlias, resolveQuery, summaryLength, MAX_SUMMARY } from '../core';
+import { hasLineBreak, mergeRefs, newId, normalizeTags, resolveProjectAlias, resolveQuery, stripControl, cleanDetails, cleanOpt, cleanProject, cleanRefs, summaryLength, MAX_SUMMARY } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Query, Ref } from '../core';
 import type { EntryRepository } from '../core';
 import { BUMP_UPDATED_AT, createWriter } from './writer';
@@ -18,10 +18,14 @@ export class AmbiguousIdError extends Error {
 }
 
 const MIN_SUFFIX = 6;
-function checkSummary(summary: string): void {
+/** Check the summary, then return it without control characters. A control character is stripped, never rejected. */
+function cleanSummary(raw: string): string {
+  const summary = stripControl(raw);
   if (summary.trim().length === 0) throw new Error('summary is empty');
   if (summaryLength(summary) > MAX_SUMMARY) throw new Error(`summary is over ${MAX_SUMMARY} characters`);
-  if (hasLineBreak(summary)) throw new Error('summary must be one line');
+  // Test the raw text: stripping removes CR and LF, and a line break must still fail.
+  if (hasLineBreak(raw)) throw new Error('summary must be one line');
+  return summary;
 }
 
 const isActionable = (kind: string | null): boolean => kind === 'blocker' || kind === 'next';
@@ -120,19 +124,19 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
     transaction: write,
 
     add(input) {
-      checkSummary(input.summary);
+      const summary = cleanSummary(input.summary);
       return write(() => {
         const now = Date.now();
         const createdAt = input.createdAt !== undefined ? parseTime(input.createdAt, 'createdAt') : now;
         const { tags, refs: tagRefs } = normalize(input.tags ?? []);
-        const refs = mergeRefs(tagRefs, input.refs ?? []);
+        const refs = mergeRefs(tagRefs, cleanRefs(input.refs ?? []));
         const kind: Kind = input.kind ?? 'done';
         const id = newId(createdAt);
         db.prepare(`INSERT INTO entries (id, created_at, updated_at, device_id, summary, details, kind, status,
             project, repo, branch, source, agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-          .run(id, createdAt, now, config.deviceId, input.summary, input.details ?? null, kind,
-            isActionable(kind) ? 'open' : null, aliasProject(input.project), input.repo ?? null,
-            input.branch ?? null, input.source, input.agent ?? null);
+          .run(id, createdAt, now, config.deviceId, summary, cleanDetails(input.details) ?? null, kind,
+            isActionable(kind) ? 'open' : null, aliasProject(cleanProject(input.project)), cleanOpt(input.repo) ?? null,
+            cleanOpt(input.branch) ?? null, input.source, cleanOpt(input.agent) ?? null);
         replaceTags(id, tags);
         replaceRefs(id, refs);
         // Dedupe by the resolved id: a full id and its suffix are one target.
@@ -147,7 +151,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
     },
 
     update(inputId, patch: EntryPatch) {
-      if (patch.summary !== undefined) checkSummary(patch.summary);
+      const summary = patch.summary !== undefined ? cleanSummary(patch.summary) : undefined;
       return write(() => {
         const id = requireId(inputId);
         const now = Date.now();
@@ -155,11 +159,11 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
         const sets: string[] = [];
         const vals: (string | number | null)[] = [];
         const set = (col: string, v: string | number | null) => { sets.push(`${col} = ?`); vals.push(v); };
-        if (patch.summary !== undefined) set('summary', patch.summary);
-        if (patch.details !== undefined) set('details', patch.details);
-        if (patch.project !== undefined) set('project', aliasProject(patch.project));
-        if (patch.repo !== undefined) set('repo', patch.repo);
-        if (patch.branch !== undefined) set('branch', patch.branch);
+        if (summary !== undefined) set('summary', summary);
+        if (patch.details !== undefined) set('details', cleanDetails(patch.details) ?? null);
+        if (patch.project !== undefined) set('project', aliasProject(cleanProject(patch.project)));
+        if (patch.repo !== undefined) set('repo', cleanOpt(patch.repo) ?? null);
+        if (patch.branch !== undefined) set('branch', cleanOpt(patch.branch) ?? null);
         if (patch.kind !== undefined && patch.kind !== cur.kind) {
           set('kind', patch.kind);
           set('status', isActionable(patch.kind) ? 'open' : null);
@@ -172,7 +176,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
           const norm = patch.tags !== undefined ? normalize(patch.tags) : { tags: cur.tags, refs: [] as Ref[] };
           if (patch.tags !== undefined) replaceTags(id, norm.tags);
           // Refs are additive: a tag edit never drops a reference.
-          replaceRefs(id, mergeRefs(patch.refs ?? cur.refs, norm.refs));
+          replaceRefs(id, mergeRefs(cleanRefs(patch.refs ?? cur.refs), norm.refs));
         }
         return load(id);
       });

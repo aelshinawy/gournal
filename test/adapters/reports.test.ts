@@ -4,6 +4,7 @@ import path from 'path';
 import { openJournal, type Journal } from '../../src/storage/journal';
 import { standupModel } from '../../src/adapters/reports';
 import type { NewActivityInput } from '../../src/core';
+import { rmTmp } from '../helpers/tmp';
 
 const NOW = new Date('2026-11-15T12:00:00.000Z');
 const TODAY = '2026-11-15T09:00:00.000Z';
@@ -17,7 +18,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   journal.close();
-  fs.rmSync(home, { recursive: true, force: true });
+  rmTmp(home);
 });
 
 const act = (over: Partial<NewActivityInput>): NewActivityInput => ({

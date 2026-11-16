@@ -1,12 +1,15 @@
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
+import { ensurePrivateDir, writePrivateFile } from '../../storage';
 
 export const HOOK_REASON = 'Gournal: this session edited files but logged no work. Call add_entry once with a summary of the work (pass project and cwd). Then stop.';
 export const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
 
 const STATE_FILE = 'hook-state.json';
 const PRUNE_MS = 7 * 24 * 60 * 60 * 1000;
+/** The tools that run a shell command. */
+const SHELL_TOOLS = ['Bash', 'PowerShell'];
 const GOURNAL_ADD = /\bgournal\s+add\b/;
 
 interface HookState {
@@ -27,13 +30,7 @@ function readState(file: string): HookState {
 }
 
 function writeState(file: string, state: HookState): void {
-  const tmp = path.join(path.dirname(file), `.hook-state.${process.pid}.${Date.now()}.tmp`);
-  try {
-    fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n', 'utf8');
-    fs.renameSync(tmp, file);
-  } finally {
-    fs.rmSync(tmp, { force: true });
-  }
+  writePrivateFile(file, JSON.stringify(state, null, 2) + '\n');
 }
 
 /** Streams the transcript. Bad lines are skipped. */
@@ -57,7 +54,7 @@ async function scan(transcriptPath: string): Promise<{ edited: boolean; logged: 
         const name = block.name;
         if (EDIT_TOOLS.includes(name)) result.edited = true;
         if (name.includes('gournal') && name.endsWith('__add_entry')) result.logged = true;
-        if (name === 'Bash') {
+        if (SHELL_TOOLS.includes(name)) {
           const command = (block.input as { command?: unknown } | null)?.command;
           if (typeof command === 'string' && GOURNAL_ADD.test(command)) result.logged = true;
         }
@@ -93,7 +90,7 @@ export async function stopHook(stdin: string, home: string, now: Date): Promise<
       if (Number.isFinite(t) && t >= cutoff) kept[id] = at;
     }
     kept[sessionId] = now.toISOString();
-    fs.mkdirSync(home, { recursive: true });
+    ensurePrivateDir(home);
     writeState(stateFile, { asked: kept });
     return JSON.stringify({ decision: 'block', reason: HOOK_REASON });
   } catch {

@@ -27,14 +27,16 @@ describe('test isolation', () => {
   });
 
   test('the guard also catches a default home that resolves to the real one', () => {
-    const saved = { g: process.env.GOURNAL_HOME, h: process.env.HOME };
+    const saved = { g: process.env.GOURNAL_HOME, h: process.env.HOME, u: process.env.USERPROFILE };
     delete process.env.GOURNAL_HOME;
     process.env.HOME = realHome;
+    process.env.USERPROFILE = realHome; // Windows ignores HOME
     try {
       expect(() => gournalHome()).toThrow('refusing to use the real gournal home under test');
     } finally {
       process.env.GOURNAL_HOME = saved.g;
       process.env.HOME = saved.h;
+      process.env.USERPROFILE = saved.u;
     }
   });
 });

@@ -1,7 +1,7 @@
 import type { Activity, Entry, Kind } from '../../src/core';
 
 let seq = 0;
-export function makeEntry(over: Partial<Entry> & { createdAt: Date | string }): Entry {
+export function makeEntry(over: Omit<Partial<Entry>, 'createdAt'> & { createdAt: Date | string }): Entry {
   seq += 1;
   const createdAt = over.createdAt instanceof Date ? over.createdAt.toISOString() : over.createdAt;
   return {

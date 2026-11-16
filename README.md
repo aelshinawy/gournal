@@ -13,11 +13,15 @@ Gournal is a command-line work journal. You log what you did, and gournal builds
 
 ## Install
 
-You need Node.js 22.13 or newer and Git 2.31 or newer. With Git older than 2.31, or without Git, gournal puts entries in the `uncategorized` project and records no repository or branch.
+You need Node.js 22.13 or newer and Git 2.7 or newer. With Git older than 2.7, or without Git, gournal puts entries in the `uncategorized` project and records no repository or branch.
 
 ```bash
 npm install -g gournal
 ```
+
+## Supported platforms
+
+Gournal supports macOS, Linux, and Windows (x64). CI runs on `windows-latest` (Windows Server 2025). Keep your journal on a local disk. See [Supported platforms](https://aelshinawy.github.io/gournal/docs/start-here/install/#supported-platforms) for the requirements and the limits on each system.
 
 ## Quickstart
 

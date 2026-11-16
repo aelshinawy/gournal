@@ -1,6 +1,6 @@
 ---
 name: gournal
-description: A command-line work journal. Muted Dracula: lavender paper and ink, serif reading text, mono for every command, one violet accent (palette chosen by Ahmed, 2026-11-15).
+description: A command-line work journal. Muted Dracula: lavender paper and ink, serif reading text, mono for every command, one violet accent.
 colors:
   violet: "#5b45b8"
   violet-text: "#4f3aa6"
@@ -134,7 +134,7 @@ components:
 
 Gournal looks like a developer's field notebook that an editor has marked up. The ground is cool lavender paper in light and deep navy-violet in dark. The text is dark ink in a reading serif. Every command, file path, and line of output is set in a mono face, because those are the things a reader types or reads in a terminal. One violet color works as the editor's pencil: it marks the current place, the primary action, and the lines that matter.
 
-The system has two surfaces. The docs (Starlight, Read mode) keep Starlight's structure and take only color and type from the tokens. The homepage (Persuade mode) uses the same tokens in a ledger: a margin column that explains and a specimen column that shows real output. The jump between them must feel like one site.
+The system has two surfaces. The docs (Starlight) keep Starlight's structure and take only color and type from the tokens. The homepage uses the same tokens in a ledger: a margin column that explains and a specimen column that shows real output. The jump between them must feel like one site.
 
 Depth comes from tone and hairlines, not from shadows. The one dark object on a light page is the terminal plate, which holds the real recording.
 
@@ -187,7 +187,7 @@ A restrained palette: tinted paper and ink neutrals plus one violet accent. Dark
 - **Display** (600, clamp(2.5rem, 1.6rem + 4vw, 4.5rem), 1.02): the homepage headline only. Max 15em wide, balanced wrap.
 - **Headline** (600, clamp(1.875rem to 2.375rem), 1.15): section titles on the homepage and page titles in the docs.
 - **Title** (600, 1.5rem to 1.25rem, 1.3): feature tile titles, step titles, h3 in docs.
-- **Body** (400, 1.0625rem, 1.65): reading text, oldstyle numerals. Docs use one shared 64rem column for prose and tables (chosen by Ahmed, 2026-11-15), so prose lines can run past 75ch on wide screens.
+- **Body** (400, 1.0625rem, 1.65): reading text, oldstyle numerals. Docs use one shared 64rem column for prose and tables, so prose lines can run past 75ch on wide screens.
 - **Label** (500 to 600, 0.875rem): nav links, buttons, captions, hints, sidebar.
 - **Code** (400, 0.72rem to 0.95rem): commands, output, paths, and the site name.
 

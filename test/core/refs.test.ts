@@ -7,7 +7,7 @@ test('extracts PR, jira, commit, and url refs', () =>
   ]));
 test('a hex word without a digit is not a commit', () => expect(extractRefs('added a cafebabe')).toEqual([]));
 test('PR url gives a pr ref with repo', () =>
-  expect(extractRefs('https://github.com/acme/x/pull/473')).toContainEqual({ type: 'pr', value: '473', repo: 'acme/x' }));
+  expect(extractRefs('https://github.com/acme/widgets/pull/473')).toContainEqual({ type: 'pr', value: '473', repo: 'acme/widgets' }));
 test('text PR-473 is a pr ref, not jira', () =>
   expect(extractRefs('see PR-473')).toEqual([{ type: 'pr', value: '473' }]));
 test('mergeRefs dedupes by type and value, keeps first', () =>
@@ -19,9 +19,9 @@ test('lowercase ticket text is not a ref', () => expect(extractRefs('sbdc-1749')
 test('ticketPrefixes option limits jira refs in text', () =>
   expect(extractRefs('SBDC-1 and ABC-2', { ticketPrefixes: ['sbdc'] })).toEqual([{ type: 'jira', value: 'SBDC-1' }]));
 test('repo-aware pr ref replaces the bare one', () =>
-  expect(extractRefs('Opened PR #473 https://github.com/acme/x/pull/473')).toEqual([
-    { type: 'pr', value: '473', repo: 'acme/x' },
-    { type: 'url', value: 'https://github.com/acme/x/pull/473' },
+  expect(extractRefs('Opened PR #473 https://github.com/acme/widgets/pull/473')).toEqual([
+    { type: 'pr', value: '473', repo: 'acme/widgets' },
+    { type: 'url', value: 'https://github.com/acme/widgets/pull/473' },
   ]));
 test('uuid segment is not a commit', () => expect(extractRefs('550e8400-e29b-41d4')).toEqual([]));
 test('page#123 is not a pr', () => expect(extractRefs('page#123')).toEqual([]));

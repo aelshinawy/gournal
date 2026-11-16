@@ -1,11 +1,13 @@
 import type { Ref } from './types';
+import { stripControl } from './sanitize';
 import { mergeRefs, ticketToRef, type TicketOptions } from './refs';
 
 export function normalizeTags(raw: string[], aliases: Record<string, string> = {}, opts: TicketOptions = {}): { tags: string[]; refs: Ref[] } {
   const tags: string[] = [];
   const refs: Ref[] = [];
   for (const item of raw) {
-    let tag = item.trim().toLowerCase().replace(/\s+/g, '-');
+    // Whitespace becomes a dash first. Then any other control character is dropped.
+    let tag = stripControl(item.trim().toLowerCase().replace(/\s+/g, '-'));
     if (!tag) continue;
     const ref = ticketToRef(tag, opts);
     // Only pr-N is always a ref. A jira ref needs a configured ticket prefix.

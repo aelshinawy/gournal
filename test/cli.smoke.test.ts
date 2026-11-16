@@ -1,15 +1,19 @@
-import { spawnSync } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import chalk from 'chalk';
 import { runCli } from '../src/adapters/cli/program';
 import { runIn } from './helpers/run-cli';
+import { openDb } from '../src/storage/db';
+import { loadConfig } from '../src/storage/config';
+import { createRepository } from '../src/storage/sqlite-repository';
+import { rmTmp } from './helpers/tmp';
 
 const root = path.join(__dirname, '..');
 let home: string;
 beforeEach(() => { home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-smoke-')); });
-afterEach(() => fs.rmSync(home, { recursive: true, force: true }));
+afterEach(() => rmTmp(home));
 
 const spawnCli = (args: string[], input = '') =>
   spawnSync(process.execPath, ['-r', 'ts-node/register/transpile-only', 'src/cli.ts', ...args], {
@@ -77,6 +81,26 @@ describe('real process', () => {
     const r = spawnCli(['add', 'x', '-k', 'later']);
     expect(r.status).toBe(1);
     expect(r.stderr).toContain('Unknown kind "later"');
+  });
+  // Like `gournal export | head -1`: the reader closes the pipe after the first line.
+  test('a closed stdout pipe exits 0 with no stack trace', async () => {
+    const dbPath = path.join(home, 'gournal.db');
+    const db = openDb(dbPath);
+    const repo = createRepository(db, loadConfig(home), dbPath);
+    for (let i = 0; i < 3000; i++) repo.add({ summary: `entry ${i} lorem ipsum dolor sit amet`, project: 'p', source: 'cli' });
+    db.close();
+    const child = spawn(process.execPath, ['-r', 'ts-node/register/transpile-only', 'src/cli.ts', 'export'], {
+      cwd: root,
+      env: { ...process.env, GOURNAL_HOME: home, HOME: home, USERPROFILE: home },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stderr = '';
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (d: string) => { stderr += d; });
+    child.stdout.once('data', () => child.stdout.destroy());
+    const code = await new Promise<number | null>((resolve) => child.on('close', resolve));
+    expect(stderr).not.toMatch(/EPIPE|\n\s+at /);
+    expect(code).toBe(0);
   });
   test('clear with piped stdin deletes nothing', () => {
     spawnCli(['add', 'keep me']);

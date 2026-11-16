@@ -23,7 +23,7 @@ Skip this step if you do not use Claude Code. You can add entries yourself with 
 ```console
 $ gournal setup claude --yes
 MCP server: register gournal for all projects (claude mcp add --scope user gournal -- gournal mcp).
-MCP server: the claude CLI was not found. Run this command yourself:
+MCP server: the claude CLI was not found on PATH. Run this command yourself:
   claude mcp add --scope user gournal -- gournal mcp
 Skill: write /Users/you/.claude/skills/gournal/SKILL.md.
 Skill: installed.

@@ -2,8 +2,15 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
+import { pathToFileURL } from 'url';
 
 const plugins = path.resolve(__dirname, '../site/plugins');
+
+// An import specifier must be a file URL. A bare Windows path such as D:\a\x reads as a URL scheme.
+const moduleUrl = (name: string): string => pathToFileURL(path.join(plugins, name)).href;
+
+// A fake page path as a file URL. A file URL needs a drive letter on Windows, so build it from a real absolute path.
+const pageUrl = (rel: string): string => pathToFileURL(path.resolve('/site', rel)).href;
 
 // The plugins are ES modules, so run them in a node child process.
 function runModule(script: string): unknown {
@@ -13,7 +20,7 @@ function runModule(script: string): unknown {
 
 test('code block headings keep underscores', () => {
   const src = '---\ntitle: T\n---\n\n## `update_entry` tool\n\n```json\n{}\n```\n';
-  const mod = path.join(plugins, 'ec-focusable.mjs');
+  const mod = moduleUrl('ec-focusable.mjs');
   const result = runModule(
     `import { headingsPerBlock } from ${JSON.stringify(mod)};` +
       `console.log(JSON.stringify(headingsPerBlock(${JSON.stringify(src)})));`
@@ -22,7 +29,7 @@ test('code block headings keep underscores', () => {
 });
 
 test('two tables under one heading get distinct region names', () => {
-  const mod = path.join(plugins, 'rehype-table-region.mjs');
+  const mod = moduleUrl('rehype-table-region.mjs');
   const result = runModule(
     `import { rehypeTableRegion } from ${JSON.stringify(mod)};` +
       `const v = rehypeTableRegion()().element;` +
@@ -39,14 +46,14 @@ test('two tables under one heading get distinct region names', () => {
 });
 
 test('overview class comes from the page path, not the header', () => {
-  const mod = path.join(plugins, 'rehype-table-region.mjs');
+  const mod = moduleUrl('rehype-table-region.mjs');
   const result = runModule(
     `import { rehypeTableRegion } from ${JSON.stringify(mod)};` +
       `const classes = [];` +
       `const ctx = (t, url) => ({ textContent: () => t, data: {}, fileURL: url && new URL(url), wrapNode: (n, w) => classes.push(w.properties.className) });` +
       `const visit = (t, c) => rehypeTableRegion()().element.visit(t, c);` +
-      `const overview = 'file:///site/src/content/docs/docs/reference/index.md';` +
-      `const other = 'file:///site/src/content/docs/docs/reference/cli.md';` +
+      `const overview = ${JSON.stringify(pageUrl('src/content/docs/docs/reference/index.md'))};` +
+      `const other = ${JSON.stringify(pageUrl('src/content/docs/docs/reference/cli.md'))};` +
       `visit({ tagName: 'table' }, ctx('OptionMeaning', overview));` +
       `visit({ tagName: 'table' }, ctx('Task\\nCLI\\nMCP tool', other));` +
       `visit({ tagName: 'table' }, ctx('Task\\nCLI\\nMCP tool'));` +
@@ -56,7 +63,7 @@ test('overview class comes from the page path, not the header', () => {
 });
 
 test('overview match is anchored to docs/reference/index.md', () => {
-  const mod = path.join(plugins, 'rehype-table-region.mjs');
+  const mod = moduleUrl('rehype-table-region.mjs');
   const result = runModule(
     `import { rehypeTableRegion } from ${JSON.stringify(mod)};` +
       `const classOf = (url) => {` +
@@ -66,23 +73,23 @@ test('overview match is anchored to docs/reference/index.md', () => {
       `  return cls;` +
       `};` +
       `console.log(JSON.stringify([` +
-      `  classOf('file:///site/src/content/docs/docs/guides/reference/index.md'),` +
+      `  classOf(${JSON.stringify(pageUrl('src/content/docs/docs/guides/reference/index.md'))}),` +
       `  classOf('file:///C:/site/src/content/docs/docs/reference/index.md'),` +
-      `  classOf('file:///site/src/content/docs/docs/reference/index.md')` +
+      `  classOf(${JSON.stringify(pageUrl('src/content/docs/docs/reference/index.md'))})` +
       `]));`
   );
   const overview = ['g-table', 'g-table--overview'];
-  // The Windows-style file URL resolves to a backslash path on Windows only. On POSIX it stays a forward-slash path.
+  // The C: URL is a drive path on Windows and a plain path on POSIX. The plugin matches both.
   expect(result).toEqual([['g-table'], overview, overview]);
 });
 
 test('the overview check runs once per document', () => {
-  const mod = path.join(plugins, 'rehype-table-region.mjs');
+  const mod = moduleUrl('rehype-table-region.mjs');
   const result = runModule(
     `import { rehypeTableRegion } from ${JSON.stringify(mod)};` +
       `const v = rehypeTableRegion()().element;` +
       `let reads = 0;` +
-      `const ctx = { textContent: () => '', data: {}, get fileURL() { reads++; return new URL('file:///x/docs/reference/index.md'); }, wrapNode: () => {} };` +
+      `const ctx = { textContent: () => '', data: {}, get fileURL() { reads++; return new URL(${JSON.stringify(pageUrl('x/docs/reference/index.md'))}); }, wrapNode: () => {} };` +
       `v.visit({ tagName: 'table' }, ctx);` +
       `v.visit({ tagName: 'table' }, ctx);` +
       `v.visit({ tagName: 'table' }, ctx);` +
@@ -96,7 +103,7 @@ function renderNames(source: string, blocks: number, passes: number): string[][]
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ecf-'));
   const file = path.join(dir, 'doc.md');
   fs.writeFileSync(file, source);
-  const mod = path.join(plugins, 'ec-focusable.mjs');
+  const mod = moduleUrl('ec-focusable.mjs');
   try {
     return runModule(
       `import { ecFocusable } from ${JSON.stringify(mod)};` +
@@ -126,7 +133,7 @@ test('rendering the same document twice gives the same names', () => {
 });
 
 test('a title line outside frontmatter is ignored', () => {
-  const mod = path.join(plugins, 'ec-focusable.mjs');
+  const mod = moduleUrl('ec-focusable.mjs');
   const src = '---\ntitle: Real\n---\n\n```json\n{}\n```\n\ntitle: Fake\n\n```json\n{}\n```\n';
   const noFront = 'Intro\n\ntitle: Fake\n\n```json\n{}\n```\n';
   const result = runModule(
@@ -137,7 +144,7 @@ test('a title line outside frontmatter is ignored', () => {
 });
 
 test('frontmatter with CRLF line endings is read', () => {
-  const mod = path.join(plugins, 'ec-focusable.mjs');
+  const mod = moduleUrl('ec-focusable.mjs');
   const src = '---\r\ntitle: Real\r\n---\r\n\r\n```json\r\n{}\r\n```\r\n';
   const result = runModule(
     `import { headingsPerBlock } from ${JSON.stringify(mod)};` +

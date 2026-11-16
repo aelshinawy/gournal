@@ -2,6 +2,7 @@ export * from './types';
 export * from './option-text';
 export * from './ulid';
 export * from './summary';
+export * from './sanitize';
 export * from './refs';
 export * from './tags';
 export * from './config';
