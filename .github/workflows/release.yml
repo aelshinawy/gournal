@@ -1,28 +1,86 @@
 name: Release
 
-# This workflow runs only when someone pushes a tag that starts with v.
-# It does not run on pull requests or on branch pushes.
+# This workflow has two triggers.
+# 1. A push to main. The release-please job opens or updates the Release PR.
+#    When someone merges the Release PR, the same job creates the tag and the GitHub release.
+# 2. A push of a tag that starts with v. This is the manual path.
+#    Use it for the first release (0.9.0) and for emergencies.
+# The stage job stages the package on npm in both cases.
+# The stage job must stay in this file. The npm trusted publisher names release.yml.
+# Tags and releases that GITHUB_TOKEN creates do not start other workflows.
 on:
   push:
+    branches: [main]
     tags:
       - 'v*'
 
 permissions:
   contents: read
 
-concurrency:
-  group: release
-  cancel-in-progress: false
-
 jobs:
-  publish:
+  # This job runs only on a branch push to main. It does not run on a tag push.
+  # The group name is different from the stage job, so a new push to main
+  # never replaces a queued tag run of the stage job.
+  release-please:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: release-please
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      # GITHUB_TOKEN pull requests do not start CI. GITHUB_TOKEN may start a workflow_dispatch run.
+      # This step starts ci.yml on the Release PR branch, so the required checks report on the PR.
+      - name: Run CI on the Release PR branch
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        run: |
+          printf '%s' "$PRS" | jq -r '.[].headBranchName' | while read -r branch; do
+            gh workflow run ci.yml --ref "$branch"
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PRS: ${{ steps.release.outputs.prs }}
+
+  # This job runs on a v* tag push, or when release-please creates a release.
+  # On a tag push the release-please job is skipped. A skipped needed job skips this job
+  # unless the condition starts with always(). The condition below handles both cases.
+  stage:
+    needs: release-please
+    if: >-
+      ${{ always() && (
+        startsWith(github.ref, 'refs/tags/v') ||
+        (needs.release-please.result == 'success' && needs.release-please.outputs.release_created == 'true')
+      ) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    concurrency:
+      group: release
+      cancel-in-progress: false
     permissions:
       contents: write
       id-token: write
+    env:
+      # TAG is the release-please tag, or the pushed tag on the manual path.
+      TAG: ${{ needs.release-please.outputs.tag_name || github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name || github.ref }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
@@ -32,8 +90,8 @@ jobs:
       - name: Check that the tag matches the package version
         run: |
           version="$(node -p "require('./package.json').version")"
-          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version. Expected v$version."
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Tag $TAG does not match package.json version $version. Expected v$version."
             exit 1
           fi
       - name: Choose the npm tag and the release type
@@ -90,7 +148,13 @@ jobs:
           else
             set --
           fi
-          gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag "$@" "$RUNNER_TEMP"/release/*.tgz
+          # release-please creates the GitHub release before this job runs. Then upload the tarball.
+          # On the manual tag path no release exists yet. Then create it.
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$RUNNER_TEMP"/release/*.tgz --clobber
+          else
+            gh release create "$TAG" --generate-notes --verify-tag "$@" "$RUNNER_TEMP"/release/*.tgz
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
           PRERELEASE: ${{ steps.channel.outputs.prerelease }}

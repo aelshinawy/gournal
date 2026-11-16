@@ -85,6 +85,53 @@ Use [Conventional Commits](https://www.conventionalcommits.org/). Examples:
 
 Write short sentences. Use active voice.
 
+## Commit messages and releases
+
+Releases are automatic. A tool named release-please reads the commit messages on `main`. It opens a Release PR with the next version and the changelog entry.
+
+### Pull request titles
+
+Use a Conventional Commit as the pull request title. Example: `fix(storage): name the home path when the database cannot be written`.
+
+Merge pull requests with squash merge. A squash merge takes the pull request title as the commit message. GitHub uses the message of the commit instead when the pull request has only one commit. Write the title and the commit messages in the same form. A wrong message hides your change from the changelog. A check named "PR title" tests the title. This check is advisory.
+
+### Commit type and version bump
+
+| Commit type | Version bump | In the changelog |
+| --- | --- | --- |
+| `fix` | patch | yes, as Bug Fixes |
+| `feat` | minor | yes, as Features |
+| `perf` | patch | yes, as Performance |
+| `deps` | patch | yes, as Dependencies |
+| `feat!`, `fix!`, or a `BREAKING CHANGE:` footer | minor while the version is below 1.0.0, major after that | yes, with a breaking change note |
+| `docs`, `chore`, `ci`, `test`, `build`, `refactor`, `style` | none | no |
+
+The version is below 1.0.0. A breaking change gives a minor bump, not a major bump. This rule is `bump-minor-pre-major` in `release-please-config.json`. From version 1.0.0, a breaking change gives a major bump.
+
+A commit with a type that gives no bump does not open a Release PR by itself.
+
+### Release steps
+
+1. Merge changes with `feat:` or `fix:` titles into `main`.
+2. release-please opens or updates the Release PR. The PR changes `package.json` and `package-lock.json` and writes the changelog entry.
+3. CI runs on the Release PR. The release workflow starts it.
+4. A maintainer reviews the Release PR and merges it.
+5. release-please creates the tag and the GitHub release.
+6. The same workflow tests the package, adds the tarball to the GitHub release, and stages the package on npm.
+7. The package is not public yet. The maintainer approves it with 2FA on npmjs.com (Staged Packages tab).
+
+To force a version, add a `Release-As: 1.2.3` footer to a commit message on `main`.
+
+### The changelog
+
+release-please writes new entries at the top of `CHANGELOG.md`, above the hand-written 0.9.0 entry. Do not edit the entries that release-please writes. Edit the Release PR if an entry needs a fix.
+
+### The first release and manual tags
+
+The first release (0.9.0) is a manual tag. The maintainer pushes the tag `v0.9.0`. The release workflow stages the package from the tag. release-please takes over after that tag.
+
+A manual tag also works for an emergency. The tag must match the version in `package.json`. For example, version `0.9.1` needs the tag `v0.9.1`.
+
 ## Pull requests
 
 1. Branch from `main`.
