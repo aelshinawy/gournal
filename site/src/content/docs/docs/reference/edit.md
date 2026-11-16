@@ -28,7 +28,7 @@ Change fields of an existing entry. Fields that you omit stay as they are.
 
 ### Output
 
-This tool returns structured output. The shape is the [Entry result](/gournal/docs/reference/output-shapes/#entry-result).
+This tool returns structured output. The shape is the [Entry result](/docs/reference/output-shapes/#entry-result).
 
 ## Examples
 
@@ -99,5 +99,5 @@ The structured result:
 
 ## Related
 
-- [Add an entry](/gournal/docs/reference/add/)
-- [Remove and restore entries](/gournal/docs/reference/remove-restore/)
+- [Add an entry](/docs/reference/add/)
+- [Remove and restore entries](/docs/reference/remove-restore/)

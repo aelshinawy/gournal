@@ -3,7 +3,7 @@ title: Claude Code setup
 description: Connect gournal to Claude Code with one command, and learn what the command changes.
 ---
 
-`gournal setup claude` connects gournal to Claude Code. This page explains what the command changes, how to undo it, and how the hidden `gournal hook stop` command works. See [`gournal setup claude`](/gournal/docs/reference/setup-claude/) for the options table. See [Logging with AI agents](/gournal/docs/guides/logging-with-ai-agents/) for how agents use the result.
+`gournal setup claude` connects gournal to Claude Code. This page explains what the command changes, how to undo it, and how the hidden `gournal hook stop` command works. See [`gournal setup claude`](/docs/reference/setup-claude/) for the options table. See [Logging with AI agents](/docs/guides/logging-with-ai-agents/) for how agents use the result.
 
 ## What the command changes
 

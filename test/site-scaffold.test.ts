@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import { execFileSync, spawnSync } from 'child_process';
 import { npmCli, npmCommand } from './helpers/npm';
+import { siteConfig } from './helpers/site-config';
 
 const root = path.resolve(__dirname, '..');
 const docsRoot = path.join(root, 'site/src/content/docs/docs');
@@ -72,12 +73,18 @@ test('README.md and site/src contain no link to reference/cli/ or reference/mcp/
   expect(bad).toEqual([]);
 });
 
-test('every /gournal/docs/ link in README.md resolves to a page in site/src/content/docs', () => {
+test('package.json homepage matches the site config', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  expect(pkg.homepage).toBe(siteConfig.canonical);
+});
+
+test('every docs link in README.md resolves to a page in site/src/content/docs', () => {
   const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
-  const links = [...readme.matchAll(/\/gournal\/docs\/[^)\s"'#]*/g)].map((m) => m[0]);
+  const origin = siteConfig.SITE_URL + siteConfig.BASE.replace(/\/$/, '');
+  const links = [...readme.matchAll(/https:\/\/[^)\s"'#]*/g)].map((m) => m[0]).filter((l) => l.startsWith(`${origin}/docs`)).map((l) => l.slice(origin.length));
   expect(links.length).toBeGreaterThan(0);
   for (const link of links) {
-    const rel = link.replace(/^\/gournal\//, '').replace(/\/$/, '');
+    const rel = link.replace(/^\//, '').replace(/\/$/, '');
     const exists = ['.md', '.mdx', '/index.md', '/index.mdx'].some((ext) =>
       fs.existsSync(path.join(root, 'site/src/content/docs', `${rel}${ext}`))
     );

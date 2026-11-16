@@ -203,16 +203,16 @@ describe('MCP reference', () => {
     for (const h of ['Activity', 'Entry', 'Entry list', 'Entry result']) {
       expect(shapes.match(new RegExp(`^## ${h}$`, 'gm'))).toHaveLength(1);
     }
-    const link = '/gournal/docs/reference/output-shapes/#entry-result';
+    const link = '/docs/reference/output-shapes/#entry-result';
     for (const c of ['add.md', 'edit.md']) {
       const page = await get(c);
       expect(page).toContain(link);
       expect(page).not.toContain('| `entry` |');
     }
-    expect(await get('list.md')).toContain('/gournal/docs/reference/output-shapes/#entry-list');
+    expect(await get('list.md')).toContain('/docs/reference/output-shapes/#entry-list');
     // The Entry shape has its own fields. The entry-result shape holds one row that links to it.
     expect(shapes).toMatch(/^\| `deviceId` \| `string` \| yes \|/m);
-    expect(shapes).toContain('[`Entry`](/gournal/docs/reference/output-shapes/#entry)');
+    expect(shapes).toContain('[`Entry`](/docs/reference/output-shapes/#entry)');
     // A tool with no outputSchema says it returns text.
     expect(await get('export.md')).toContain('returns text content');
   });
@@ -220,8 +220,8 @@ describe('MCP reference', () => {
   test('get_standup output links to the Entry shape and has no deviceId row', async () => {
     const standup = await get('standup.md');
     expect(standup).toContain('### Output');
-    expect(standup).toContain('/gournal/docs/reference/output-shapes/#entry');
-    expect(standup).toContain('/gournal/docs/reference/output-shapes/#activity');
+    expect(standup).toContain('/docs/reference/output-shapes/#entry');
+    expect(standup).toContain('/docs/reference/output-shapes/#activity');
     expect(standup).not.toContain('deviceId');
     expect(standup).not.toContain('`done.entries.id`');
   });
@@ -352,14 +352,14 @@ describe('capability pages', () => {
 
   test('caution renders as a caution aside', async () => {
     const page = await get('remove-restore.md');
-    expect(page).toMatch(/\n:::caution\nA removed entry leaves your reports.*\[backups guide\]\(\/gournal\/docs\/guides\/data-safety-and-backups\/\).*\n:::\n/);
+    expect(page).toMatch(/\n:::caution\nA removed entry leaves your reports.*\[backups guide\]\(\/docs\/guides\/data-safety-and-backups\/\).*\n:::\n/);
     expect(await get('add.md')).not.toContain(':::caution');
   });
 
   test('related renders capability and guide links with titles', async () => {
     const add = await get('add.md');
-    expect(add).toContain('## Related\n\n- [Resolve an entry](/gournal/docs/reference/resolve/)');
-    expect(add).toMatch(/- \[[^\]]+\]\(\/gournal\/docs\/guides\/logging-with-ai-agents\/\)/);
+    expect(add).toContain('## Related\n\n- [Resolve an entry](/docs/reference/resolve/)');
+    expect(add).toMatch(/- \[[^\]]+\]\(\/docs\/guides\/logging-with-ai-agents\/\)/);
   });
 
   test('headings inside an example nest below the CLI heading', () => {
@@ -481,9 +481,9 @@ describe('reference sidebar and overview', () => {
     expect(index).toContain('title: Reference overview\n');
     for (const g of GROUPS) expect(index).toContain(`## ${g.label}\n`);
     expect(index.match(/^\| Task \| CLI \| MCP tool \|$/gm)).toHaveLength(GROUPS.length);
-    expect(index).toContain('[Add an entry](/gournal/docs/reference/add/)');
-    expect(index).toContain('[`gournal add`](/gournal/docs/reference/add/#cli-gournal-add)');
-    expect(index).toContain('[`update_entry`](/gournal/docs/reference/edit/#mcp-tool-update_entry)');
+    expect(index).toContain('[Add an entry](/docs/reference/add/)');
+    expect(index).toContain('[`gournal add`](/docs/reference/add/#cli-gournal-add)');
+    expect(index).toContain('[`update_entry`](/docs/reference/edit/#mcp-tool-update_entry)');
     expect(index).toMatch(/no edit command/);
     expect(index).toContain('`update_entry`');
   });
@@ -528,7 +528,7 @@ describe('one heading per surface', () => {
     // Same rule as github-slugger for ASCII headings. A repeated id gets a -1, -2 suffix.
     const slug = (h: string): string => h.trim().toLowerCase().replace(/[^a-z0-9_\s-]/g, '').replace(/ /g, '-');
     const pages = await generateReference({ examplesDir });
-    const linkRe = /\]\(\/gournal\/docs\/reference\/([a-z-]+)\/#([^)]+)\)/g;
+    const linkRe = /\]\(\/docs\/reference\/([a-z-]+)\/#([^)]+)\)/g;
     const broken: string[] = [];
     for (const src of pages.filter((p) => p.path === 'index.md' || p.path === 'output-shapes.md')) {
       for (const m of src.content.matchAll(linkRe)) {

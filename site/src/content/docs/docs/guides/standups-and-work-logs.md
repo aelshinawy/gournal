@@ -17,7 +17,7 @@ Both reports take the same period options. The default is today.
 | `-m, --month` | The first day of this month up to now. |
 | `--from <date>`, `--to <date>` | Any range. |
 
-The week starts on Monday. Set `weekStartsOn` in `config.json` to change this. See [Customize with config.json](/gournal/docs/guides/configuration/).
+The week starts on Monday. Set `weekStartsOn` in `config.json` to change this. See [Customize with config.json](/docs/guides/configuration/).
 
 A date such as `2026-07-15` means the whole local day. An ISO timestamp is also allowed. `--from` and `--to` override `--yesterday`, `--week`, and `--month`. With only `--from`, the range ends now. With only `--to`, the range starts at the start of that day.
 
@@ -26,7 +26,7 @@ gournal standup --week
 gournal standup --from 2026-07-01 --to 2026-07-15
 ```
 
-See [`gournal standup`](/gournal/docs/reference/standup/) and [`gournal log`](/gournal/docs/reference/work-log/) for every option.
+See [`gournal standup`](/docs/reference/standup/) and [`gournal log`](/docs/reference/work-log/) for every option.
 
 ## The standup
 
@@ -71,7 +71,7 @@ Standup: Today (2026-11-15)
   Stale: 1 open item older than 14 days (ids: ABCDEFGH)
 ```
 
-Close a stale item with `gournal resolve <id>`. Or add a `done` entry with `--resolves <id>`. See [Kinds and carry-forward](/gournal/docs/start-here/core-concepts/#kinds-and-carry-forward).
+Close a stale item with `gournal resolve <id>`. Or add a `done` entry with `--resolves <id>`. See [Kinds and carry-forward](/docs/start-here/core-concepts/#kinds-and-carry-forward).
 
 A standup with no content prints `No entries found`.
 
@@ -99,7 +99,7 @@ Some filters change this part:
 2. `--project` and `--repo` apply to activity. Gournal matches the repository of an activity to a project through your project aliases.
 3. `gournal log` has no `Also` part. It shows linked activity under each entry.
 
-See [GitHub activity](/gournal/docs/guides/github-activity/) for how activity gets linked.
+See [GitHub activity](/docs/guides/github-activity/) for how activity gets linked.
 
 ## Filter a report
 
@@ -136,11 +136,11 @@ Work Log: Today (2026-11-15)
   3 entries across 1 project.
 ```
 
-Use the standup for a report to your team. Use the log to see what happened and when. To find old entries by words, use [`gournal find`](/gournal/docs/reference/search/).
+Use the standup for a report to your team. Use the log to see what happened and when. To find old entries by words, use [`gournal find`](/docs/reference/search/).
 
 ## Export
 
-`gournal export` writes entries as Markdown (the default) or CSV. See [`gournal export`](/gournal/docs/reference/export/) for the formats and options. The output goes to the terminal. Add `-o <file>` to write a file.
+`gournal export` writes entries as Markdown (the default) or CSV. See [`gournal export`](/docs/reference/export/) for the formats and options. The output goes to the terminal. Add `-o <file>` to write a file.
 
 ```console
 $ gournal export -t bugfix
@@ -156,6 +156,6 @@ gournal export --from 2026-07-01 --to 2026-07-31 -o july.md
 gournal export -f csv -p billing-api -o entries.csv
 ```
 
-For a full backup, use a bundle. See [Data safety and backups](/gournal/docs/guides/data-safety-and-backups/#bundles).
+For a full backup, use a bundle. See [Data safety and backups](/docs/guides/data-safety-and-backups/#bundles).
 
-An agent uses the MCP tools [`get_standup`](/gournal/docs/reference/standup/), [`get_work_log`](/gournal/docs/reference/work-log/), and [`export_entries`](/gournal/docs/reference/export/) for the same reports. `export_entries` returns the newest 200 entries by default. Pass `limit` or `from` and `to` to get more.
+An agent uses the MCP tools [`get_standup`](/docs/reference/standup/), [`get_work_log`](/docs/reference/work-log/), and [`export_entries`](/docs/reference/export/) for the same reports. `export_entries` returns the newest 200 entries by default. Pass `limit` or `from` and `to` to get more.

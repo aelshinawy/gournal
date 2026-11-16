@@ -56,17 +56,17 @@ Get a standup report. It covers today unless you choose a period. Done entries c
 | `isMultiDay` | `boolean` | yes | True when the period covers more than one day. |
 | `done` | `object[]` | yes | Done entries of the period, grouped by project. |
 | `done.project` | `string` | yes | Project name. |
-| `done.entries` | [`Entry[]`](/gournal/docs/reference/output-shapes/#entry) | yes | Done entries of this project in the period. |
-| `blockers` | [`Entry[]`](/gournal/docs/reference/output-shapes/#entry) | yes | Open blockers that are not stale. |
-| `next` | [`Entry[]`](/gournal/docs/reference/output-shapes/#entry) | yes | Open next items that are not stale. |
+| `done.entries` | [`Entry[]`](/docs/reference/output-shapes/#entry) | yes | Done entries of this project in the period. |
+| `blockers` | [`Entry[]`](/docs/reference/output-shapes/#entry) | yes | Open blockers that are not stale. |
+| `next` | [`Entry[]`](/docs/reference/output-shapes/#entry) | yes | Open next items that are not stale. |
 | `stale` | `object` | yes | Open blockers and next items that are older than the stale limit. |
 | `stale.count` | `number` | yes | Number of stale open blockers and next items. |
 | `stale.ids` | `string[]` | yes | Short ids (last 8 characters) of the stale entries. |
 | `stale.days` | `number` | yes | Age in days after which an open item counts as stale. It comes from the staleAfterDays setting. |
 | `linkedActivity` | `object` | yes | GitHub activity that gournal linked to a done entry in this report. The key is the entry id. |
-| `linkedActivity.<key>` | [`Activity[]`](/gournal/docs/reference/output-shapes/#activity) | yes | Activity items linked to this entry. |
+| `linkedActivity.<key>` | [`Activity[]`](/docs/reference/output-shapes/#activity) | yes | Activity items linked to this entry. |
 | `also` | `object \| null` | yes | GitHub activity of the period that is not linked to a done entry in this report, or null when there is none. |
-| `also.activity` | [`Activity[]`](/gournal/docs/reference/output-shapes/#activity) | yes | GitHub activity of the period that is not linked to a done entry in this report. |
+| `also.activity` | [`Activity[]`](/docs/reference/output-shapes/#activity) | yes | GitHub activity of the period that is not linked to a done entry in this report. |
 | `also.counts` | `object` | yes | Counts of the unlinked activity. |
 | `also.counts.commits` | `number` | yes | Number of commits. |
 | `also.counts.prsOpened` | `number` | yes | Number of PRs opened. |
@@ -168,6 +168,6 @@ The structured result holds the same data as JSON. This example shows the entrie
 
 ## Related
 
-- [Work log](/gournal/docs/reference/work-log/)
-- [Standups and work logs](/gournal/docs/guides/standups-and-work-logs/)
-- [Sync GitHub activity](/gournal/docs/reference/sync/)
+- [Work log](/docs/reference/work-log/)
+- [Standups and work logs](/docs/guides/standups-and-work-logs/)
+- [Sync GitHub activity](/docs/reference/sync/)

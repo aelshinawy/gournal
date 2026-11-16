@@ -3,7 +3,7 @@ title: Troubleshooting
 description: Fix GitHub sync warnings, sync errors, and entries that do not link to activity.
 ---
 
-This page explains the messages that gournal prints when a GitHub sync has a problem. It also explains why an entry may not link to a pull request. For other questions, see the [FAQ](/gournal/docs/resources/faq/).
+This page explains the messages that gournal prints when a GitHub sync has a problem. It also explains why an entry may not link to a pull request. For other questions, see the [FAQ](/docs/resources/faq/).
 
 ## A warning shows when I run a report
 
@@ -20,7 +20,7 @@ gournal: GitHub sync stopped early (REASON); run gournal sync to catch up
 
 The first line means that the sync fetched nothing. The second line means that the sync fetched some pull requests and stopped. In both cases the report still shows the stored data.
 
-To stop auto-sync, set `github.autoSync` to `false` or set `GOURNAL_NO_AUTOSYNC=1`. See [Auto-sync](/gournal/docs/guides/github-activity/#auto-sync).
+To stop auto-sync, set `github.autoSync` to `false` or set `GOURNAL_NO_AUTOSYNC=1`. See [Auto-sync](/docs/guides/github-activity/#auto-sync).
 
 ### Manual sync messages
 
@@ -73,7 +73,7 @@ Synced GitHub activity since Oct 16: 2 new, 0 updated, 0 links. Stopped early (n
 
 ## A pull request does not link to my entry
 
-A link needs a PR ref, a commit ref, or a `done` entry on the same repository and branch within 2 hours of the activity. See [How activity links to entries](/gournal/docs/guides/github-activity/#how-activity-links-to-entries). Then check these points:
+A link needs a PR ref, a commit ref, or a `done` entry on the same repository and branch within 2 hours of the activity. See [How activity links to entries](/docs/guides/github-activity/#how-activity-links-to-entries). Then check these points:
 
 1. Check that the entry is `done` for the branch rule. A `blocker` or `next` entry links only by a PR ref or a commit ref.
 2. Check that the entry has the repository and the branch. Add the entry from inside the repository.

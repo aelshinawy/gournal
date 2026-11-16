@@ -1,7 +1,7 @@
 {
   "name": "gournal",
   "version": "0.9.0",
-  "homepage": "https://aelshinawy.github.io/gournal/",
+  "homepage": "https://gournal.aelshinawy.com/",
   "bin": {
     "gournal": "./dist/cli.js"
   },

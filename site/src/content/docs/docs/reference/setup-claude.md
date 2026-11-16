@@ -53,6 +53,6 @@ Stop hook: not enabled (add --hook to enable it).
 
 ## Related
 
-- [MCP server](/gournal/docs/reference/mcp-server/)
-- [Claude Code setup](/gournal/docs/guides/claude-code-setup/)
-- [Logging with AI agents](/gournal/docs/guides/logging-with-ai-agents/)
+- [MCP server](/docs/reference/mcp-server/)
+- [Claude Code setup](/docs/guides/claude-code-setup/)
+- [Logging with AI agents](/docs/guides/logging-with-ai-agents/)

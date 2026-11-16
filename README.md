@@ -21,7 +21,7 @@ npm install -g gournal
 
 ## Supported platforms
 
-Gournal supports macOS, Linux, and Windows (x64). CI runs on `windows-latest` (Windows Server 2025). Keep your journal on a local disk. See [Supported platforms](https://aelshinawy.github.io/gournal/docs/start-here/install/#supported-platforms) for the requirements and the limits on each system.
+Gournal supports macOS, Linux, and Windows (x64). CI runs on `windows-latest` (Windows Server 2025). Keep your journal on a local disk. See [Supported platforms](https://gournal.aelshinawy.com/docs/start-here/install/#supported-platforms) for the requirements and the limits on each system.
 
 ## Quickstart
 
@@ -35,7 +35,7 @@ gournal setup claude
 
 ## Documentation
 
-Read the guides and the full reference at [aelshinawy.github.io/gournal/docs](https://aelshinawy.github.io/gournal/docs/).
+Read the guides and the full reference at [gournal.aelshinawy.com/docs](https://gournal.aelshinawy.com/docs/).
 
 ## License
 

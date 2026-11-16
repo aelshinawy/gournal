@@ -58,18 +58,18 @@ Tool outputs use this object for each journal entry. Their tables link here.
 
 ## Entry list
 
-Tools that return this shape: [`find_entries`](/gournal/docs/reference/search/#mcp-tool-find_entries), [`list_entries`](/gournal/docs/reference/list/#mcp-tool-list_entries).
+Tools that return this shape: [`find_entries`](/docs/reference/search/#mcp-tool-find_entries), [`list_entries`](/docs/reference/list/#mcp-tool-list_entries).
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `entries` | [`Entry[]`](/gournal/docs/reference/output-shapes/#entry) | yes | The matching entries. |
+| `entries` | [`Entry[]`](/docs/reference/output-shapes/#entry) | yes | The matching entries. |
 | `count` | `number` | yes | Number of entries returned. |
 
 ## Entry result
 
-Tools that return this shape: [`add_entry`](/gournal/docs/reference/add/#mcp-tool-add_entry), [`delete_entry`](/gournal/docs/reference/remove-restore/#mcp-tool-delete_entry), [`resolve_entry`](/gournal/docs/reference/resolve/#mcp-tool-resolve_entry), [`update_entry`](/gournal/docs/reference/edit/#mcp-tool-update_entry).
+Tools that return this shape: [`add_entry`](/docs/reference/add/#mcp-tool-add_entry), [`delete_entry`](/docs/reference/remove-restore/#mcp-tool-delete_entry), [`resolve_entry`](/docs/reference/resolve/#mcp-tool-resolve_entry), [`update_entry`](/docs/reference/edit/#mcp-tool-update_entry).
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `entry` | [`Entry`](/gournal/docs/reference/output-shapes/#entry) | yes | The entry after the change. |
+| `entry` | [`Entry`](/docs/reference/output-shapes/#entry) | yes | The entry after the change. |
 | `notes` | `string[]` | yes | Hints and warnings, for example a close tag name or an id that could not be resolved. |

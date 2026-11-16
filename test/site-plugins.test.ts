@@ -152,3 +152,49 @@ test('frontmatter with CRLF line endings is read', () => {
   );
   expect(result).toEqual(['Real']);
 });
+
+test('base links plugin prefixes root-relative links and leaves other URLs alone', () => {
+  const mod = moduleUrl('rehype-base-links.mjs');
+  const result = runModule(
+    `import { withBase } from ${JSON.stringify(mod)};` +
+      `const urls = ['/docs/a/', '/gournal/docs/a/', '/gournal', '//cdn.x/y', 'https://x.y/z', '#frag', 'rel/path', '/docs/a/#h'];` +
+      `console.log(JSON.stringify({ sub: urls.map((u) => withBase(u, '/gournal/')), root: urls.map((u) => withBase(u, '/')) }));`
+  );
+  expect(result).toEqual({
+    sub: ['/gournal/docs/a/', '/gournal/docs/a/', '/gournal', '//cdn.x/y', 'https://x.y/z', '#frag', 'rel/path', '/gournal/docs/a/#h'],
+    root: ['/docs/a/', '/gournal/docs/a/', '/gournal', '//cdn.x/y', 'https://x.y/z', '#frag', 'rel/path', '/docs/a/#h']
+  });
+});
+
+test('base links plugin rewrites href and src through ctx.setProperty', () => {
+  const mod = moduleUrl('rehype-base-links.mjs');
+  const result = runModule(
+    `import { rehypeBaseLinks } from ${JSON.stringify(mod)};` +
+      `const v = rehypeBaseLinks('/gournal/')().element;` +
+      `const calls = [];` +
+      `const ctx = { setProperty: (n, k, val) => calls.push([n.tagName, k, val]) };` +
+      `const nodes = [` +
+      `  { tagName: 'a', properties: { href: '/docs/x/' } },` +
+      `  { tagName: 'img', properties: { src: '/demo/p.png' } },` +
+      `  { tagName: 'a', properties: { href: 'https://x.y/' } },` +
+      `  { tagName: 'a', properties: { href: '/gournal/docs/x/' } },` +
+      `  { tagName: 'a', properties: {} }` +
+      `];` +
+      `for (const n of nodes) v.visit(n, ctx);` +
+      `console.log(JSON.stringify(calls));`
+  );
+  expect(result).toEqual([
+    ['a', 'href', '/gournal/docs/x/'],
+    ['img', 'src', '/gournal/demo/p.png']
+  ]);
+});
+
+test('site config builds absolute URLs from the site URL and base', () => {
+  const mod = pathToFileURL(path.resolve(__dirname, '../site/site.config.mjs')).href;
+  const result = execFileSync(
+    process.execPath,
+    ['--input-type=module', '-e', `import { siteUrl } from ${JSON.stringify(mod)}; console.log(JSON.stringify([siteUrl(), siteUrl('og.png'), siteUrl('/og.png')]));`],
+    { encoding: 'utf8', env: { ...process.env, SITE_URL: 'https://example.com', SITE_BASE: '/sub/' } }
+  );
+  expect(JSON.parse(result)).toEqual(['https://example.com/sub/', 'https://example.com/sub/og.png', 'https://example.com/sub/og.png']);
+});

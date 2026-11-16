@@ -5,7 +5,7 @@ import { demoteHeadings, type CliSection, type GeneratedPage } from './cli';
 import { baseShapes, fieldTable, shapeHeading, type SharedShape, type ToolSection } from './mcp';
 import { GENERATED_NOTE, code, firstSentence, frontmatter, table } from './markdown';
 
-const DOCS_ROOT = '/gournal/docs';
+const DOCS_ROOT = '/docs';
 const GUIDES_DIR = path.resolve(__dirname, '../../src/content/docs/docs/guides');
 
 function guideTitle(name: string): string {

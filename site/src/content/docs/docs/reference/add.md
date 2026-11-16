@@ -56,7 +56,7 @@ Add a journal entry. Pass `project` explicitly whenever you know it, and pass `c
 
 ### Output
 
-This tool returns structured output. The shape is the [Entry result](/gournal/docs/reference/output-shapes/#entry-result).
+This tool returns structured output. The shape is the [Entry result](/docs/reference/output-shapes/#entry-result).
 
 ## Examples
 
@@ -148,6 +148,6 @@ The structured result:
 
 ## Related
 
-- [Resolve an entry](/gournal/docs/reference/resolve/)
-- [Logging with AI agents](/gournal/docs/guides/logging-with-ai-agents/)
-- [Standup report](/gournal/docs/reference/standup/)
+- [Resolve an entry](/docs/reference/resolve/)
+- [Logging with AI agents](/docs/guides/logging-with-ai-agents/)
+- [Standup report](/docs/reference/standup/)

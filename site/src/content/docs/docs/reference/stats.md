@@ -66,5 +66,5 @@ Stats
 
 ## Related
 
-- [Projects](/gournal/docs/reference/projects/)
-- [Tags](/gournal/docs/reference/tags/)
+- [Projects](/docs/reference/projects/)
+- [Tags](/docs/reference/tags/)

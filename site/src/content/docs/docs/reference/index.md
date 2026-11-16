@@ -12,48 +12,48 @@ The CLI has no edit command. The MCP `update_entry` tool fills that gap. Use it 
 
 | Task | CLI | MCP tool |
 |------|-----|----------|
-| [Add an entry](/gournal/docs/reference/add/) | [`gournal add`](/gournal/docs/reference/add/#cli-gournal-add) | [`add_entry`](/gournal/docs/reference/add/#mcp-tool-add_entry) |
-| [Edit an entry](/gournal/docs/reference/edit/) | None | [`update_entry`](/gournal/docs/reference/edit/#mcp-tool-update_entry) |
-| [Resolve an entry](/gournal/docs/reference/resolve/) | [`gournal resolve`](/gournal/docs/reference/resolve/#cli-gournal-resolve) | [`resolve_entry`](/gournal/docs/reference/resolve/#mcp-tool-resolve_entry) |
-| [Remove and restore entries](/gournal/docs/reference/remove-restore/) | [`gournal undo`](/gournal/docs/reference/remove-restore/#gournal-undo), [`gournal restore`](/gournal/docs/reference/remove-restore/#gournal-restore) | [`delete_entry`](/gournal/docs/reference/remove-restore/#mcp-tool-delete_entry) |
+| [Add an entry](/docs/reference/add/) | [`gournal add`](/docs/reference/add/#cli-gournal-add) | [`add_entry`](/docs/reference/add/#mcp-tool-add_entry) |
+| [Edit an entry](/docs/reference/edit/) | None | [`update_entry`](/docs/reference/edit/#mcp-tool-update_entry) |
+| [Resolve an entry](/docs/reference/resolve/) | [`gournal resolve`](/docs/reference/resolve/#cli-gournal-resolve) | [`resolve_entry`](/docs/reference/resolve/#mcp-tool-resolve_entry) |
+| [Remove and restore entries](/docs/reference/remove-restore/) | [`gournal undo`](/docs/reference/remove-restore/#gournal-undo), [`gournal restore`](/docs/reference/remove-restore/#gournal-restore) | [`delete_entry`](/docs/reference/remove-restore/#mcp-tool-delete_entry) |
 
 ## Reports
 
 | Task | CLI | MCP tool |
 |------|-----|----------|
-| [Standup report](/gournal/docs/reference/standup/) | [`gournal standup`](/gournal/docs/reference/standup/#cli-gournal-standup) | [`get_standup`](/gournal/docs/reference/standup/#mcp-tool-get_standup) |
-| [Work log](/gournal/docs/reference/work-log/) | [`gournal log`](/gournal/docs/reference/work-log/#cli-gournal-log) | [`get_work_log`](/gournal/docs/reference/work-log/#mcp-tool-get_work_log) |
-| [Statistics](/gournal/docs/reference/stats/) | [`gournal stats`](/gournal/docs/reference/stats/#cli-gournal-stats) | None |
+| [Standup report](/docs/reference/standup/) | [`gournal standup`](/docs/reference/standup/#cli-gournal-standup) | [`get_standup`](/docs/reference/standup/#mcp-tool-get_standup) |
+| [Work log](/docs/reference/work-log/) | [`gournal log`](/docs/reference/work-log/#cli-gournal-log) | [`get_work_log`](/docs/reference/work-log/#mcp-tool-get_work_log) |
+| [Statistics](/docs/reference/stats/) | [`gournal stats`](/docs/reference/stats/#cli-gournal-stats) | None |
 
 ## Find
 
 | Task | CLI | MCP tool |
 |------|-----|----------|
-| [Search entries](/gournal/docs/reference/search/) | [`gournal find`](/gournal/docs/reference/search/#cli-gournal-find) | [`find_entries`](/gournal/docs/reference/search/#mcp-tool-find_entries) |
-| [List entries](/gournal/docs/reference/list/) | None | [`list_entries`](/gournal/docs/reference/list/#mcp-tool-list_entries) |
-| [Projects](/gournal/docs/reference/projects/) | [`gournal projects`](/gournal/docs/reference/projects/#cli-gournal-projects) | [`list_projects`](/gournal/docs/reference/projects/#mcp-tool-list_projects) |
-| [Tags](/gournal/docs/reference/tags/) | [`gournal tags`](/gournal/docs/reference/tags/#cli-gournal-tags) | [`list_tags`](/gournal/docs/reference/tags/#mcp-tool-list_tags) |
+| [Search entries](/docs/reference/search/) | [`gournal find`](/docs/reference/search/#cli-gournal-find) | [`find_entries`](/docs/reference/search/#mcp-tool-find_entries) |
+| [List entries](/docs/reference/list/) | None | [`list_entries`](/docs/reference/list/#mcp-tool-list_entries) |
+| [Projects](/docs/reference/projects/) | [`gournal projects`](/docs/reference/projects/#cli-gournal-projects) | [`list_projects`](/docs/reference/projects/#mcp-tool-list_projects) |
+| [Tags](/docs/reference/tags/) | [`gournal tags`](/docs/reference/tags/#cli-gournal-tags) | [`list_tags`](/docs/reference/tags/#mcp-tool-list_tags) |
 
 ## GitHub and agents
 
 | Task | CLI | MCP tool |
 |------|-----|----------|
-| [Sync GitHub activity](/gournal/docs/reference/sync/) | [`gournal sync`](/gournal/docs/reference/sync/#cli-gournal-sync) | [`sync_activity`](/gournal/docs/reference/sync/#mcp-tool-sync_activity) |
-| [Set up Claude Code](/gournal/docs/reference/setup-claude/) | [`gournal setup claude`](/gournal/docs/reference/setup-claude/#cli-gournal-setup-claude) | None |
-| [MCP server](/gournal/docs/reference/mcp-server/) | [`gournal mcp`](/gournal/docs/reference/mcp-server/#cli-gournal-mcp) | None |
+| [Sync GitHub activity](/docs/reference/sync/) | [`gournal sync`](/docs/reference/sync/#cli-gournal-sync) | [`sync_activity`](/docs/reference/sync/#mcp-tool-sync_activity) |
+| [Set up Claude Code](/docs/reference/setup-claude/) | [`gournal setup claude`](/docs/reference/setup-claude/#cli-gournal-setup-claude) | None |
+| [MCP server](/docs/reference/mcp-server/) | [`gournal mcp`](/docs/reference/mcp-server/#cli-gournal-mcp) | None |
 
 ## Data and maintenance
 
 | Task | CLI | MCP tool |
 |------|-----|----------|
-| [Export entries](/gournal/docs/reference/export/) | [`gournal export`](/gournal/docs/reference/export/#cli-gournal-export) | [`export_entries`](/gournal/docs/reference/export/#mcp-tool-export_entries) |
-| [Import entries](/gournal/docs/reference/import/) | [`gournal import`](/gournal/docs/reference/import/#cli-gournal-import) | None |
-| [Clear the journal](/gournal/docs/reference/clear/) | [`gournal clear`](/gournal/docs/reference/clear/#cli-gournal-clear) | None |
-| [Migrate from 0.x](/gournal/docs/reference/migrate/) | [`gournal migrate`](/gournal/docs/reference/migrate/#cli-gournal-migrate) | None |
-| [Rebuild the search index](/gournal/docs/reference/index-rebuild/) | [`gournal index rebuild`](/gournal/docs/reference/index-rebuild/#cli-gournal-index-rebuild) | None |
+| [Export entries](/docs/reference/export/) | [`gournal export`](/docs/reference/export/#cli-gournal-export) | [`export_entries`](/docs/reference/export/#mcp-tool-export_entries) |
+| [Import entries](/docs/reference/import/) | [`gournal import`](/docs/reference/import/#cli-gournal-import) | None |
+| [Clear the journal](/docs/reference/clear/) | [`gournal clear`](/docs/reference/clear/#cli-gournal-clear) | None |
+| [Migrate from 0.x](/docs/reference/migrate/) | [`gournal migrate`](/docs/reference/migrate/#cli-gournal-migrate) | None |
+| [Rebuild the search index](/docs/reference/index-rebuild/) | [`gournal index rebuild`](/docs/reference/index-rebuild/#cli-gournal-index-rebuild) | None |
 
 ## More reference
 
-- [Output shapes](/gournal/docs/reference/output-shapes/)
-- [Configuration keys](/gournal/docs/reference/configuration/)
-- [Environment variables](/gournal/docs/reference/environment/)
+- [Output shapes](/docs/reference/output-shapes/)
+- [Configuration keys](/docs/reference/configuration/)
+- [Environment variables](/docs/reference/environment/)

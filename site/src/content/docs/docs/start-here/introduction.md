@@ -70,6 +70,6 @@ Standup: Today (2026-11-15)
 
 ## Where to go next
 
-1. [Install gournal](/gournal/docs/start-here/install/).
-2. Follow the [Quickstart](/gournal/docs/start-here/quickstart/). It takes about five minutes.
-3. Read [Core concepts](/gournal/docs/start-here/core-concepts/) to learn the words that gournal uses.
+1. [Install gournal](/docs/start-here/install/).
+2. Follow the [Quickstart](/docs/start-here/quickstart/). It takes about five minutes.
+3. Read [Core concepts](/docs/start-here/core-concepts/) to learn the words that gournal uses.

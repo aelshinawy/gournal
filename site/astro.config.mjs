@@ -4,16 +4,18 @@ import starlightLinksValidator from 'starlight-links-validator';
 import { satteri } from '@astrojs/markdown-satteri';
 import { ecFocusable } from './plugins/ec-focusable.mjs';
 import { rehypeTableRegion } from './plugins/rehype-table-region.mjs';
+import { rehypeBaseLinks } from './plugins/rehype-base-links.mjs';
+import { BASE, SITE_URL, siteUrl } from './site.config.mjs';
 import referenceSidebar from './src/generated/reference-sidebar.json' with { type: 'json' };
 
-const OG_IMAGE = 'https://aelshinawy.github.io/gournal/og.png';
+const OG_IMAGE = siteUrl('og.png');
 const OG_ALT = 'A gournal standup in the terminal: done work by project, blockers, next items, and linked GitHub activity.';
 
 export default defineConfig({
-  site: 'https://aelshinawy.github.io',
-  base: '/gournal/',
+  site: SITE_URL,
+  base: BASE,
   markdown: {
-    processor: satteri({ features: { smartPunctuation: false }, hastPlugins: [rehypeTableRegion()] })
+    processor: satteri({ features: { smartPunctuation: false }, hastPlugins: [rehypeTableRegion(), rehypeBaseLinks(BASE)] })
   },
   integrations: [
     starlight({
@@ -38,7 +40,9 @@ export default defineConfig({
           borderRadius: '8px'
         }
       },
-      plugins: [starlightLinksValidator()],
+      // The validator reads links as written in Markdown, before rehypeBaseLinks adds the base.
+      // With a non-root base it rejects every prefix-free link, so it runs only for base "/".
+      plugins: BASE === '/' ? [starlightLinksValidator()] : [],
       sidebar: [
         {
           label: 'Start here',

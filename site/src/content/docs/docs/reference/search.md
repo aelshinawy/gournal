@@ -57,7 +57,7 @@ Search journal entries. Every filter is optional, and filters combine.
 
 ### Output
 
-This tool returns structured output. The shape is the [Entry list](/gournal/docs/reference/output-shapes/#entry-list).
+This tool returns structured output. The shape is the [Entry list](/docs/reference/output-shapes/#entry-list).
 
 ## Examples
 
@@ -139,6 +139,6 @@ The structured result lists each entry with all of its fields. This example show
 
 ## Related
 
-- [List entries](/gournal/docs/reference/list/)
-- [Tags](/gournal/docs/reference/tags/)
-- [Projects](/gournal/docs/reference/projects/)
+- [List entries](/docs/reference/list/)
+- [Tags](/docs/reference/tags/)
+- [Projects](/docs/reference/projects/)

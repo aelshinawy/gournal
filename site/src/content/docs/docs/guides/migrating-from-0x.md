@@ -46,7 +46,7 @@ Old entries often have project names and tags that you want to change. Set alias
 }
 ```
 
-See [Customize with config.json](/gournal/docs/guides/configuration/).
+See [Customize with config.json](/docs/guides/configuration/).
 
 ## Migration plans
 
@@ -121,12 +121,12 @@ Snapshot: /Users/you/.gournal/backups/gournal-pre-plan-20261115-163110.db
 Updated 1 entries.
 ```
 
-An apply also applies your current aliases and ticket prefixes to every migrated entry. Gournal saves the snapshot before it writes, and it never prunes snapshots. To undo a plan, restore the snapshot the way you restore a backup. See [Data safety and backups](/gournal/docs/guides/data-safety-and-backups/#restore-from-a-backup).
+An apply also applies your current aliases and ticket prefixes to every migrated entry. Gournal saves the snapshot before it writes, and it never prunes snapshots. To undo a plan, restore the snapshot the way you restore a backup. See [Data safety and backups](/docs/guides/data-safety-and-backups/#restore-from-a-backup).
 
 ## Move to another machine
 
-Export a bundle on the old machine, and import it on the new one. See [Data safety and backups](/gournal/docs/guides/data-safety-and-backups/#bundles). If both machines imported the same `entries.json`, gournal merges the duplicates on import. Your edited or deleted entry wins over a raw copy.
+Export a bundle on the old machine, and import it on the new one. See [Data safety and backups](/docs/guides/data-safety-and-backups/#bundles). If both machines imported the same `entries.json`, gournal merges the duplicates on import. Your edited or deleted entry wins over a raw copy.
 
 A bundle does not hold `config.json` or the sync cursor. Copy `config.json` to the new machine yourself. The first sync on the new machine starts `github.initialSyncDays` days back.
 
-See [`gournal migrate`](/gournal/docs/reference/migrate/) for the options.
+See [`gournal migrate`](/docs/reference/migrate/) for the options.
