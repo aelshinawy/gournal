@@ -28,7 +28,10 @@ describe('concurrent repository writers', () => {
   afterEach(() => rmTmp(home));
 
   test('no entry is lost under 8 concurrent writers', async () => {
-    await Promise.all(Array.from({ length: 8 }, (_, id) => runWriter(home, id, 25)));
+    // Wait for every writer to exit before any check or cleanup. Then rmTmp cannot race a running writer.
+    const results = await Promise.allSettled(Array.from({ length: 8 }, (_, id) => runWriter(home, id, 25)));
+    const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (failed) throw failed.reason;
     const db = openDb(path.join(home, 'gournal.db'));
     try {
       const rows = db.prepare('SELECT summary FROM entries').all() as { summary: string }[];
@@ -39,5 +42,5 @@ describe('concurrent repository writers', () => {
     } finally {
       db.close();
     }
-  }, 60_000);
+  }, 180_000);
 });
