@@ -100,13 +100,13 @@ Merge pull requests with squash merge. A squash merge takes the pull request tit
 | Commit type | Version bump | In the changelog |
 | --- | --- | --- |
 | `fix` | patch | yes, as Bug Fixes |
-| `feat` | patch while the version is below 1.0.0, minor after that | yes, as Features |
+| `feat` | minor | yes, as Features |
 | `perf` | patch | yes, as Performance |
 | `deps` | patch | yes, as Dependencies |
 | `feat!`, `fix!`, or a `BREAKING CHANGE:` footer | minor while the version is below 1.0.0, major after that | yes, with a breaking change note |
 | `docs`, `chore`, `ci`, `test`, `build`, `refactor`, `style` | none | no |
 
-The version is below 1.0.0. A breaking change gives a minor bump. A new feature gives a patch bump. These rules are `bump-minor-pre-major` and `bump-patch-for-minor-pre-major` in `release-please-config.json`.
+The version is below 1.0.0. A breaking change gives a minor bump, not a major bump. This rule is `bump-minor-pre-major` in `release-please-config.json`. From version 1.0.0, a breaking change gives a major bump.
 
 A commit with a type that gives no bump does not open a Release PR by itself.
 
