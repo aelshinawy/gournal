@@ -93,20 +93,20 @@ Releases are automatic. A tool named release-please reads the commit messages on
 
 Use a Conventional Commit as the pull request title. Example: `fix(storage): name the home path when the database cannot be written`.
 
-The repository uses squash merge. A squash merge takes the pull request title as the commit message. A wrong title hides your change from the changelog. A check named "PR title" tests the title. This check is advisory.
+Merge pull requests with squash merge. A squash merge takes the pull request title as the commit message. GitHub uses the message of the commit instead when the pull request has only one commit. Write the title and the commit messages in the same form. A wrong message hides your change from the changelog. A check named "PR title" tests the title. This check is advisory.
 
 ### Commit type and version bump
 
 | Commit type | Version bump | In the changelog |
 | --- | --- | --- |
 | `fix` | patch | yes, as Bug Fixes |
-| `feat` | minor | yes, as Features |
+| `feat` | patch while the version is below 1.0.0, minor after that | yes, as Features |
 | `perf` | patch | yes, as Performance |
 | `deps` | patch | yes, as Dependencies |
-| `feat!`, `fix!`, or a `BREAKING CHANGE:` footer | minor while the version is below 1.0.0, major after that | yes |
+| `feat!`, `fix!`, or a `BREAKING CHANGE:` footer | minor while the version is below 1.0.0, major after that | yes, with a breaking change note |
 | `docs`, `chore`, `ci`, `test`, `build`, `refactor`, `style` | none | no |
 
-The version is below 1.0.0, so a breaking change gives a minor bump. A new feature also gives a minor bump. This rule is `bump-minor-pre-major` in `release-please-config.json`.
+The version is below 1.0.0. A breaking change gives a minor bump. A new feature gives a patch bump. These rules are `bump-minor-pre-major` and `bump-patch-for-minor-pre-major` in `release-please-config.json`.
 
 A commit with a type that gives no bump does not open a Release PR by itself.
 
