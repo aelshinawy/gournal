@@ -79,5 +79,5 @@ timestamp,project,message,tags,summary,details,kind,refs
 
 ## Related
 
-- [Import entries](/gournal/docs/reference/import/)
-- [Data safety and backups](/gournal/docs/guides/data-safety-and-backups/)
+- [Import entries](/docs/reference/import/)
+- [Data safety and backups](/docs/guides/data-safety-and-backups/)

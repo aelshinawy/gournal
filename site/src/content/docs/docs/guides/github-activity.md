@@ -37,7 +37,7 @@ Read these rules about the start point:
 
 Only one sync runs at a time. If another sync runs, `gournal sync` stops and asks you to try again in a minute.
 
-See [`gournal sync`](/gournal/docs/reference/sync/) for the options.
+See [`gournal sync`](/docs/reference/sync/) for the options.
 
 ## What gournal reads
 
@@ -73,7 +73,7 @@ Limit the sync to some owners (users or organizations) with `github.owners.inclu
 2. Gournal always drops the owners in `exclude`.
 3. Owner names are not case sensitive.
 
-See [Configuration keys](/gournal/docs/reference/configuration/).
+See [Configuration keys](/docs/reference/configuration/).
 
 ## Auto-sync
 
@@ -91,11 +91,11 @@ Auto-sync follows these rules:
 5. If `gh` is not installed, auto-sync stays silent. Run `gournal sync` to see the reason.
 6. If another sync runs, auto-sync does nothing.
 
-The warning goes to stderr. For an MCP tool, the warning is the last line of the text result. It is also in the `syncWarning` field. See [Troubleshooting](/gournal/docs/resources/troubleshooting/#auto-sync-warnings) for each warning.
+The warning goes to stderr. For an MCP tool, the warning is the last line of the text result. It is also in the `syncWarning` field. See [Troubleshooting](/docs/resources/troubleshooting/#auto-sync-warnings) for each warning.
 
 `gournal add` and the `add_entry` tool never use the network.
 
-Turn auto-sync off with `github.autoSync` set to `false`, or with `GOURNAL_NO_AUTOSYNC=1`. See [Environment variables](/gournal/docs/reference/environment/).
+Turn auto-sync off with `github.autoSync` set to `false`, or with `GOURNAL_NO_AUTOSYNC=1`. See [Environment variables](/docs/reference/environment/).
 
 ## How activity links to entries
 
@@ -125,10 +125,10 @@ Repository names are not case sensitive. Branch names are. A review has no branc
 
 Linked activity shows under its entry in `gournal standup` and `gournal log`. A pull request gets one line with its most advanced event: merged, opened, or reviewed. The commits of the entry get one line with a count.
 
-See [Standups and work logs](/gournal/docs/guides/standups-and-work-logs/#the-standup) for a full example.
+See [Standups and work logs](/docs/guides/standups-and-work-logs/#the-standup) for a full example.
 
-The `Also` line counts the activity in the period that is not linked to a done entry in the report. Activity that links only to a blocker, a next item, or an entry that the filters hide stays in `Also`. See [Standups and work logs](/gournal/docs/guides/standups-and-work-logs/#also-and---activity) for more.
+The `Also` line counts the activity in the period that is not linked to a done entry in the report. Activity that links only to a blocker, a next item, or an entry that the filters hide stays in `Also`. See [Standups and work logs](/docs/guides/standups-and-work-logs/#also-and---activity) for more.
 
 ## When something goes wrong
 
-Sync warnings and unlinked entries have their own page. See [Troubleshooting](/gournal/docs/resources/troubleshooting/).
+Sync warnings and unlinked entries have their own page. See [Troubleshooting](/docs/resources/troubleshooting/).

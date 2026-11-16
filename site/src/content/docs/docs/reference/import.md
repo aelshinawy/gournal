@@ -8,7 +8,7 @@ description: Restore a journal from a backup, or move your journal to a new mach
 Restore a journal from a backup, or move your journal to a new machine.
 
 :::caution
-An import can add to or change the entries that you have. Make a backup first. Read the [backups guide](/gournal/docs/guides/data-safety-and-backups/).
+An import can add to or change the entries that you have. Make a backup first. Read the [backups guide](/docs/guides/data-safety-and-backups/).
 :::
 
 ## CLI: gournal import
@@ -48,5 +48,5 @@ Imported: 0 new, 0 updated, 8 unchanged, 0 duplicates merged.
 
 ## Related
 
-- [Export entries](/gournal/docs/reference/export/)
-- [Migrating from 0.x](/gournal/docs/guides/migrating-from-0x/)
+- [Export entries](/docs/reference/export/)
+- [Migrating from 0.x](/docs/guides/migrating-from-0x/)

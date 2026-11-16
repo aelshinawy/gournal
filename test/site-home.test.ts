@@ -1,9 +1,12 @@
 import fs from 'fs';
 import path from 'path';
+import { siteConfig } from './helpers/site-config';
 
 const root = path.resolve(__dirname, '..');
 const siteSrc = path.join(root, 'site/src');
 const builtHome = path.join(root, 'site/dist/index.html');
+const { BASE } = siteConfig;
+const escapeRe = (t: string): string => t.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
 const PLACEHOLDER = "A Developer's Command-Line Journal with Git Integration";
 
 function walk(dir: string): string[] {
@@ -49,7 +52,7 @@ describeBuilt('built homepage', () => {
     expect(urls.length).toBeGreaterThan(0);
     const rooted = urls.filter((u) => u.startsWith('/') && !u.startsWith('//'));
     expect(rooted.length).toBeGreaterThan(0);
-    for (const u of rooted) expect(u.startsWith('/gournal/')).toBe(true);
+    for (const u of rooted) expect(u.startsWith(BASE)).toBe(true);
   });
 
   test('the built page shows the pitch line once, as the h1', () => {
@@ -63,7 +66,7 @@ describeBuilt('built homepage', () => {
     for (const attr of ['muted', 'loop', 'playsinline']) expect(video).toMatch(new RegExp(`\\s${attr}[\\s>=]`));
     // No autoplay in markup: the script starts the loop together with its pause control (WCAG 2.2.2).
     expect(video).not.toMatch(/\sautoplay[\s>=]/);
-    expect(video).toContain('poster="/gournal/demo/standup-poster.png"');
+    expect(video).toContain(`poster="${BASE}demo/standup-poster.png"`);
     expect(video.indexOf('standup.webm')).toBeGreaterThan(-1);
     expect(video.indexOf('standup.webm')).toBeLessThan(video.indexOf('standup.mp4'));
     expect(html).toContain('Standup: Today');
@@ -84,12 +87,12 @@ describeBuilt('built homepage', () => {
   });
   test('the head has the title, canonical link, social tags, and sitemap link', () => {
     expect(html).toContain('<title>gournal: a command-line work journal</title>');
-    expect(html).toContain('<link rel="canonical" href="https://aelshinawy.github.io/gournal/"');
+    expect(html).toContain(`<link rel="canonical" href="${siteConfig.canonical}"`);
     for (const prop of ['og:title', 'og:description', 'og:type', 'og:url', 'og:site_name']) {
       expect(html).toMatch(new RegExp(`<meta property="${prop}" content="[^"]+"`));
     }
     expect(html).toMatch(/<meta name="twitter:card" content="[^"]+"/);
-    expect(html).toMatch(/<link rel="sitemap" href="\/gournal\/sitemap-index\.xml"/);
+    expect(html).toMatch(new RegExp(`<link rel="sitemap" href="${escapeRe(BASE)}sitemap-index\\.xml"`));
     const desc = /<meta name="description" content="([^"]*)"/.exec(html)?.[1] ?? '';
     expect(desc.length).toBeGreaterThan(0);
     expect(desc.length).toBeLessThanOrEqual(160);
@@ -108,7 +111,7 @@ describeBuilt('built homepage', () => {
     expect(tag).toMatch(/type="font\/woff2"/);
     expect(tag).toMatch(/\scrossorigin/);
     const href = /href="([^"]+)"/.exec(tag)?.[1] ?? '';
-    expect(href).toMatch(/^\/gournal\/_astro\/newsreader-latin-wght-normal\..+\.woff2$/);
+    expect(href).toMatch(new RegExp(`^${escapeRe(BASE)}_astro/newsreader-latin-wght-normal\\..+\\.woff2$`));
     const astroDir = path.join(root, 'site/dist/_astro');
     const css = fs.readdirSync(astroDir).filter((f) => f.endsWith('.css')).map((f) => fs.readFileSync(path.join(astroDir, f), 'utf8')).join('\n');
     expect(css).toContain(href);
@@ -116,7 +119,7 @@ describeBuilt('built homepage', () => {
 });
 
 describeBuilt('share image and social cards', () => {
-  const OG_URL = 'https://aelshinawy.github.io/gournal/og.png';
+  const OG_URL = siteConfig.og;
   const OG_ALT = 'A gournal standup in the terminal: done work by project, blockers, next items, and linked GitHub activity.';
   const docsPage = path.join(root, 'site/dist/docs/start-here/introduction/index.html');
   // Read the build lazily. Jest runs a skipped describe body, so a read here would throw without a build.

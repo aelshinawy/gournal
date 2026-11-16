@@ -8,7 +8,7 @@ description: These commands take an entry out of your reports, or bring it back 
 These commands take an entry out of your reports, or bring it back after a mistake. The undo command takes out the last entry that you added on this device.
 
 :::caution
-A removed entry leaves your reports and searches. The entry stays in the database, and the restore command brings it back. Read the [backups guide](/gournal/docs/guides/data-safety-and-backups/) for backups.
+A removed entry leaves your reports and searches. The entry stays in the database, and the restore command brings it back. Read the [backups guide](/docs/guides/data-safety-and-backups/) for backups.
 :::
 
 ## CLI
@@ -47,7 +47,7 @@ Remove an entry. The entry stays in the database, so you can restore it with the
 
 ### Output
 
-This tool returns structured output. The shape is the [Entry result](/gournal/docs/reference/output-shapes/#entry-result).
+This tool returns structured output. The shape is the [Entry result](/docs/reference/output-shapes/#entry-result).
 
 ## Examples
 
@@ -123,4 +123,4 @@ The structured result has the same shape as the `add_entry` result. The `deleted
 
 ## Related
 
-- [Edit an entry](/gournal/docs/reference/edit/)
+- [Edit an entry](/docs/reference/edit/)

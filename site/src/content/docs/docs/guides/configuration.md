@@ -3,7 +3,7 @@ title: Customize with config.json
 description: Edit config.json to set aliases, ticket prefixes, the week start, and GitHub sync settings.
 ---
 
-Gournal keeps its settings in `config.json` in the gournal home folder. The default folder is `~/.gournal`. Set `GOURNAL_HOME` to use another folder. Gournal creates the file on first run. Every key is optional. See [Configuration keys](/gournal/docs/reference/configuration/) for every key, type, default, and rule.
+Gournal keeps its settings in `config.json` in the gournal home folder. The default folder is `~/.gournal`. Set `GOURNAL_HOME` to use another folder. Gournal creates the file on first run. Every key is optional. See [Configuration keys](/docs/reference/configuration/) for every key, type, default, and rule.
 
 ## An example file
 
@@ -33,7 +33,7 @@ An alias renames a project when gournal writes an entry and when you filter by `
 { "projectAliases": { "billing-api": "billing" } }
 ```
 
-Gournal matches the key against the full repository name (`acme/billing-api`), then the repository name, then the folder name. Matching is not case sensitive. A filter by `--project` also finds old entries that have the old name. See [Projects and identity](/gournal/docs/start-here/core-concepts/#projects-and-identity).
+Gournal matches the key against the full repository name (`acme/billing-api`), then the repository name, then the folder name. Matching is not case sensitive. A filter by `--project` also finds old entries that have the old name. See [Projects and identity](/docs/start-here/core-concepts/#projects-and-identity).
 
 ## Tag aliases
 
@@ -45,7 +45,7 @@ An alias maps an old tag to the tag to use. The key is the tag in lowercase.
 
 ## Ticket prefixes
 
-A tag such as `bill-12` becomes a ticket ref only when its prefix is in `ticketPrefixes`. See [Tags and refs](/gournal/docs/start-here/core-concepts/#tags-and-refs).
+A tag such as `bill-12` becomes a ticket ref only when its prefix is in `ticketPrefixes`. See [Tags and refs](/docs/start-here/core-concepts/#tags-and-refs).
 
 ```json
 { "ticketPrefixes": ["BILL", "PLAT"] }
@@ -61,7 +61,7 @@ Config /Users/you/.gournal/config.json is not valid JSON object: alias chain at 
 
 ## Reports and sync
 
-The keys `weekStartsOn` and `staleAfterDays` change the reports. The keys under `github` change the sync. See [Configuration keys](/gournal/docs/reference/configuration/) for the types and defaults, and [GitHub activity](/gournal/docs/guides/github-activity/) for the sync.
+The keys `weekStartsOn` and `staleAfterDays` change the reports. The keys under `github` change the sync. See [Configuration keys](/docs/reference/configuration/) for the types and defaults, and [GitHub activity](/docs/guides/github-activity/) for the sync.
 
 A bad value for `weekStartsOn`, `staleAfterDays`, or a `github` key falls back to its default. Gournal prints one warning for each message:
 
@@ -73,4 +73,4 @@ gournal: config /Users/you/.gournal/config.json: staleAfterDays must be a positi
 
 The CLI reads the file each time you run a command. The MCP server reads it once for each process. Restart your MCP clients after you edit the file.
 
-Environment variables are separate from this file. See [Environment variables](/gournal/docs/reference/environment/).
+Environment variables are separate from this file. See [Environment variables](/docs/reference/environment/).

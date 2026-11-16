@@ -7,7 +7,7 @@ description: Install gournal with npm, check the install, and optionally sign in
 
 - **Node.js 22.13 or newer.** Run `node --version` to check.
 - **Git 2.7 or newer.** Gournal uses Git to find the project, the repository, and the branch of a directory. With Git older than 2.7, or without Git, gournal puts entries in the `uncategorized` project and records no repository or branch.
-- **The GitHub CLI (`gh`), optional.** You need it only for [GitHub sync](/gournal/docs/guides/github-activity/).
+- **The GitHub CLI (`gh`), optional.** You need it only for [GitHub sync](/docs/guides/github-activity/).
 - **On Windows, Git for Windows.** Gournal runs `git`, so `git.exe` must be on your `PATH`. The Git for Windows installer does this.
 
 ## Supported platforms
@@ -37,7 +37,7 @@ These limits apply on Windows.
 
 - **File permissions.** Gournal cannot set the 0700 and 0600 file modes on Windows. The journal depends on the permissions of your profile folder. These permissions normally block other standard users. Administrators and the system can still read your files. Do not put `GOURNAL_HOME` on a shared folder.
 - **Terminal.** In mintty, standard input is not a terminal. Gournal treats it as not interactive. `gournal setup claude` prints its plan and exits with code 1 until you pass `--yes`. Use Windows Terminal, PowerShell, or cmd to get prompts.
-- **Search.** The Node.js build on the Windows CI runner has no FTS5. On such a build, `gournal find` matches substrings. See [Search entries](/gournal/docs/reference/search/) for how matching differs between Node.js builds. Run `gournal index rebuild` to check. It fails with "This Node build has no FTS5" when the build lacks FTS5.
+- **Search.** The Node.js build on the Windows CI runner has no FTS5. On such a build, `gournal find` matches substrings. See [Search entries](/docs/reference/search/) for how matching differs between Node.js builds. Run `gournal index rebuild` to check. It fails with "This Node build has no FTS5" when the build lacks FTS5.
 
 ### WSL
 
@@ -64,26 +64,26 @@ Gournal prints its version number. Your number can be different. If your shell s
 
 ## Sign in to GitHub (optional)
 
-GitHub sync uses the `gh` CLI. Install `gh` and run `gh auth login`. See [Before you start](/gournal/docs/guides/github-activity/#before-you-start) in the GitHub activity guide.
+GitHub sync uses the `gh` CLI. Install `gh` and run `gh auth login`. See [Before you start](/docs/guides/github-activity/#before-you-start) in the GitHub activity guide.
 
 Skip this step if you do not want GitHub activity in your standups. Everything else works without `gh`.
 
 ## Where gournal keeps data
 
-Gournal keeps its data in `~/.gournal`. On Windows, this is `%USERPROFILE%\.gournal`. Set the `GOURNAL_HOME` environment variable to use a different folder. See [Environment variables](/gournal/docs/reference/environment/).
+Gournal keeps its data in `~/.gournal`. On Windows, this is `%USERPROFILE%\.gournal`. Set the `GOURNAL_HOME` environment variable to use a different folder. See [Environment variables](/docs/reference/environment/).
 
 ## Upgrade
 
-Run `npm install -g gournal` again to get the newest version. If you upgrade from version 0.6 or older, see [Migrating from 0.x](/gournal/docs/guides/migrating-from-0x/).
+Run `npm install -g gournal` again to get the newest version. If you upgrade from version 0.6 or older, see [Migrating from 0.x](/docs/guides/migrating-from-0x/).
 
 ## Uninstall
 
-1. Remove the Claude Code setup: `gournal setup claude --uninstall`. See [Claude Code setup](/gournal/docs/guides/claude-code-setup/#undo-it).
+1. Remove the Claude Code setup: `gournal setup claude --uninstall`. See [Claude Code setup](/docs/guides/claude-code-setup/#undo-it).
 2. Remove the package: `npm uninstall -g gournal`.
-3. Optional: delete the data folder, `~/.gournal` (`%USERPROFILE%\.gournal` on Windows, or the folder in `GOURNAL_HOME`). This deletes your journal, your settings, and your backups. Export a bundle first if you want a copy. See [Data safety and backups](/gournal/docs/guides/data-safety-and-backups/#bundles).
+3. Optional: delete the data folder, `~/.gournal` (`%USERPROFILE%\.gournal` on Windows, or the folder in `GOURNAL_HOME`). This deletes your journal, your settings, and your backups. Export a bundle first if you want a copy. See [Data safety and backups](/docs/guides/data-safety-and-backups/#bundles).
 
 Steps 1 and 2 keep your journal. Run step 1 before step 2, because `gournal setup claude --uninstall` needs the `gournal` command.
 
 ## Next step
 
-Follow the [Quickstart](/gournal/docs/start-here/quickstart/).
+Follow the [Quickstart](/docs/start-here/quickstart/).

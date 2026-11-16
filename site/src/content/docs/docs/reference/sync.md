@@ -62,5 +62,5 @@ Synced GitHub activity since Nov 15: 0 new, 0 updated, 0 links. Stopped early (g
 
 ## Related
 
-- [GitHub activity](/gournal/docs/guides/github-activity/)
-- [Standup report](/gournal/docs/reference/standup/)
+- [GitHub activity](/docs/guides/github-activity/)
+- [Standup report](/docs/reference/standup/)

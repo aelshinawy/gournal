@@ -28,5 +28,5 @@ Search index rebuilt: 8 entries.
 
 ## Related
 
-- [Search entries](/gournal/docs/reference/search/)
-- [Data safety and backups](/gournal/docs/guides/data-safety-and-backups/)
+- [Search entries](/docs/reference/search/)
+- [Data safety and backups](/docs/guides/data-safety-and-backups/)

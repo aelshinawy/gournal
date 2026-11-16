@@ -23,7 +23,7 @@ List journal entries, newest first. The text result is JSON. Pass a low `limit` 
 
 ### Output
 
-This tool returns structured output. The shape is the [Entry list](/gournal/docs/reference/output-shapes/#entry-list).
+This tool returns structured output. The shape is the [Entry list](/docs/reference/output-shapes/#entry-list).
 
 ## Examples
 
@@ -95,5 +95,5 @@ The structured result. The text result holds the `entries` list as JSON.
 
 ## Related
 
-- [Search entries](/gournal/docs/reference/search/)
-- [Projects](/gournal/docs/reference/projects/)
+- [Search entries](/docs/reference/search/)
+- [Projects](/docs/reference/projects/)

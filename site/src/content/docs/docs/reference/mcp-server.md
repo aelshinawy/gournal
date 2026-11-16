@@ -40,5 +40,5 @@ $ claude mcp add --scope user gournal -- gournal mcp
 
 ## Related
 
-- [Set up Claude Code](/gournal/docs/reference/setup-claude/)
-- [Logging with AI agents](/gournal/docs/guides/logging-with-ai-agents/)
+- [Set up Claude Code](/docs/reference/setup-claude/)
+- [Logging with AI agents](/docs/guides/logging-with-ai-agents/)

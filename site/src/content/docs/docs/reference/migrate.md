@@ -44,5 +44,5 @@ Imported 0 entries (2 already present).
 
 ## Related
 
-- [Migrating from 0.x](/gournal/docs/guides/migrating-from-0x/)
-- [Import entries](/gournal/docs/reference/import/)
+- [Migrating from 0.x](/docs/guides/migrating-from-0x/)
+- [Import entries](/docs/reference/import/)

@@ -30,7 +30,7 @@ export interface Tool {
   outputSchema?: JSONSchema;
 }
 
-export const SHAPES_URL = '/gournal/docs/reference/output-shapes/';
+export const SHAPES_URL = '/docs/reference/output-shapes/';
 
 /**
  * Names for output shapes that two or more tools share. The key is the sorted tool names of the

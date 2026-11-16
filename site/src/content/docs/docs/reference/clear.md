@@ -8,7 +8,7 @@ description: Start again with an empty journal.
 Start again with an empty journal. The command asks you to confirm.
 
 :::caution
-This command removes every entry from your reports and searches. The entries stay in the database until you restore them one by one. Export your journal first. Read the [backups guide](/gournal/docs/guides/data-safety-and-backups/).
+This command removes every entry from your reports and searches. The entries stay in the database until you restore them one by one. Export your journal first. Read the [backups guide](/docs/guides/data-safety-and-backups/).
 :::
 
 ## CLI: gournal clear
@@ -34,4 +34,4 @@ The command exits with status 1.
 
 ## Related
 
-- [Export entries](/gournal/docs/reference/export/)
+- [Export entries](/docs/reference/export/)

@@ -72,5 +72,5 @@ The text result holds the `projects` list as JSON.
 
 ## Related
 
-- [Tags](/gournal/docs/reference/tags/)
-- [Search entries](/gournal/docs/reference/search/)
+- [Tags](/docs/reference/tags/)
+- [Search entries](/docs/reference/search/)

@@ -54,11 +54,11 @@ Get a work log, grouped by day. It covers today unless you choose a period. The 
 | `end` | `string` | yes | End of the period, as an ISO timestamp. |
 | `days` | `object[]` | yes | The days of the period, oldest first. |
 | `days.date` | `string` | yes | Local day, as YYYY-MM-DD. |
-| `days.entries` | [`Entry[]`](/gournal/docs/reference/output-shapes/#entry) | yes | Entries of this day, oldest first. |
+| `days.entries` | [`Entry[]`](/docs/reference/output-shapes/#entry) | yes | Entries of this day, oldest first. |
 | `count` | `number` | yes | Number of entries in the period. |
 | `projectCount` | `number` | yes | Number of projects that have entries in the period. |
 | `linkedActivity` | `object` | yes | GitHub activity that gournal linked to an entry in this report. The key is the entry id. |
-| `linkedActivity.<key>` | [`Activity[]`](/gournal/docs/reference/output-shapes/#activity) | yes | Activity items linked to this entry. |
+| `linkedActivity.<key>` | [`Activity[]`](/docs/reference/output-shapes/#activity) | yes | Activity items linked to this entry. |
 | `syncWarning` | `string \| null` | yes | A warning from the automatic GitHub sync, or null. The same warning is the last line of the text result. |
 
 ## Examples
@@ -87,6 +87,6 @@ Work Log: Today (2026-11-15)
 
 ## Related
 
-- [Standup report](/gournal/docs/reference/standup/)
-- [Export entries](/gournal/docs/reference/export/)
-- [Standups and work logs](/gournal/docs/guides/standups-and-work-logs/)
+- [Standup report](/docs/reference/standup/)
+- [Export entries](/docs/reference/export/)
+- [Standups and work logs](/docs/guides/standups-and-work-logs/)

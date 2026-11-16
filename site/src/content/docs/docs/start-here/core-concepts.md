@@ -42,7 +42,7 @@ A `done` entry has no open or resolved state.
 
 Done entries belong to the day they were logged. Open items do not. The standup shows an open blocker or next item from earlier days until you resolve it. This is carry-forward. A resolved item does not show.
 
-When an open item is older than `staleAfterDays` (14 days by default), the standup moves it out of Blockers and Next. It shows one `Stale` line with a count and the ids instead. See [Configuration keys](/gournal/docs/reference/configuration/).
+When an open item is older than `staleAfterDays` (14 days by default), the standup moves it out of Blockers and Next. It shows one `Stale` line with a count and the ids instead. See [Configuration keys](/docs/reference/configuration/).
 
 ## Tags and refs
 
@@ -59,7 +59,7 @@ Some tags are really refs. Gournal turns them into refs:
 { "ticketPrefixes": ["BILL", "PLAT"] }
 ```
 
-The tools use refs for [links](#links). MCP tools take refs in a `refs` field, so agents should put ticket keys, PR numbers, and commit hashes there, not in tags. See [`add_entry`](/gournal/docs/reference/add/).
+The tools use refs for [links](#links). MCP tools take refs in a `refs` field, so agents should put ticket keys, PR numbers, and commit hashes there, not in tags. See [`add_entry`](/docs/reference/add/).
 
 ## Projects and identity
 
@@ -80,9 +80,9 @@ Project aliases rename a project. They match the full repository name, then the 
 { "projectAliases": { "billing-api": "billing" } }
 ```
 
-Gournal reads `~/.gournal/config.json`. See [Customize with config.json](/gournal/docs/guides/configuration/).
+Gournal reads `~/.gournal/config.json`. See [Customize with config.json](/docs/guides/configuration/).
 
-An agent that uses the MCP server passes its working directory as `cwd`, so gournal can find the right project. See [Logging with AI agents](/gournal/docs/guides/logging-with-ai-agents/).
+An agent that uses the MCP server passes its working directory as `cwd`, so gournal can find the right project. See [Logging with AI agents](/docs/guides/logging-with-ai-agents/).
 
 ## Activity
 
@@ -95,7 +95,7 @@ Activity is what GitHub says you did. Gournal stores four types:
 
 `gournal sync` fetches activity through the `gh` CLI. Activity is not an entry. You do not write it, and it has no tags. Gournal keeps it apart from your entries and uses it in reports.
 
-Sync settings, such as which owners to include, live in `config.json`. See [GitHub activity](/gournal/docs/guides/github-activity/).
+Sync settings, such as which owners to include, live in `config.json`. See [GitHub activity](/docs/guides/github-activity/).
 
 ## Links
 
@@ -109,4 +109,4 @@ A link follows one of three rules:
 
 Linked activity shows under its entry in `standup` and `log`. Activity that is not linked to a shown done entry shows in the standup under `Also`. The standup prints an `Also:` line with counts, and one line for each merged or reviewed pull request. Opened pull requests are counted, and they get no line. Run `gournal standup --activity` to list every item.
 
-See [Standups and work logs](/gournal/docs/guides/standups-and-work-logs/) and [GitHub activity](/gournal/docs/guides/github-activity/).
+See [Standups and work logs](/docs/guides/standups-and-work-logs/) and [GitHub activity](/docs/guides/github-activity/).

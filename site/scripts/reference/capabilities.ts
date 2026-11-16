@@ -61,7 +61,7 @@ export const CAPABILITIES: readonly Capability[] = [
     summary: 'These commands take an entry out of your reports, or bring it back after a mistake. The undo command takes out the last entry that you added on this device.',
     cli: ['undo', 'restore'],
     mcp: ['delete_entry'],
-    caution: 'A removed entry leaves your reports and searches. The entry stays in the database, and the restore command brings it back. Read the [backups guide](/gournal/docs/guides/data-safety-and-backups/) for backups.',
+    caution: 'A removed entry leaves your reports and searches. The entry stays in the database, and the restore command brings it back. Read the [backups guide](/docs/guides/data-safety-and-backups/) for backups.',
     related: ['edit'],
   },
   {
@@ -170,7 +170,7 @@ export const CAPABILITIES: readonly Capability[] = [
     summary: 'Restore a journal from a backup, or move your journal to a new machine.',
     cli: ['import'],
     mcp: [],
-    caution: 'An import can add to or change the entries that you have. Make a backup first. Read the [backups guide](/gournal/docs/guides/data-safety-and-backups/).',
+    caution: 'An import can add to or change the entries that you have. Make a backup first. Read the [backups guide](/docs/guides/data-safety-and-backups/).',
     related: ['export', 'guides/migrating-from-0x'],
   },
   {
@@ -180,7 +180,7 @@ export const CAPABILITIES: readonly Capability[] = [
     summary: 'Start again with an empty journal. The command asks you to confirm.',
     cli: ['clear'],
     mcp: [],
-    caution: 'This command removes every entry from your reports and searches. The entries stay in the database until you restore them one by one. Export your journal first. Read the [backups guide](/gournal/docs/guides/data-safety-and-backups/).',
+    caution: 'This command removes every entry from your reports and searches. The entries stay in the database until you restore them one by one. Export your journal first. Read the [backups guide](/docs/guides/data-safety-and-backups/).',
     related: ['export'],
   },
   {

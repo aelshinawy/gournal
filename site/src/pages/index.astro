@@ -10,6 +10,7 @@ import Features from '../components/home/Features.astro';
 import HowItWorks from '../components/home/HowItWorks.astro';
 import LocalFirst from '../components/home/LocalFirst.astro';
 import Footer from '../components/home/Footer.astro';
+import { siteUrl } from '../../site.config.mjs';
 import newsreaderUrl from '@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2?url';
 
 const base = import.meta.env.BASE_URL;
@@ -18,7 +19,8 @@ const description =
   'Gournal is a local-first command-line work journal. It keeps all data in SQLite on your machine, needs no account, and stores no tokens.';
 const OG_ALT =
   'A gournal standup in the terminal: done work by project, blockers, next items, and linked GitHub activity.';
-const canonical = new URL(base, 'https://aelshinawy.github.io').href;
+const canonical = siteUrl();
+const ogImage = siteUrl('og.png');
 ---
 
 <html lang="en">
@@ -34,12 +36,12 @@ const canonical = new URL(base, 'https://aelshinawy.github.io').href;
     <meta property="og:description" content={description} />
     <meta property="og:site_name" content="gournal" />
     <meta property="og:locale" content="en" />
-    <meta property="og:image" content="https://aelshinawy.github.io/gournal/og.png" />
+    <meta property="og:image" content={ogImage} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content={OG_ALT} />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://aelshinawy.github.io/gournal/og.png" />
+    <meta name="twitter:image" content={ogImage} />
     <link rel="sitemap" href={`${base}sitemap-index.xml`} />
     <link rel="preload" href={newsreaderUrl} as="font" type="font/woff2" crossorigin />
     <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />

@@ -34,7 +34,7 @@ Mark an open blocker or next entry as resolved.
 
 ### Output
 
-This tool returns structured output. The shape is the [Entry result](/gournal/docs/reference/output-shapes/#entry-result).
+This tool returns structured output. The shape is the [Entry result](/docs/reference/output-shapes/#entry-result).
 
 ## Examples
 
@@ -124,5 +124,5 @@ The structured result:
 
 ## Related
 
-- [Add an entry](/gournal/docs/reference/add/)
-- [Standup report](/gournal/docs/reference/standup/)
+- [Add an entry](/docs/reference/add/)
+- [Standup report](/docs/reference/standup/)
