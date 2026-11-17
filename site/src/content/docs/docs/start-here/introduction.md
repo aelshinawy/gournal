@@ -1,20 +1,22 @@
 ---
 title: Introduction
-description: What gournal is, who it is for, and how the CLI, the MCP server, GitHub sync, and the standup fit together.
+description: A work journal for you and your AI agents. What it is, who it is for, and how the CLI, the MCP server, GitHub sync, and the standup fit together.
 ---
 
-Gournal is a command-line journal for developers. You log what you did. Gournal turns the log into standups and work logs.
+Gournal is a work journal for you and your AI agents. You log what you did. Gournal turns the log into standups and work logs.
 
 Gournal stores everything on your machine in one SQLite database. It needs no account and no server. It stores no GitHub token.
 
 ## Who it is for
 
-Gournal is for developers who:
+Gournal is for people who:
 
 - give a standup update every day or every week,
 - forget what they did last Tuesday,
-- use an AI agent such as Claude Code and want the agent to keep the log,
+- work with an AI agent that runs local MCP servers, such as Claude Code, and want the agent to keep the log, whether they write code or not (product managers, founders, and leads too),
 - want to see their pull requests next to their notes.
+
+Install and setup need a terminal and Node.js once. After that, your agent can log work and read reports through MCP.
 
 ## How the parts fit
 

@@ -1,6 +1,6 @@
 ---
 name: gournal
-description: A command-line work journal. Muted Dracula: lavender paper and ink, serif reading text, mono for every command, one violet accent.
+description: A work journal for you and your AI agents. Muted Dracula: lavender paper and ink, serif reading text, mono for every command, one violet accent.
 colors:
   violet: "#5b45b8"
   violet-text: "#4f3aa6"
@@ -198,9 +198,9 @@ A restrained palette: tinted paper and ink neutrals plus one violet accent. Dark
 
 ## Layout
 
-The homepage hero is one column inside a container of max 76rem with a fluid gutter (clamp(1rem, 0.4rem + 3vw, 3rem)). The order is: title, lede, install plate (up to 36rem wide), requirement line, buttons on their own row, then the demo. The demo stage fills the container width. At 60rem and wider, the proof notes sit to the right of the 44rem terminal plate. Below 60rem, the notes are hidden. The hero has no margin column and no sticky element. The other sections (How it works, Local-first) still use the ledger: a margin column (minmax(17rem, 4fr)) and a specimen column (8fr), divided by a 1px violet rule. Below 60rem the ledger stacks to one column and the rule goes away. The transcript is sticky at 60rem and wider.
+The homepage hero is one column inside a container of max 76rem with a fluid gutter (clamp(1rem, 0.4rem + 3vw, 3rem)). The order is: title, lede, install plate (up to 36rem wide), requirement line, buttons on their own row, trust line, then the demo. The demo stage fills the container width. At 60rem and wider, the proof notes sit to the right of the 44rem terminal plate. Below 60rem, the notes are hidden. The hero has no margin column and no sticky element. The other sections (How it works, Local-first) still use the ledger: a margin column (minmax(17rem, 4fr)) and a specimen column (8fr), divided by a 1px violet rule. Below 60rem the ledger stacks to one column and the rule goes away. The transcript is sticky at 60rem and wider.
 
-Sections are divided by a 1px rule and padded clamp(3rem, 2rem + 5vw, 7rem). Spacing follows the 4px-based scale (0.25rem to 7rem). Feature tiles sit in three columns divided by hairlines at 60rem and wider, become specimen-beside-text rows from 40rem to 60rem, and stack below 40rem.
+Sections are divided by a 1px rule and padded clamp(3rem, 2rem + 5vw, 7rem). Spacing follows the 4px-based scale (0.25rem to 7rem). The Features section sits on raised paper (paper-raised), flat, with no shadow. It has a visible heading and an intro line above three tiles, one for each way to log: CLI, agents, and GitHub. Feature tiles sit in three columns divided by hairlines at 60rem and wider, become specimen-beside-text rows from 40rem to 60rem, and stack below 40rem.
 
 The docs keep Starlight's layout: one left sidebar, a 64rem content column that fills the space between the sidebar and the rail on most laptop screens, and the "On this page" rail. Wide tables and code scroll inside their own box. The page never scrolls sideways.
 
@@ -237,7 +237,7 @@ Corners are gently rounded: 4px for inline code, sidebar items, and small marks;
 - **Style:** a code-paper box with a hairline border that holds real output or a real call. It comes before the claim it proves.
 
 ### Navigation
-- **Homepage:** the mono site name with a violet `$` on the left, label-type links on the right, a hairline below. Links wrap under the name on narrow screens. Each link has a 2.75rem tap height. External links carry a small drawn arrow.
+- **Homepage:** the favicon mark (a violet prompt and a light cursor on a 22px terminal tile) before the mono site name on the left, label-type links on the right, a hairline below. Links wrap under the name on narrow screens. Each link has a 2.75rem tap height. GitHub and npm are 18px icons after a short strong-rule hairline. Each icon has an accessible name and a 2.75rem tap target.
 - **Docs:** Starlight's header and sidebar. The current sidebar item is a violet fill with on-violet text.
 
 ### Proof transcript (signature)

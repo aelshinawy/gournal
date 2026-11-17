@@ -175,6 +175,9 @@ p {
 }
 
 .g-nav__mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--g-space-2);
   font-family: var(--g-font-mono);
   font-weight: 600;
   font-size: 1.125rem;
@@ -183,9 +186,8 @@ p {
   text-decoration: none;
 }
 
-.g-nav__mark::before {
-  content: '$ ';
-  color: var(--g-accent-text);
+.g-nav__logo {
+  flex: none;
 }
 
 .g-nav__links {
@@ -212,8 +214,23 @@ p {
   color: var(--g-accent-text);
 }
 
-.g-ext {
-  opacity: 0.7;
+.g-nav__icons {
+  display: flex;
+  align-items: center;
+}
+
+/* A short hairline sets the external icons apart from the page links. */
+.g-nav__icons::before {
+  content: '';
+  width: 1px;
+  height: 1.125rem;
+  margin-inline-end: var(--g-space-2);
+  background: var(--g-rule-strong);
+}
+
+.g-nav__links .g-nav__icon {
+  justify-content: center;
+  min-width: 2.75rem;
 }
 
 @media (max-width: 30rem) {
@@ -265,6 +282,23 @@ p {
   background: none;
   border: 0;
   padding: 0;
+}
+
+.g-hero__trust {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--g-font-ui);
+  font-size: var(--g-text-sm);
+  color: var(--g-ink-muted);
+}
+
+/* The dot ends each item, so a wrapped line never starts with one. */
+.g-hero__trust li:not(:last-child)::after {
+  content: '\00b7';
+  margin-inline: var(--g-space-2);
 }
 
 /* Install plate. */
@@ -550,10 +584,27 @@ p {
   letter-spacing: -0.02em;
 }
 
+/* The features band sits on raised paper for a change of tone. Flat, no shadow. */
+.g-features {
+  background: var(--g-paper-raised);
+}
+
 /* Feature tiles: specimen first, then the claim. Columns divided by hairlines, no boxes. */
 .g-features__grid {
   display: grid;
   gap: var(--g-space-7);
+}
+
+.g-features__head {
+  margin-bottom: var(--g-space-7);
+}
+
+.g-features__head p {
+  margin-top: var(--g-space-3);
+  max-width: 52ch;
+  font-size: var(--g-text-md);
+  line-height: 1.5;
+  color: var(--g-ink-soft);
 }
 
 @media (min-width: 60rem) {
@@ -577,6 +628,7 @@ p {
   .g-tile + .g-tile {
     border-inline-start: 1px solid var(--g-rule);
   }
+
 }
 
 .g-tile {
@@ -724,6 +776,13 @@ p {
   font-family: var(--g-font-ui);
   font-size: var(--g-text-sm);
   color: var(--g-ink-muted);
+}
+
+.g-how__more {
+  margin-top: var(--g-space-5);
+  font-family: var(--g-font-ui);
+  font-size: var(--g-text-sm);
+  font-weight: 600;
 }
 
 .g-steps {
