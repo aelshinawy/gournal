@@ -1,6 +1,6 @@
 ---
 name: gournal
-description: A command-line work journal. Muted Dracula: lavender paper and ink, serif reading text, mono for every command, one violet accent.
+description: A work journal for you and your AI agents. Muted Dracula: lavender paper and ink, serif reading text, mono for every command, one violet accent.
 colors:
   violet: "#5b45b8"
   violet-text: "#4f3aa6"
@@ -198,9 +198,9 @@ A restrained palette: tinted paper and ink neutrals plus one violet accent. Dark
 
 ## Layout
 
-The homepage hero is one column inside a container of max 76rem with a fluid gutter (clamp(1rem, 0.4rem + 3vw, 3rem)). The order is: title, lede, install plate (up to 36rem wide), requirement line, buttons on their own row, then the demo. The demo stage fills the container width. At 60rem and wider, the proof notes sit to the right of the 44rem terminal plate. Below 60rem, the notes are hidden. The hero has no margin column and no sticky element. The other sections (How it works, Local-first) still use the ledger: a margin column (minmax(17rem, 4fr)) and a specimen column (8fr), divided by a 1px violet rule. Below 60rem the ledger stacks to one column and the rule goes away. The transcript is sticky at 60rem and wider.
+The homepage hero is one column inside a container of max 76rem with a fluid gutter (clamp(1rem, 0.4rem + 3vw, 3rem)). The order is: title, lede, install plate (up to 36rem wide), requirement line, buttons on their own row, trust line, then the demo. The demo stage fills the container width. At 60rem and wider, the proof notes sit to the right of the 44rem terminal plate. Below 60rem, the notes are hidden. The hero has no margin column and no sticky element. The other sections (How it works, Local-first) still use the ledger: a margin column (minmax(17rem, 4fr)) and a specimen column (8fr), divided by a 1px violet rule. Below 60rem the ledger stacks to one column and the rule goes away. The transcript is sticky at 60rem and wider.
 
-Sections are divided by a 1px rule and padded clamp(3rem, 2rem + 5vw, 7rem). Spacing follows the 4px-based scale (0.25rem to 7rem). Feature tiles sit in three columns divided by hairlines at 60rem and wider, become specimen-beside-text rows from 40rem to 60rem, and stack below 40rem.
+Sections are divided by a 1px rule and padded clamp(3rem, 2rem + 5vw, 7rem). Spacing follows the 4px-based scale (0.25rem to 7rem). The Features section has a visible heading and an intro line above four tiles: three inputs (CLI, agents, GitHub) and one output (standups). At 60rem and wider, the output tile has a stronger rule (rule-strong) on its inline-start side. Feature tiles sit in four columns divided by hairlines at 80rem and wider, in two columns by two rows from 60rem to 80rem, become specimen-beside-text rows from 40rem to 60rem, and stack below 40rem.
 
 The docs keep Starlight's layout: one left sidebar, a 64rem content column that fills the space between the sidebar and the rail on most laptop screens, and the "On this page" rail. Wide tables and code scroll inside their own box. The page never scrolls sideways.
 

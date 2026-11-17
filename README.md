@@ -1,18 +1,21 @@
 # Gournal
 
-**A Developer's Command-Line Journal with Git Integration**
+**Your work, remembered.**
+
+A personal work journal for you and your AI agents.
 
 [![CI](https://github.com/aelshinawy/gournal/actions/workflows/ci.yml/badge.svg)](https://github.com/aelshinawy/gournal/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/gournal)](https://www.npmjs.com/package/gournal)
 [![npm downloads](https://img.shields.io/npm/dm/gournal)](https://www.npmjs.com/package/gournal)
 [![License: MIT](https://img.shields.io/npm/l/gournal)](https://opensource.org/licenses/MIT)
 
-Gournal is a command-line work journal. You log what you did, and gournal builds your standups and work logs from the entries. It stores everything in a local SQLite database. It needs no account and stores no token. It links your entries to the pull requests, commits, and reviews that `gh` reports. An MCP server lets AI agents such as Claude Code log work for you.
+Gournal is a local-first work journal. You log what you finish from the terminal, or your AI agent logs it through MCP. Gournal links entries to the pull requests, commits, and reviews that `gh` reports. It turns the journal into standups, work logs, and searchable history. It keeps one SQLite file on your machine. It needs no account and stores no tokens.
 
 ![gournal demo](https://raw.githubusercontent.com/aelshinawy/gournal/main/demo.gif)
 
 ## Table of Contents
 
+- [Who it is for](#who-it-is-for)
 - [Install](#install)
 - [Connect your AI agent](#connect-your-ai-agent)
 - [How it works](#how-it-works)
@@ -22,6 +25,13 @@ Gournal is a command-line work journal. You log what you did, and gournal builds
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [License](#license)
+
+## Who it is for
+
+- Developers who give standups and want their pull requests next to their notes.
+- Anyone who works with an AI agent that runs local MCP servers, such as Claude Code, and wants the agent to keep the log. That includes product managers, founders, and leads.
+
+Install and setup need a terminal and Node.js once. After that, your agent can log work and read reports through MCP.
 
 ## Install
 

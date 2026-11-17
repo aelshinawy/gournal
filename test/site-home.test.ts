@@ -7,7 +7,7 @@ const siteSrc = path.join(root, 'site/src');
 const builtHome = path.join(root, 'site/dist/index.html');
 const { BASE } = siteConfig;
 const escapeRe = (t: string): string => t.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
-const PLACEHOLDER = "A Developer's Command-Line Journal with Git Integration";
+const PITCH = "Your work, remembered.";
 
 function walk(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
@@ -16,15 +16,15 @@ function walk(dir: string): string[] {
   });
 }
 
-test('the pitch line appears once and is the placeholder value', () => {
+test('the pitch line appears once and is the pitch value', () => {
   const pitch = fs.readFileSync(path.join(siteSrc, 'pitch.ts'), 'utf8');
-  expect(pitch).toContain(`export const PITCH_LINE = ${JSON.stringify(PLACEHOLDER)};`);
+  expect(pitch).toContain(`export const PITCH_LINE = ${JSON.stringify(PITCH)};`);
 
   // No other source file defines the pitch line or repeats its text.
   const others = walk(siteSrc).filter((f) => /\.(astro|ts|tsx|js|mjs|md|mdx|css)$/.test(f) && !f.endsWith('pitch.ts'));
   for (const f of others) {
     const text = fs.readFileSync(f, 'utf8');
-    expect(text).not.toContain(PLACEHOLDER);
+    expect(text).not.toContain(PITCH);
     expect(text).not.toMatch(/PITCH_LINE\s*=/);
   }
 
@@ -56,7 +56,7 @@ describeBuilt('built homepage', () => {
   });
 
   test('the built page shows the pitch line once, as the h1', () => {
-    const text = PLACEHOLDER.replace("'", '(?:\'|&#39;|&apos;)');
+    const text = escapeRe(PITCH);
     expect(html.match(new RegExp(text, 'g'))?.length).toBe(1);
     expect(html).toMatch(new RegExp(`<h1[^>]*>\\s*${text}\\s*</h1>`));
   });
@@ -73,9 +73,27 @@ describeBuilt('built homepage', () => {
   });
   test('the demo comes after the hero actions in document order', () => {
     const hero = /<section class="g-hero"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
-    const order = ['<h1', 'g-hero__lede', 'g-install"', 'g-hero__req', 'g-actions', 'g-demo"'].map((m) => hero.indexOf(m));
+    const order = ['<h1', 'g-hero__lede', 'g-install"', 'g-hero__req', 'g-actions', 'g-hero__trust', 'g-demo"'].map((m) => hero.indexOf(m));
     for (const i of order) expect(i).toBeGreaterThan(-1);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  test('the hero links to the How it works section, and that section exists', () => {
+    const hero = /<section class="g-hero"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+    expect(hero).toMatch(/<a [^>]*href="#how-it-works"/);
+    expect(html).toMatch(/<section [^>]*id="how-it-works"/);
+  });
+
+  test('the hero trust line lists the local-first facts', () => {
+    const trust = /<ul class="g-hero__trust"[\s\S]*?<\/ul>/.exec(html)?.[0] ?? '';
+    const items = [...trust.matchAll(/<li[^>]*>([^<]+)<\/li>/g)].map((m) => m[1]);
+    expect(items).toEqual(['Local-first', 'One SQLite file', 'No account', 'No tokens stored', 'Open source (MIT)']);
+  });
+
+  test('the features show three inputs, then the standup output last', () => {
+    const features = /<section class="g-section g-features"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+    const titles = [...features.matchAll(/<h3[^>]*>([^<]+)<\/h3>/g)].map((m) => m[1]);
+    expect(titles).toEqual(['Log it yourself', 'Agents log for you', 'GitHub, linked', 'Standups that write themselves']);
   });
 
   test('the hero has no ledger margin column', () => {
@@ -86,7 +104,7 @@ describeBuilt('built homepage', () => {
     expect(hero).not.toContain('g-hero__specimen');
   });
   test('the head has the title, canonical link, social tags, and sitemap link', () => {
-    expect(html).toContain('<title>gournal: a command-line work journal</title>');
+    expect(html).toContain('<title>gournal: a work journal for you and your AI agents</title>');
     expect(html).toContain(`<link rel="canonical" href="${siteConfig.canonical}"`);
     for (const prop of ['og:title', 'og:description', 'og:type', 'og:url', 'og:site_name']) {
       expect(html).toMatch(new RegExp(`<meta property="${prop}" content="[^"]+"`));
@@ -97,7 +115,7 @@ describeBuilt('built homepage', () => {
     expect(desc.length).toBeGreaterThan(0);
     expect(desc.length).toBeLessThanOrEqual(160);
     expect(html).toContain(`<meta property="og:description" content="${desc}"`);
-    expect(desc).toBe('Gournal is a local-first command-line work journal. It keeps all data in SQLite on your machine, needs no account, and stores no tokens.');
+    expect(desc).toBe('Gournal is a local-first work journal for you and your AI agents. It keeps every entry in SQLite on your machine, needs no account, and stores no tokens.');
   });
 
   test('the demo video has an accessible label', () => {

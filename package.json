@@ -47,7 +47,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "A developer's command-line journal with Git integration: log work, generate standup reports, and export your history to Markdown or CSV.",
+  "description": "A local-first work journal for you and your AI agents: log work from the CLI or MCP, link GitHub activity, and generate standups and work logs.",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.0",
     "chalk": "^4.1.2",

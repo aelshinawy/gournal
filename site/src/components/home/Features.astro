@@ -4,8 +4,24 @@ const base = import.meta.env.BASE_URL;
 
 <section class="g-section g-features" aria-labelledby="g-features-title">
   <div class="g-wrap">
-    <h2 id="g-features-title" class="g-visually-hidden">What gournal does</h2>
+    <div class="g-features__head">
+      <h2 id="g-features-title" class="g-h2">Three ways in. One journal.</h2>
+      <p>
+        You and your agent write the entries. Gournal links your GitHub activity to them.
+      </p>
+    </div>
     <div class="g-features__grid">
+      <article class="g-tile">
+        <pre class="g-tile__specimen" tabindex="0" aria-label="Example gournal add command"><code><span class="t-dim">$</span> gournal add "Fixed the token refresh race" -t auth
+<span class="t-grn">✓</span> Entry added! <span class="t-acc">(5C9ASMEJ)</span></code></pre>
+        <h3>Log it yourself</h3>
+        <p>
+          <code>gournal add</code> records done work, blockers, and next steps in one line. Gournal fills in the
+          project, repo, and branch from your folder. <code>gournal find</code> searches every entry.
+        </p>
+        <a class="g-tile__more" href={`${base}docs/reference/add/`}>The add command</a>
+      </article>
+
       <article class="g-tile">
         <pre class="g-tile__specimen" tabindex="0" aria-label="Example MCP call"><code><span class="t-dim">tools/call</span> add_entry
 { <span class="t-key">"summary"</span>: "Wrote retry tests",
@@ -21,6 +37,18 @@ const base = import.meta.env.BASE_URL;
       </article>
 
       <article class="g-tile">
+        <pre class="g-tile__specimen" tabindex="0" aria-label="Example linked pull request"><code><span class="t-dim">10:41</span>  Fixed token refresh race
+       <span class="t-dim">↳ merged #412</span>
+       <span class="t-dim">↳ 3 commits</span></code></pre>
+        <h3>GitHub, linked</h3>
+        <p>
+          <code>gournal sync</code> reads your pull requests, commits, and reviews through the <code>gh</code> CLI. It
+          links each item to an entry by PR number, commit sha, or branch and time. Items not linked to a done entry in the report go to the Also line.
+        </p>
+        <a class="g-tile__more" href={`${base}docs/guides/github-activity/`}>GitHub activity</a>
+      </article>
+
+      <article class="g-tile">
         <pre class="g-tile__specimen" tabindex="0" aria-label="Example blockers and next items"><code><span class="t-red">Blockers</span>
   <span class="t-dim">Nov 14</span>  Waiting on keys  <span class="t-acc">[api]</span>
 
@@ -32,18 +60,6 @@ const base = import.meta.env.BASE_URL;
           forward until an entry resolves them. Ask for <code>--yesterday</code>, <code>--week</code>, or a date range.
         </p>
         <a class="g-tile__more" href={`${base}docs/guides/standups-and-work-logs/`}>Standups and work logs</a>
-      </article>
-
-      <article class="g-tile">
-        <pre class="g-tile__specimen" tabindex="0" aria-label="Example linked pull request"><code><span class="t-dim">10:41</span>  Fixed token refresh race
-       <span class="t-dim">↳ merged #412</span>
-       <span class="t-dim">↳ 3 commits</span></code></pre>
-        <h3>GitHub, linked</h3>
-        <p>
-          <code>gournal sync</code> reads your pull requests, commits, and reviews through the <code>gh</code> CLI. It
-          links each item to an entry by PR number, commit sha, or branch and time. Items not linked to a done entry in the report go to the Also line.
-        </p>
-        <a class="g-tile__more" href={`${base}docs/guides/github-activity/`}>GitHub activity</a>
       </article>
     </div>
   </div>
