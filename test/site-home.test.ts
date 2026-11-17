@@ -90,10 +90,10 @@ describeBuilt('built homepage', () => {
     expect(items).toEqual(['Local-first', 'SQLite file', 'No account', 'No tokens stored']);
   });
 
-  test('the features show three inputs, then the standup output last', () => {
+  test('the features show the three ways to log', () => {
     const features = /<section class="g-section g-features"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
     const titles = [...features.matchAll(/<h3[^>]*>([^<]+)<\/h3>/g)].map((m) => m[1]);
-    expect(titles).toEqual(['Log it yourself', 'Agents log for you', 'GitHub, linked', 'Standups that write themselves']);
+    expect(titles).toEqual(['Log it yourself', 'Agents log for you', 'GitHub, linked']);
   });
 
   test('the hero has no ledger margin column', () => {

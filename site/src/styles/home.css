@@ -585,40 +585,9 @@ p {
   color: var(--g-ink-soft);
 }
 
-/* 60rem to 80rem: two columns by two rows. From 80rem: four columns. Both use hairline dividers, no boxes. */
-@media (min-width: 60rem) and (max-width: 79.99rem) {
+@media (min-width: 60rem) {
   .g-features__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0;
-  }
-
-  .g-tile:nth-child(odd) {
-    padding-inline: 0 var(--g-space-6);
-  }
-
-  .g-tile:nth-child(even) {
-    padding-inline: var(--g-space-6) 0;
-    border-inline-start: 1px solid var(--g-rule);
-  }
-
-  .g-tile:nth-child(-n + 2) {
-    padding-bottom: var(--g-space-6);
-  }
-
-  .g-tile:nth-child(n + 3) {
-    padding-top: var(--g-space-6);
-    border-top: 1px solid var(--g-rule);
-  }
-
-  /* The fourth tile is the output side: its dividers are stronger. */
-  .g-tile:nth-child(4) {
-    border-inline-start-color: var(--g-rule-strong);
-  }
-}
-
-@media (min-width: 80rem) {
-  .g-features__grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0;
   }
 
@@ -638,9 +607,6 @@ p {
     border-inline-start: 1px solid var(--g-rule);
   }
 
-  .g-tile:nth-child(4) {
-    border-inline-start-color: var(--g-rule-strong);
-  }
 }
 
 .g-tile {
