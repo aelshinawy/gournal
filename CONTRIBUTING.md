@@ -139,6 +139,10 @@ A manual tag also works for an emergency. The tag must match the version in `pac
 3. Run the checks above.
 4. Fill in the pull request template.
 
+## Code of conduct
+
+All contributors follow the [Code of Conduct](CODE_OF_CONDUCT.md). Read it before you open an issue or a pull request.
+
 ## Security
 
 Do not report a vulnerability in an issue or a pull request. Read [SECURITY.md](SECURITY.md).

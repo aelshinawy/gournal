@@ -148,7 +148,7 @@ Read the guides and the full reference at [gournal.aelshinawy.com/docs](https://
 
 ## Contributing
 
-Bug reports and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the setup, the tests, and the commit rules. Report security problems as described in [SECURITY.md](SECURITY.md).
+Bug reports and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the setup, the tests, and the commit rules. Report security problems as described in [SECURITY.md](SECURITY.md). All contributors follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
