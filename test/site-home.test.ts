@@ -87,7 +87,7 @@ describeBuilt('built homepage', () => {
   test('the hero trust line lists the local-first facts', () => {
     const trust = /<ul class="g-hero__trust"[\s\S]*?<\/ul>/.exec(html)?.[0] ?? '';
     const items = [...trust.matchAll(/<li[^>]*>([^<]+)<\/li>/g)].map((m) => m[1]);
-    expect(items).toEqual(['Local-first', 'One SQLite file', 'No account', 'No tokens stored', 'Open source (MIT)']);
+    expect(items).toEqual(['Local-first', 'SQLite file', 'No account', 'No tokens stored']);
   });
 
   test('the features show three inputs, then the standup output last', () => {
