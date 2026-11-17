@@ -90,6 +90,19 @@ describeBuilt('built homepage', () => {
     expect(items).toEqual(['Local-first', 'SQLite file', 'No account', 'No tokens stored']);
   });
 
+  test('the nav shows GitHub and npm as named icon links', () => {
+    const icons = /<li class="g-nav__icons"[\s\S]*?<\/li>/.exec(html)?.[0] ?? '';
+    const names = [...icons.matchAll(/<a [^>]*aria-label="([^"]+)"/g)].map((m) => m[1]);
+    expect(names).toEqual(['GitHub', 'npm']);
+    expect(icons).toContain('href="https://github.com/aelshinawy/gournal"');
+    expect(icons).toContain('href="https://www.npmjs.com/package/gournal"');
+  });
+
+  test('How it works links to the standups guide', () => {
+    const how = /<section [^>]*class="g-section g-how"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
+    expect(how).toContain(`href="${BASE}docs/guides/standups-and-work-logs/"`);
+  });
+
   test('the features show the three ways to log', () => {
     const features = /<section class="g-section g-features"[\s\S]*?<\/section>/.exec(html)?.[0] ?? '';
     const titles = [...features.matchAll(/<h3[^>]*>([^<]+)<\/h3>/g)].map((m) => m[1]);

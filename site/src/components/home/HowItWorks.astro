@@ -1,4 +1,5 @@
 ---
+const base = import.meta.env.BASE_URL;
 // The four steps mark the standup lines that they make. The transcript is the same standup as the recording.
 const steps = [
   {
@@ -82,6 +83,7 @@ for (const [step, html] of lines) {
           ))
         }
       </ol>
+      <p class="g-how__more"><a href={`${base}docs/guides/standups-and-work-logs/`}>Standups and work logs</a></p>
     </div>
 
     <figure class="g-ledger__specimen g-transcript" aria-labelledby="g-transcript-caption">
