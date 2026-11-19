@@ -54,11 +54,11 @@ module.exports = {
       },
     },
     {
-      name: 'no-chalk-in-plain-renderers',
-      comment: 'Plain renderers never emit ANSI codes.',
+      name: 'no-style-in-plain-renderers',
+      comment: 'Plain renderers never emit ANSI codes. They import neither the style module nor node:util.',
       severity: 'error',
       from: { path: SRC + 'render/(markdown|json|csv|format)\\.ts$' },
-      to: { path: '(?:^|/)node_modules/chalk(?:/|$)' },
+      to: { path: [SRC + 'render/style\\.ts$', '^(?:node:)?util$'] },
     },
   ],
   options: {
