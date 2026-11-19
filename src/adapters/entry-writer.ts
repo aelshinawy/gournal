@@ -37,7 +37,7 @@ export interface UpdateInput {
 }
 
 export interface EntryWriterOptions {
-  /** On: a too-long summary without details is rejected once, and a retry within RETRY_WINDOW_MS is split. Off: it is always split. */
+  /** Applies to add and update. On: a too-long summary without details is rejected once, and a retry within RETRY_WINDOW_MS is split. Off: it is always split. */
   retryMemory: boolean;
   /** Epoch milliseconds. Feeds the retry memory only. */
   clock: () => number;
@@ -83,16 +83,25 @@ export function createEntryWriter(
     return notes;
   };
 
-  const add = (input: AddInput): WriteResult => {
+  // The summary rule that add and update share. A rejected summary is remembered when retry memory is on.
+  const applySummaryRule = (
+    summary: string,
+    details: string | undefined,
+  ): { summary: string; details: string | null; split: boolean } => {
     const now = opts.clock();
-    const text = input.summary.trim();
+    const text = summary.trim();
     const retry = opts.retryMemory && isRetry(text, now);
-    const allowSplit = !opts.retryMemory || input.details !== undefined || retry;
-    const check = checkSummary(input.summary, input.details, { allowSplit });
+    const allowSplit = !opts.retryMemory || details !== undefined || retry;
+    const check = checkSummary(summary, details, { allowSplit });
     if (!check.ok) {
       if (opts.retryMemory) rejected.set(text, now);
       throw new Error(check.error);
     }
+    return { summary: check.summary, details: check.details, split: check.summary !== text };
+  };
+
+  const add = (input: AddInput): WriteResult => {
+    const check = applySummaryRule(input.summary, input.details);
     const similar = similarTagNotes(input.tags);
     const base: NewEntryInput = {
       summary: check.summary,
@@ -128,7 +137,7 @@ export function createEntryWriter(
     });
     relinkAfterWrite(journal, [entry.id]);
     const notes: WriteNote[] = [...similar, ...dropped];
-    if (check.summary !== text) notes.push({ type: 'split' });
+    if (check.split) notes.push({ type: 'split' });
     return { entry, notes };
   };
 
@@ -136,11 +145,10 @@ export function createEntryWriter(
     const patch: EntryPatch = {};
     let split = false;
     if (input.summary !== undefined) {
-      const check = checkSummary(input.summary, input.details, { allowSplit: input.details !== undefined });
-      if (!check.ok) throw new Error(check.error);
+      const check = applySummaryRule(input.summary, input.details);
       patch.summary = check.summary;
       if (check.details !== null) patch.details = check.details;
-      split = check.summary !== input.summary.trim();
+      split = check.split;
     } else if (input.details !== undefined) {
       patch.details = input.details;
     }
