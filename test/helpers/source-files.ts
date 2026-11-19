@@ -14,3 +14,8 @@ export function tsFiles(dir: string, skip: string[] = []): string[] {
   });
   return walk(path.join(ROOT, dir)).sort();
 }
+
+/** Line count as wc -l gives it: the number of newline characters. */
+export function lineCount(rel: string): number {
+  return (fs.readFileSync(path.join(ROOT, rel), 'utf8').match(/\n/g) ?? []).length;
+}
