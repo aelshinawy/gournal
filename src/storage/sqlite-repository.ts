@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { hasLineBreak, mergeRefs, newId, normalizeTags, resolveProjectAlias, resolveQuery, stripControl, cleanDetails, cleanOpt, cleanProject, cleanRefs, summaryLength, MAX_SUMMARY } from '../core';
+import { hasLineBreak, mergeRefs, newId, normalizeTags, resolveProjectAlias, resolveQuery, stripControl, cleanDetails, cleanOpt, cleanProject, cleanRefs, summaryLength, MAX_SUMMARY, NOT_RESOLVABLE, canResolve, noEntryMessage } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Query, Ref } from '../core';
 import type { EntryRepository } from '../core';
 import { BUMP_UPDATED_AT, createWriter } from './writer';
@@ -29,7 +29,7 @@ function cleanSummary(raw: string): string {
 }
 
 const isActionable = (kind: string | null): boolean => kind === 'blocker' || kind === 'next';
-const noEntry = (input: string): Error => new Error(`No entry with id "${input}"`);
+const noEntry = (input: string): Error => new Error(noEntryMessage(input));
 
 export function createRepository(db: DatabaseSync, config: Config, dbPath: string, writer: Writer = createWriter(db, dbPath)): EntryRepository {
   const normalize = (tags: string[]) => normalizeTags(tags, config.tagAliases, { ticketPrefixes: config.ticketPrefixes });
@@ -41,7 +41,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
 
   function load(id: string): Entry {
     const row = db.prepare('SELECT * FROM entries WHERE id = ?').get(id) as Row | undefined;
-    if (!row) throw new Error(`No entry with id "${id}"`);
+    if (!row) throw new Error(noEntryMessage(id));
     return hydrate([row])[0];
   }
 
@@ -68,7 +68,7 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
   function resolveInTx(inputId: string, byEntryId: string | null, now: number): string {
     const id = requireId(inputId);
     const row = db.prepare('SELECT kind, status FROM entries WHERE id = ?').get(id) as { kind: string | null; status: string | null };
-    if (!isActionable(row.kind) || row.status !== 'open') throw new Error('only an open blocker or next can be resolved');
+    if (!canResolve(row.kind, row.status)) throw new Error(NOT_RESOLVABLE);
     db.prepare(`UPDATE entries SET status = 'resolved', resolved_at = ?, resolved_by_entry_id = ?, ${BUMP_UPDATED_AT} WHERE id = ?`)
       .run(now, byEntryId, now, id);
     return id;

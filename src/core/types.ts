@@ -12,6 +12,13 @@ export function parseStatus(value: string): Status {
   if (!(STATUSES as readonly string[]).includes(value)) throw new Error(`Unknown status "${value}". Use open or resolved.`);
   return value as Status;
 }
+
+export const NOT_RESOLVABLE = 'only an open blocker or next can be resolved';
+export const noEntryMessage = (id: string): string => `No entry with id "${id}"`;
+/** True only for an open blocker or next. */
+export function canResolve(kind: string | null, status: string | null): boolean {
+  return (kind === 'blocker' || kind === 'next') && status === 'open';
+}
 export const EXPORT_FORMATS = ['md', 'csv', 'bundle'] as const;
 export type RefType = 'pr' | 'jira' | 'commit' | 'url';
 export interface Ref { type: RefType; value: string; repo?: string }
