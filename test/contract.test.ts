@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import type { Command } from 'commander';
 import { buildProgram } from '../src/adapters/cli';
 import { createServer } from '../src/adapters/mcp';
