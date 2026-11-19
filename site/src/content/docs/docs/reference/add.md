@@ -28,7 +28,7 @@ gournal add <summary> [options]
 | `-t, --tags <tags>` | Tag the entry. Separate tags with commas. | (empty) |
 | `-d, --details <text>` | Save longer text with the entry. The summary stays one line. |  |
 | `-k, --kind <kind>` | Set the entry kind: done (default), blocker, or next. | `done` |
-| `--resolves <ids>` | Close the open blocker or next entries with these ids. Separate ids with commas. One unknown id stops the add, and gournal stores nothing. |  |
+| `--resolves <ids>` | Close the open blocker or next entries with these ids. Separate ids with commas. Gournal drops an id that it cannot resolve, adds the entry, and prints a note. |  |
 
 ## MCP tool: add_entry
 

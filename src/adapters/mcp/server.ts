@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { fileURLToPath } from 'url';
 import { execGh, resolveIdentity, type GhRunner } from '../../sources';
 import { maybeAutoSync, parseSince, runSync, syncSummaryLine } from '../sync';
-import { createEntryWriter, type EntryWriter, type WriteNote } from '../entry-writer';
+import { createEntryWriter, type EntryWriter } from '../entry-writer';
+import { writeNoteText } from '../write-note-text';
 import { resolveCallIdentity } from './identity';
 import { VERSION } from '../version';
 import { KINDS, OPTION_TEXT, STATUSES, shortId } from '../../core';
@@ -93,17 +94,9 @@ export function createServer(deps: ServerDeps = {}): McpServer {
   // One writer per server. It holds the retry memory, so it lives as long as the server.
   let writer: EntryWriter | undefined;
   const getWriter = (j: JournalLike): EntryWriter => {
-    writer ??= createEntryWriter(j, { retryMemory: true, clock: Date.now, resolves: 'lenient' });
+    writer ??= createEntryWriter(j, { retryMemory: true, clock: Date.now });
     return writer;
   };
-  const noteText = (note: WriteNote): string => {
-    switch (note.type) {
-      case 'similarTag': return `New tag "${note.tag}". Close existing tags: ${note.close.join(', ')}`;
-      case 'resolveDropped': return `Could not resolve ${note.id}: ${note.reason}`;
-      case 'split': return 'Summary was too long and was split; full text is in details.';
-    }
-  };
-
   /** Run a handler. Any throw becomes a tool error, never a protocol error. */
   const guarded = <A>(fn: (args: A, j: JournalLike) => ToolResult | Promise<ToolResult>) =>
     async (args: A) => {
@@ -157,7 +150,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
         summary: raw, details: args.details, kind: args.kind, identity: identityOfCall, source: 'mcp',
         agent: args.agent, tags: args.tags, refs: args.refs, resolves: args.resolves,
       });
-      const lines = notes.map(noteText);
+      const lines = notes.map(writeNoteText);
       return entryResult([`Entry ${shortId(entry.id)} added to ${entry.project}: ${entry.summary}`, ...lines].join('\n'), entry, lines);
     })
   );
