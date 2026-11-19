@@ -8,7 +8,7 @@ export { MAX_SUMMARY, summaryLength, splitSummary, checkSummary, hasLineBreak } 
 export { stripControl, cleanProject, cleanOpt, cleanDetails, cleanRefs } from './sanitize';
 export { mergeRefs, extractRefs } from './refs';
 export { normalizeTags, closeTags } from './tags';
-export { CONFIG_DEFAULTS, normalizeConfig, type Config } from './config';
+export { CONFIG_DEFAULTS, normalizeConfig, invalidConfig, isPlainObject, type Config } from './config';
 export { InvalidQueryError, cleanSearchTerms, parseBound, resolveProjectAlias, resolveQuery, type Query } from './query';
 export { resolvePeriod } from './periods';
 export { groupBy } from './group';

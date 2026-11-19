@@ -25,13 +25,12 @@ export const CONFIG_DEFAULTS: Omit<Config, 'deviceId' | 'projectAliases' | 'tagA
   github: { autoSync: true, autoSyncMinutes: 15, initialSyncDays: 30, owners: { include: [], exclude: [] } },
 };
 
-function invalid(file: string, reason: string): Error {
+export function invalidConfig(file: string, reason: string): Error {
   return new Error(`Config ${file} is not valid JSON object: ${reason}. Fix or delete it; gournal did not change it.`);
 }
 
 function isStringMap(v: unknown): v is Record<string, string> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
-    && Object.values(v).every((x) => typeof x === 'string');
+  return isPlainObject(v) && Object.values(v).every((x) => typeof x === 'string');
 }
 
 function isStringArray(v: unknown): v is string[] {
@@ -42,7 +41,7 @@ function isPositiveInt(v: unknown): v is number {
   return typeof v === 'number' && Number.isInteger(v) && v > 0;
 }
 
-function isObject(v: unknown): v is Record<string, unknown> {
+export function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
@@ -53,18 +52,18 @@ export function normalizeConfig(
   warn: (msg: string) => void,
 ): { config: Config; changed: boolean } {
   if (raw.deviceId !== undefined && (typeof raw.deviceId !== 'string' || !raw.deviceId)) {
-    throw invalid(file, 'deviceId must be a non-empty string');
+    throw invalidConfig(file, 'deviceId must be a non-empty string');
   }
   for (const key of ['projectAliases', 'tagAliases'] as const) {
-    if (raw[key] !== undefined && !isStringMap(raw[key])) throw invalid(file, `${key} must be an object of strings`);
+    if (raw[key] !== undefined && !isStringMap(raw[key])) throw invalidConfig(file, `${key} must be an object of strings`);
     const map = (raw[key] ?? {}) as Record<string, string>;
     for (const [k, v] of Object.entries(map)) {
-      if (v !== k && Object.hasOwn(map, v)) throw invalid(file, `alias chain at "${k}"`);
+      if (v !== k && Object.hasOwn(map, v)) throw invalidConfig(file, `alias chain at "${k}"`);
     }
   }
   const tp = raw.ticketPrefixes;
   if (tp !== undefined && !isStringArray(tp)) {
-    throw invalid(file, 'ticketPrefixes must be an array of strings');
+    throw invalidConfig(file, 'ticketPrefixes must be an array of strings');
   }
 
   const d = CONFIG_DEFAULTS;
@@ -85,7 +84,7 @@ export function normalizeConfig(
   const gh = raw.github;
   let g: Record<string, unknown> = {};
   if (gh !== undefined) {
-    if (isObject(gh)) g = gh;
+    if (isPlainObject(gh)) g = gh;
     else warn(`config ${file}: github must be an object; using defaults`);
   }
   let autoSync = d.github.autoSync;
@@ -95,7 +94,7 @@ export function normalizeConfig(
   }
   let owners: Record<string, unknown> = {};
   if (g.owners !== undefined) {
-    if (isObject(g.owners)) owners = g.owners;
+    if (isPlainObject(g.owners)) owners = g.owners;
     else warn(`config ${file}: github.owners must be an object; using defaults`);
   }
   const ownerList = (key: 'include' | 'exclude'): string[] => {
