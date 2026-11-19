@@ -152,6 +152,7 @@ describe('update summary rule', () => {
     const out = writer().update(e.id, { details: 'after' });
     expect(out.entry.summary).toBe('old');
     expect(out.entry.details).toBe('after');
+    expect(out.notes).toEqual([]);
   });
 
   test('update kind change reopens a resolved blocker', () => {

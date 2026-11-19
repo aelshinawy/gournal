@@ -368,7 +368,10 @@ test('update_entry with a split summary keeps one text line and no notes', async
 test('a retry through the server is split', async () => {
   const long = `${'word '.repeat(40)}end.`;
   expect((await call('add_entry', { summary: long, project: 'p' })).isError).toBe(true);
-  expect((await call('add_entry', { summary: long, project: 'p' })).isError).toBeFalsy();
+  const second = await call('add_entry', { summary: long, project: 'p' });
+  expect(second.isError).toBeFalsy();
+  expect(second.structuredContent.entry.details).toBe(long);
+  expect(second.structuredContent.entry.summary.length).toBeLessThanOrEqual(120);
 });
 
 test('delete_entry text result says removed and keeps the restore hint', async () => {
