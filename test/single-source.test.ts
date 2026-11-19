@@ -8,6 +8,8 @@ import { ROOT, tsFiles } from './helpers/source-files';
  */
 const FACTS: { fact: string; pattern: RegExp; owner: string }[] = [
   { fact: 'temp folder creation in tests', pattern: /\bmkdtemp(Sync)?\(/, owner: 'test/helpers/tmp.ts' },
+  { fact: 'the entry schema', pattern: /\bEntrySchema = z\.object\(/, owner: 'src/core/entry-schema.ts' },
+  { fact: 'the activity schema', pattern: /\bActivitySchema = z\.object\(/, owner: 'src/core/activity-schema.ts' },
 ];
 
 const self = path.relative(ROOT, __filename).split(path.sep).join('/');

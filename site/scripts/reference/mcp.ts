@@ -1,7 +1,7 @@
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { createServer } from '../../../src/adapters/mcp';
 import { z } from 'zod';
-import { ActivitySchema, EntrySchema } from '../../../src/render/json';
+import { ActivitySchema, EntrySchema } from '../../../src/core';
 import { demoteHeadings } from './cli';
 import { code, table } from './markdown';
 

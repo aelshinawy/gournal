@@ -1,50 +1,5 @@
 import { z } from 'zod';
-import type { Activity, Entry, StandupModel, WorkLogModel } from '../core';
-
-export const EntrySchema = z.object({
-  id: z.string().describe('Unique id of the entry. The last 8 characters work as a short id.'),
-  createdAt: z.string().describe('When the entry was created, as an ISO timestamp.'),
-  updatedAt: z.string().describe('When the entry last changed, as an ISO timestamp.'),
-  deletedAt: z.string().nullable().describe('When the entry was deleted, or null if it is not deleted.'),
-  deviceId: z.string().describe('Id of the device that created the entry.'),
-  summary: z.string().describe('One line that says what happened.'),
-  details: z.string().nullable().describe('Longer text for the entry, or null.'),
-  kind: z.enum(['done', 'blocker', 'next']).describe('done, blocker (something stops you), or next (a planned step).'),
-  status: z.enum(['open', 'resolved']).nullable().describe('open or resolved for a blocker or next entry. Null for a done entry.'),
-  resolvedAt: z.string().nullable().describe('When the entry was resolved, or null.'),
-  resolvedByEntryId: z.string().nullable().describe('Id of the entry that resolved this one, or null.'),
-  project: z.string().describe('Project name.'),
-  repo: z.string().nullable().describe('Repository (owner/name), or null.'),
-  branch: z.string().nullable().describe('Git branch, or null.'),
-  source: z.enum(['cli', 'mcp', 'migration']).describe('Where the entry came from: the CLI, the MCP server, or a migration.'),
-  agent: z.string().nullable().describe('Name of the agent that logged the entry, or null.'),
-  tags: z.array(z.string()).describe('Tags of the entry.'),
-  refs: z.array(z.object({
-    type: z.enum(['pr', 'jira', 'commit', 'url']).describe('Kind of reference.'),
-    value: z.string().describe('The PR number, ticket key, commit hash, or URL.'),
-    repo: z.string().optional().describe('Repository (owner/name) of the reference.'),
-  })).describe('References such as PRs and ticket keys.'),
-});
-export type EntryJson = z.infer<typeof EntrySchema>;
-
-export const ActivitySchema = z.object({
-  id: z.string().describe('Unique id of the activity item.'),
-  createdAt: z.string().describe('When gournal stored the item, as an ISO timestamp.'),
-  updatedAt: z.string().describe('When the item last changed, as an ISO timestamp.'),
-  deletedAt: z.string().nullable().describe('When the item was deleted, or null.'),
-  deviceId: z.string().describe('Id of the device that stored the item.'),
-  type: z.enum(['commit', 'pr_opened', 'pr_merged', 'review']).describe('Kind of activity: a commit, an opened PR, a merged PR, or a review.'),
-  occurredAt: z.string().describe('When the activity happened on GitHub, as an ISO timestamp.'),
-  repo: z.string().describe('Repository (owner/name).'),
-  branch: z.string().nullable().describe('Git branch of the PR, or null.'),
-  externalId: z.string().describe('Id of the item on GitHub: the PR number, commit hash, or review id.'),
-  title: z.string().nullable().describe('PR title or first line of the commit message, or null.'),
-  url: z.string().nullable().describe('GitHub URL of the item, or null.'),
-  capturedBy: z.literal('github').describe('Where the item came from. Always github.'),
-  pr: z.number().nullable().describe('PR number that the item belongs to, or null.'),
-  payload: z.record(z.string(), z.unknown()).describe('Extra data from GitHub, for example the review state.'),
-});
-type ActivityJson = z.infer<typeof ActivitySchema>;
+import { ActivitySchema, EntrySchema, type ActivityJson, type Activity, type Entry, type EntryJson, type StandupModel, type WorkLogModel } from '../core';
 
 const LinkedActivitySchema = z.record(z.string(), z.array(ActivitySchema).describe('Activity items linked to this entry.'));
 

@@ -1,6 +1,6 @@
-import { buildStandup, buildWorkLog, resolvePeriod } from '../../src/core';
+import { ActivitySchema, EntrySchema, buildStandup, buildWorkLog, resolvePeriod } from '../../src/core';
 import {
-  ActivitySchema, EntryListSchema, EntryResultSchema, EntrySchema, ProjectCountsSchema, StandupSchema, TagCountsSchema,
+  EntryListSchema, EntryResultSchema, ProjectCountsSchema, StandupSchema, TagCountsSchema,
   WorkLogSchema, entryJson, standupJson, workLogJson,
 } from '../../src/render';
 import { makeActivity, makeEntry } from '../core/factory';
