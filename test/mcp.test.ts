@@ -532,6 +532,18 @@ describe('sync_activity', () => {
     expect(text(r)).toContain('gh is not signed in');
   });
 
+  test('add_entry links to synced activity without the network', async () => {
+    journal.activity.upsert([{
+      type: 'pr_opened', occurredAt: new Date().toISOString(), repo: 'acme/widgets', branch: 'feat/x',
+      externalId: '5', title: 'Add x', url: null, pr: 5, payload: { pr: 5 },
+    }]);
+    const gh = ghFor();
+    const c = await connect(journal, { gh });
+    const r = await c.callTool({ name: 'add_entry', arguments: { summary: 'Did x', project: 'p', repo: 'acme/widgets', refs: [{ type: 'pr', value: '5' }] } }) as any;
+    const id = r.structuredContent.entry.id;
+    expect(journal.activity.linkedTo([id])[id]).toHaveLength(1);
+    expect(gh.calls).toHaveLength(0);
+  });
 });
 
 describe('get_standup and get_work_log with activity', () => {

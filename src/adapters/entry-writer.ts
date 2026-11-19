@@ -1,4 +1,5 @@
-// The Entry writer: the single place through which every change to an entry passes.
+// The Entry writer: the single place for every adapter-level entry change (add, update, resolve, delete, restore, undo, clear).
+// Bulk import and migration write through storage.
 // An adapter (CLI or MCP) parses its input, resolves the identity, and calls this module.
 // The summary rule, the resolves policy, the similar-tag check, and the relink live here.
 // The repository keeps `cleanSummary` as an invariant guard, so a bad summary never reaches the database.
