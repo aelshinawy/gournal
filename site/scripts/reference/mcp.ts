@@ -1,7 +1,6 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { createServer } from '../../../src/adapters/mcp';
-import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js';
+import { z } from 'zod';
 import { ActivitySchema, EntrySchema } from '../../../src/render/json';
 import { demoteHeadings } from './cli';
 import { code, table } from './markdown';
@@ -145,10 +144,10 @@ function childSchema(schema: JSONSchema, root: JSONSchema): { props?: Record<str
 
 /**
  * JSON Schema of a zod schema that tools share, without the description of the outer object. It uses the
- * converter and options of the MCP SDK, so the result compares equal to the schema in a tool listing.
+ * converter and the 2020-12 target that the MCP SDK uses, so the result compares equal to the schema in a tool listing.
  */
-function sharedSchema(schema: Parameters<typeof toJsonSchemaCompat>[0]): JSONSchema {
-  return withoutMeta(toJsonSchemaCompat(schema, { strictUnions: true, pipeStrategy: 'output' }) as JSONSchema);
+function sharedSchema(schema: z.ZodType): JSONSchema {
+  return withoutMeta(z.toJSONSchema(schema, { target: 'draft-2020-12', io: 'output' }) as JSONSchema);
 }
 
 function withoutMeta(schema: JSONSchema): JSONSchema {

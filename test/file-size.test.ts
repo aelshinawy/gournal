@@ -11,7 +11,7 @@ const MAX_LINES = 250;
  */
 const ALLOWED: Record<string, { max: number; phase: string }> = {
   'src/adapters/cli/program.ts': { max: 497, phase: 'Phase 6 (adapters)' },
-  'src/adapters/mcp/server.ts': { max: 405, phase: 'Phase 6 (adapters)' },
+  'src/adapters/mcp/server.ts': { max: 393, phase: 'Phase 6 (adapters)' },
   'src/adapters/setup/claude.ts': { max: 360, phase: 'Phase 6 (adapters)' },
   'src/storage/migrate.ts': { max: 326, phase: 'Phase 5 (storage)' },
   'src/storage/bundle.ts': { max: 297, phase: 'Phase 5 (storage)' },

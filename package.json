@@ -51,7 +51,7 @@
   },
   "description": "A local-first work journal for you and your AI agents: log work from the CLI or MCP, link GitHub activity, and generate standups and work logs.",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.32.0",
+    "@modelcontextprotocol/server": "2.4.0",
     "chalk": "^4.1.2",
     "commander": "^13.1.0",
     "date-fns": "^4.1.0",
@@ -59,6 +59,7 @@
     "zod": "^4.6.6"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
     "@swc/jest": "^0.2.37",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.12.0",

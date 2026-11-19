@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { McpServer } from '@modelcontextprotocol/server';
+import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import { z } from 'zod';
 import { fileURLToPath } from 'url';
 import { execGh, resolveIdentity, type GhRunner } from '../../sources';
@@ -118,8 +118,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
   const entryTags = (description: string) => z.array(z.string().max(CAPS.tag)).max(CAPS.tags).optional().describe(description);
   const entryRefs = (description: string) => z.array(refSchema).max(CAPS.refs).optional().describe(description);
 
-  server.registerTool(
-    'add_entry',
+  server.registerTool('add_entry',
     {
       title: 'Add journal entry',
       annotations: { destructiveHint: false },
@@ -157,8 +156,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     })
   );
 
-  server.registerTool(
-    'update_entry',
+  server.registerTool('update_entry',
     {
       title: 'Update journal entry',
       annotations: { destructiveHint: true },
@@ -186,8 +184,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     })
   );
 
-  server.registerTool(
-    'delete_entry',
+  server.registerTool('delete_entry',
     {
       title: 'Remove journal entry',
       annotations: { destructiveHint: true },
@@ -201,8 +198,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     })
   );
 
-  server.registerTool(
-    'resolve_entry',
+  server.registerTool('resolve_entry',
     {
       title: 'Resolve blocker or next entry',
       annotations: { destructiveHint: false },
@@ -235,8 +231,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     project?: string; repo?: string; tags?: string[];
   };
 
-  server.registerTool(
-    'find_entries',
+  server.registerTool('find_entries',
     {
       title: 'Find journal entries',
       annotations: { readOnlyHint: true },
@@ -263,8 +258,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     })
   );
 
-  server.registerTool(
-    'list_entries',
+  server.registerTool('list_entries',
     {
       title: 'List journal entries',
       annotations: { readOnlyHint: true },
@@ -284,8 +278,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     })
   );
 
-  server.registerTool(
-    'get_standup',
+  server.registerTool('get_standup',
     {
       title: 'Get standup report',
       // Not read-only: the tool syncs GitHub and writes to the database.
@@ -301,8 +294,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     })
   );
 
-  server.registerTool(
-    'get_work_log',
+  server.registerTool('get_work_log',
     {
       title: 'Get chronological work log',
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
@@ -317,8 +309,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     })
   );
 
-  server.registerTool(
-    'list_tags',
+  server.registerTool('list_tags',
     {
       title: 'List distinct tags',
       annotations: { readOnlyHint: true },
@@ -334,8 +325,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     })
   );
 
-  server.registerTool(
-    'list_projects',
+  server.registerTool('list_projects',
     {
       title: 'List distinct projects',
       annotations: { readOnlyHint: true },
@@ -349,8 +339,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     })
   );
 
-  server.registerTool(
-    'export_entries',
+  server.registerTool('export_entries',
     {
       title: 'Export journal entries',
       annotations: { readOnlyHint: true },
@@ -376,8 +365,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     })
   );
 
-  server.registerTool(
-    'sync_activity',
+  server.registerTool('sync_activity',
     {
       title: 'Sync GitHub activity',
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },

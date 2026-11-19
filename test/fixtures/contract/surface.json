@@ -550,7 +550,7 @@
               }
             }
           },
-          "$schema": "http://json-schema.org/draft-07/schema#"
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
         },
         "outputSchema": {
           "type": "object",
@@ -739,14 +739,11 @@
             "entry",
             "notes"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false
         },
         "annotations": {
           "destructiveHint": false
-        },
-        "execution": {
-          "taskSupport": "forbidden"
         }
       },
       {
@@ -834,7 +831,7 @@
           "required": [
             "id"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#"
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
         },
         "outputSchema": {
           "type": "object",
@@ -1023,14 +1020,11 @@
             "entry",
             "notes"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false
         },
         "annotations": {
           "destructiveHint": true
-        },
-        "execution": {
-          "taskSupport": "forbidden"
         }
       },
       {
@@ -1050,7 +1044,7 @@
           "required": [
             "id"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#"
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
         },
         "outputSchema": {
           "type": "object",
@@ -1239,14 +1233,11 @@
             "entry",
             "notes"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false
         },
         "annotations": {
           "destructiveHint": true
-        },
-        "execution": {
-          "taskSupport": "forbidden"
         }
       },
       {
@@ -1271,7 +1262,7 @@
           "required": [
             "id"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#"
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
         },
         "outputSchema": {
           "type": "object",
@@ -1460,14 +1451,11 @@
             "entry",
             "notes"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false
         },
         "annotations": {
           "destructiveHint": false
-        },
-        "execution": {
-          "taskSupport": "forbidden"
         }
       },
       {
@@ -1555,7 +1543,7 @@
               "type": "boolean"
             }
           },
-          "$schema": "http://json-schema.org/draft-07/schema#"
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
         },
         "outputSchema": {
           "type": "object",
@@ -1744,14 +1732,11 @@
             "entries",
             "count"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false
         },
         "annotations": {
           "readOnlyHint": true
-        },
-        "execution": {
-          "taskSupport": "forbidden"
         }
       },
       {
@@ -1788,7 +1773,7 @@
               "maximum": 500
             }
           },
-          "$schema": "http://json-schema.org/draft-07/schema#"
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
         },
         "outputSchema": {
           "type": "object",
@@ -1977,14 +1962,11 @@
             "entries",
             "count"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false
         },
         "annotations": {
           "readOnlyHint": true
-        },
-        "execution": {
-          "taskSupport": "forbidden"
         }
       },
       {
@@ -2030,7 +2012,7 @@
               }
             }
           },
-          "$schema": "http://json-schema.org/draft-07/schema#"
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
         },
         "outputSchema": {
           "type": "object",
@@ -2927,16 +2909,13 @@
             "also",
             "syncWarning"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false
         },
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
           "openWorldHint": true
-        },
-        "execution": {
-          "taskSupport": "forbidden"
         }
       },
       {
@@ -2982,7 +2961,7 @@
               }
             }
           },
-          "$schema": "http://json-schema.org/draft-07/schema#"
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
         },
         "outputSchema": {
           "type": "object",
@@ -3338,16 +3317,13 @@
             "linkedActivity",
             "syncWarning"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false
         },
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
           "openWorldHint": true
-        },
-        "execution": {
-          "taskSupport": "forbidden"
         }
       },
       {
@@ -3362,7 +3338,7 @@
               "type": "string"
             }
           },
-          "$schema": "http://json-schema.org/draft-07/schema#"
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
         },
         "outputSchema": {
           "type": "object",
@@ -3393,14 +3369,11 @@
           "required": [
             "tags"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false
         },
         "annotations": {
           "readOnlyHint": true
-        },
-        "execution": {
-          "taskSupport": "forbidden"
         }
       },
       {
@@ -3410,7 +3383,7 @@
         "inputSchema": {
           "type": "object",
           "properties": {},
-          "$schema": "http://json-schema.org/draft-07/schema#"
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
         },
         "outputSchema": {
           "type": "object",
@@ -3441,14 +3414,11 @@
           "required": [
             "projects"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false
         },
         "annotations": {
           "readOnlyHint": true
-        },
-        "execution": {
-          "taskSupport": "forbidden"
         }
       },
       {
@@ -3494,13 +3464,10 @@
               "maximum": 2000
             }
           },
-          "$schema": "http://json-schema.org/draft-07/schema#"
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
         },
         "annotations": {
           "readOnlyHint": true
-        },
-        "execution": {
-          "taskSupport": "forbidden"
         }
       },
       {
@@ -3515,7 +3482,7 @@
               "type": "string"
             }
           },
-          "$schema": "http://json-schema.org/draft-07/schema#"
+          "$schema": "https://json-schema.org/draft/2020-12/schema"
         },
         "outputSchema": {
           "type": "object",
@@ -3562,16 +3529,13 @@
             "linked",
             "warning"
           ],
-          "$schema": "http://json-schema.org/draft-07/schema#",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": false
         },
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
           "openWorldHint": true
-        },
-        "execution": {
-          "taskSupport": "forbidden"
         }
       }
     ]
