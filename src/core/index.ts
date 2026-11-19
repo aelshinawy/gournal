@@ -10,6 +10,9 @@ export { mergeRefs, extractRefs, type Ref } from './labels/refs';
 export { normalizeTags, closeTags } from './labels/tags';
 export { CONFIG_DEFAULTS, normalizeConfig, invalidConfig, isPlainObject, type Config } from './config';
 export { InvalidQueryError, cleanSearchTerms, parseBound, resolveQuery, type Query } from './entries/query';
+export {
+  formatMonthDay, formatWeekdayMonthDay, formatTime, formatWeekdayDayTime, formatWeekdayDayDashTime, formatDayTime, formatMonthWeekdayDayDashTime, parseIso,
+} from './dates';
 export { resolvePeriod } from './reports/periods';
 export { groupBy } from './reports/group';
 export { parseRemoteUrl, projectFor, resolveProjectAlias, type RepoIdentity } from './labels/project';

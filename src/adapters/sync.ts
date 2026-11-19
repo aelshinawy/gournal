@@ -1,7 +1,6 @@
 import { randomBytes } from 'crypto';
-import { format } from 'date-fns';
 import type { z } from 'zod';
-import { InvalidQueryError, parseBound } from '../core';
+import { formatMonthDay, InvalidQueryError, parseBound } from '../core';
 import type { SyncReportSchema } from '../render';
 import { fetchActivity, GhError, type GhRunner } from '../sources';
 import type { Journal } from '../storage';
@@ -60,7 +59,7 @@ export function parseSince(value: string): Date {
 }
 
 export function syncSummaryLine(r: Pick<SyncReport, 'since' | 'inserted' | 'updated' | 'linked'>): string {
-  return `Synced GitHub activity since ${format(new Date(r.since), 'MMM dd')}: ${r.inserted} new, ${r.updated} updated, ${r.linked} links.`;
+  return `Synced GitHub activity since ${formatMonthDay(new Date(r.since))}: ${r.inserted} new, ${r.updated} updated, ${r.linked} links.`;
 }
 
 function maxIso(a: string | null, b: string): string {

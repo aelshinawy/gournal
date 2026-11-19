@@ -1,5 +1,4 @@
-import { format, parseISO } from 'date-fns';
-import { groupBy, isEmptyStandup, shortId } from '../core';
+import { formatDayTime, formatMonthDay, formatTime, formatWeekdayDayTime, formatWeekdayMonthDay, groupBy, isEmptyStandup, parseIso, shortId } from '../core';
 import { alsoCountsText, alsoPrs, foldLines, plural } from './format';
 import type { Activity, Entry, StandupModel, WorkLogModel } from '../core';
 
@@ -9,14 +8,14 @@ const tagText = (e: Entry): string => e.tags.map((t) => ` #${t}`).join('');
 
 export function standupMarkdown(m: StandupModel): string {
   if (isEmptyStandup(m)) return NONE;
-  const timeFormat = m.isMultiDay ? 'EEE dd HH:mm' : 'HH:mm';
+  const time = m.isMultiDay ? formatWeekdayDayTime : formatTime;
   const open = (e: Entry): string =>
-    `- \`${shortId(e.id)}\` ${e.summary} (${e.project}, since ${format(new Date(e.createdAt), 'MMM dd')})`;
+    `- \`${shortId(e.id)}\` ${e.summary} (${e.project}, since ${formatMonthDay(new Date(e.createdAt))})`;
   const lines: string[] = [`## Standup: ${m.title}`, ''];
   if (m.done.length > 0) {
     lines.push('### Done', '');
     for (const { project, entries } of m.done) {
-      lines.push(`**${project}**`, ...entries.flatMap((e) => [`- ${format(new Date(e.createdAt), timeFormat)} ${e.summary}`, ...fold(m.linked[e.id])]), '');
+      lines.push(`**${project}**`, ...entries.flatMap((e) => [`- ${time(new Date(e.createdAt))} ${e.summary}`, ...fold(m.linked[e.id])]), '');
     }
   }
   if (m.blockers.length > 0) lines.push('### Blockers', ...m.blockers.map(open), '');
@@ -35,9 +34,9 @@ export function workLogMarkdown(m: WorkLogModel): string {
   if (m.count === 0) return NONE;
   const lines: string[] = [`## Work Log: ${m.title}`, ''];
   for (const { date, entries } of m.days) {
-    lines.push(`### ${format(parseISO(date), 'EEE MMM dd')}`);
+    lines.push(`### ${formatWeekdayMonthDay(parseIso(date))}`);
     for (const e of entries) {
-      lines.push(`- ${format(new Date(e.createdAt), 'HH:mm')} \`${shortId(e.id)}\` ${e.summary} [${e.project}]${tagText(e)}`, ...fold(m.linked[e.id]));
+      lines.push(`- ${formatTime(new Date(e.createdAt))} \`${shortId(e.id)}\` ${e.summary} [${e.project}]${tagText(e)}`, ...fold(m.linked[e.id]));
     }
     lines.push('');
   }
@@ -49,7 +48,7 @@ export function entriesMarkdown(entries: Entry[]): string {
   if (entries.length === 0) return NONE;
   const lines = entries.map((e) => {
     const suffix = e.kind === 'done' ? '' : ` (${[e.kind, e.status].filter(Boolean).join(', ')})`;
-    return `- ${format(new Date(e.createdAt), 'yyyy-MM-dd HH:mm')} \`${shortId(e.id)}\` [${e.project}] ${e.summary}${tagText(e)}${suffix}`;
+    return `- ${formatDayTime(new Date(e.createdAt))} \`${shortId(e.id)}\` [${e.project}] ${e.summary}${tagText(e)}${suffix}`;
   });
   return `${lines.join('\n')}\n`;
 }
@@ -60,7 +59,7 @@ export function exportMarkdown(entries: Entry[]): string {
     `## ${project}\n\n` +
     list.map((e) => {
       const message = e.details ? `${e.summary}\n\n${e.details}` : e.summary;
-      return `- \`${format(new Date(e.createdAt), 'yyyy-MM-dd HH:mm')}\` ${message}${e.tags.length ? ` (${e.tags.map((t) => `#${t}`).join(' ')})` : ''}`;
+      return `- \`${formatDayTime(new Date(e.createdAt))}\` ${message}${e.tags.length ? ` (${e.tags.map((t) => `#${t}`).join(' ')})` : ''}`;
     }).join('\n'),
   ).join('\n\n');
   return `# Gournal Export\n\n${body}\n`;
