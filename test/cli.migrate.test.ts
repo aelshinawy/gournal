@@ -1,10 +1,9 @@
 import crypto from 'crypto';
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
 import { runIn } from './helpers/run-cli';
-import { rmTmp } from './helpers/tmp';
+import { makeTmp, rmTmp } from './helpers/tmp';
 
 // The path separator is a backslash on Windows. Escape each part before it joins a regex.
 const escapeRe = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -28,7 +27,7 @@ describe('gournal migrate', () => {
   };
 
   beforeEach(() => {
-    home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cli-migrate-'));
+    home = makeTmp('gournal-cli-migrate-');
     fs.writeFileSync(path.join(home, 'entries.json'), JSON.stringify([entry]));
   });
   afterEach(() => { rmTmp(home); });

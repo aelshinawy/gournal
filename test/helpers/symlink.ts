@@ -1,6 +1,6 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
+import { makeTmp } from './tmp';
 
 let cached: boolean | undefined;
 
@@ -10,7 +10,7 @@ let cached: boolean | undefined;
  */
 export function canSymlink(): boolean {
   if (cached !== undefined) return cached;
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-symlink-probe-'));
+  const dir = makeTmp('gournal-symlink-probe-');
   try {
     const target = path.join(dir, 'target');
     fs.writeFileSync(target, '');

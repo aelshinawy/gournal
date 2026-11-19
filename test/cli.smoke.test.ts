@@ -1,6 +1,5 @@
 import { spawn, spawnSync } from 'child_process';
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import chalk from 'chalk';
 import { runCli } from '../src/adapters/cli/program';
@@ -8,11 +7,11 @@ import { runIn } from './helpers/run-cli';
 import { openDb } from '../src/storage/db';
 import { loadConfig } from '../src/storage/config';
 import { createRepository } from '../src/storage/sqlite-repository';
-import { rmTmp } from './helpers/tmp';
+import { makeTmp, rmTmp } from './helpers/tmp';
 
 const root = path.join(__dirname, '..');
 let home: string;
-beforeEach(() => { home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-smoke-')); });
+beforeEach(() => { home = makeTmp('gournal-smoke-'); });
 afterEach(() => rmTmp(home));
 
 const spawnCli = (args: string[], input = '') =>

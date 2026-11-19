@@ -1,9 +1,8 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { GhError, type GhRunner } from '../src/sources';
 import { runIn } from './helpers/run-cli';
-import { rmTmp } from './helpers/tmp';
+import { makeTmp, rmTmp } from './helpers/tmp';
 
 const fx = (n: string) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'github', n), 'utf8'));
 
@@ -28,7 +27,7 @@ function anyDateGh(): GhRunner & { calls: string[][] } {
 }
 
 let home: string;
-beforeEach(() => { home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cli-sync-')); });
+beforeEach(() => { home = makeTmp('gournal-cli-sync-'); });
 afterEach(() => rmTmp(home));
 
 test('gournal sync prints counts', async () => {

@@ -1,8 +1,5 @@
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
 import { runIn } from './helpers/run-cli';
-import { rmTmp } from './helpers/tmp';
+import { makeTmp, rmTmp } from './helpers/tmp';
 
 describe('gournal undo', () => {
   let home: string;
@@ -10,7 +7,7 @@ describe('gournal undo', () => {
   const run = (...args: string[]) => runIn(home, args);
 
   beforeEach(() => {
-    home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-'));
+    home = makeTmp('gournal-');
   });
   afterEach(() => {
     rmTmp(home);

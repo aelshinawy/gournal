@@ -1,9 +1,8 @@
 import crypto from 'crypto';
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { runIn } from './helpers/run-cli';
-import { rmTmp } from './helpers/tmp';
+import { makeTmp, rmTmp } from './helpers/tmp';
 
 const posix = process.platform === 'win32' ? test.skip : test;
 const mode = (p: string): string => (fs.statSync(p).mode & 0o777).toString(8);
@@ -17,8 +16,8 @@ describe('gournal export -o safety', () => {
 
   beforeEach(async () => {
     oldUmask = process.umask();
-    home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-export-home-'));
-    out = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-export-out-'));
+    home = makeTmp('gournal-export-home-');
+    out = makeTmp('gournal-export-out-');
     expect((await run('add', 'Exported thing')).status).toBe(0);
   });
   afterEach(() => {
@@ -131,7 +130,7 @@ describe('gournal migrate --dry-run --diff output', () => {
   let home: string;
   const entry = { timestamp: '2026-07-28T14:35:23.997Z', message: 'Shipped it. More text here.', project: 'tcb', tags: [] as string[] };
   beforeEach(() => {
-    home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-diff-home-'));
+    home = makeTmp('gournal-diff-home-');
     fs.writeFileSync(path.join(home, 'entries.json'), JSON.stringify([entry]));
   });
   afterEach(() => rmTmp(home));

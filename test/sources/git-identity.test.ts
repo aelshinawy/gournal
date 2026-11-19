@@ -1,15 +1,15 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { execFileSync, spawnSync } from 'child_process';
 import { resolveIdentity } from '../../src/sources';
+import { makeRealTmp } from '../helpers/tmp';
 
 const GIT = ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main'];
 const git = (cwd: string, ...args: string[]) =>
   execFileSync('git', [...GIT, '-C', cwd, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
 
 let base: string;
-beforeEach(() => { base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-git-'))); });
+beforeEach(() => { base = makeRealTmp('gournal-git-'); });
 afterEach(() => { fs.rmSync(base, { recursive: true, force: true }); });
 
 function makeRepo(name: string, origin: string | null = 'git@github.com:acme/collection-app.git'): string {

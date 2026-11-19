@@ -1,5 +1,4 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -13,6 +12,7 @@ import { CAPABILITIES, GROUPS, checkCoverage } from '../site/scripts/reference/c
 import { capabilityPage } from '../site/scripts/reference/capability-page';
 import { firstSentence, table } from '../site/scripts/reference/markdown';
 import { createDocsServer, listTools, schemaRows } from '../site/scripts/reference/mcp';
+import { makeTmp } from './helpers/tmp';
 
 const siteRoot = path.resolve(__dirname, '../site');
 const examplesDir = path.join(siteRoot, 'src/content/examples');
@@ -84,7 +84,7 @@ test('subcommands join with a hyphen and group parents get no page', async () =>
 });
 
 test('building the program does not open the journal', async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-ref-'));
+  const home = makeTmp('docs-ref-');
   const before = process.env.GOURNAL_HOME;
   process.env.GOURNAL_HOME = path.join(home, 'never');
   try {
@@ -97,7 +97,7 @@ test('building the program does not open the journal', async () => {
 });
 
 test('examples are inlined, and a removed command loses its page and an orphan example fails', async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-ref-site-'));
+  const tmp = makeTmp('docs-ref-site-');
   try {
     const refDir = path.join(tmp, REFERENCE_DIR);
     fs.mkdirSync(path.join(refDir, 'cli'), { recursive: true });
@@ -434,7 +434,7 @@ describe('capability pages, carry-over fixes', () => {
   });
 
   test('writeReference works when the reference folder does not exist yet', async () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-ref-empty-'));
+    const tmp = makeTmp('docs-ref-empty-');
     try {
       const result = await writeReference(tmp);
       expect(result.written).toContain('index.md');
@@ -447,7 +447,7 @@ describe('capability pages, carry-over fixes', () => {
 });
 
 test('writeReference removes an empty folder under the reference folder', async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-ref-empty-dir-'));
+  const tmp = makeTmp('docs-ref-empty-dir-');
   try {
     const stale = path.join(tmp, REFERENCE_DIR, 'old-section', 'nested');
     fs.mkdirSync(stale, { recursive: true });

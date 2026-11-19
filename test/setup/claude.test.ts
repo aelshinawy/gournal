@@ -7,7 +7,7 @@ import { createExecFileRunner, buildCmdLine, type ExecOnce } from '../../src/ada
 import { addStopHook, removeStopHook, isGournalHook } from '../../src/adapters/setup/settings';
 import { runIn } from '../helpers/run-cli';
 import { canSymlink } from '../helpers/symlink';
-import { rmTmp } from '../helpers/tmp';
+import { makeRealTmp, rmTmp } from '../helpers/tmp';
 
 // Windows needs a privilege to create a symlink. A test that needs one skips without it.
 const symlinkTest = canSymlink() ? test : test.skip;
@@ -66,7 +66,7 @@ const writeSettings = (v: unknown) => {
 const readSettings = () => JSON.parse(fs.readFileSync(settingsFile(), 'utf8'));
 
 beforeEach(() => {
-  root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-setup-')));
+  root = makeRealTmp('gournal-setup-');
   home = path.join(root, 'home');
   fs.mkdirSync(home);
   script = path.join(root, 'lib', 'cli.js');
@@ -288,7 +288,7 @@ test('non-TTY with --yes keeps a different registration without prompting', asyn
 });
 
 test('a pinned hook command without "gournal" in its path is found again', async () => {
-  const appDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'pinned-app-')));
+  const appDir = makeRealTmp('pinned-app-');
   const pinned = path.join(appDir, 'cli.js');
   fs.writeFileSync(pinned, '');
   const io = () => makeIo({ env: { argv1: pinned, execPath: '/opt/node/bin/node', path: '' } });

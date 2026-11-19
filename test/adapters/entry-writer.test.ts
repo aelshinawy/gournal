@@ -1,17 +1,14 @@
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
 import { openJournal, type Journal } from '../../src/storage/journal';
 import {
   RETRY_WINDOW_MS, createEntryWriter, type AddInput, type EntryWriter, type EntryWriterOptions,
 } from '../../src/adapters/entry-writer';
 import { NOT_RESOLVABLE, type NewEntryInput } from '../../src/core';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let home: string;
 let journal: Journal;
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-writer-'));
+  home = makeTmp('gournal-writer-');
   journal = openJournal(home);
   now = 1_000_000;
 });
