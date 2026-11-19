@@ -6,7 +6,7 @@ import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
 import { exportBundle, importBundle } from '../../src/storage/bundle';
 import { createActivityRepository } from '../../src/storage/activity-repository';
-import type { EntryRepository } from '../../src/core/repository';
+import type { EntryRepository } from '../../src/core';
 import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository;

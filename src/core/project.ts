@@ -1,4 +1,3 @@
-import { resolveProjectAlias } from './query';
 import { DEFAULT_PROJECT } from './sanitize';
 
 export interface RepoIdentity {
@@ -36,4 +35,13 @@ export function projectFor(
     if (mapped !== key) return mapped;
   }
   return repoName ?? facts.folder ?? DEFAULT_PROJECT;
+}
+
+export function resolveProjectAlias(name: string, aliases: Record<string, string>): string {
+  if (Object.prototype.hasOwnProperty.call(aliases, name)) return aliases[name];
+  const lower = name.toLowerCase();
+  for (const key of Object.keys(aliases)) {
+    if (key.toLowerCase() === lower) return aliases[key];
+  }
+  return name;
 }

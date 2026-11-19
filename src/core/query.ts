@@ -1,4 +1,5 @@
 import { endOfDay, parseDay, startOfDay } from './dates';
+import { resolveProjectAlias } from './project';
 import { stripControl } from './sanitize';
 import type { Kind, Source, Status } from './types';
 
@@ -66,15 +67,6 @@ export function parseBound(value: string, side: 'from' | 'to'): number {
   const ms = date.getTime();
   if (isNaN(ms)) throw new InvalidQueryError(`Invalid date: ${value}`);
   return ms;
-}
-
-export function resolveProjectAlias(name: string, aliases: Record<string, string>): string {
-  if (Object.prototype.hasOwnProperty.call(aliases, name)) return aliases[name];
-  const lower = name.toLowerCase();
-  for (const key of Object.keys(aliases)) {
-    if (key.toLowerCase() === lower) return aliases[key];
-  }
-  return name;
 }
 
 export function resolveQuery(q: Query, aliases: Record<string, string>): ResolvedQuery {

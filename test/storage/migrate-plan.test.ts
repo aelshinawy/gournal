@@ -7,7 +7,7 @@ import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
 import { importLegacy, applyPlan, renderPlanDiff } from '../../src/storage/migrate';
 import type { MigrationPlan, PlanItem } from '../../src/storage/migrate';
-import type { EntryRepository } from '../../src/core/repository';
+import type { EntryRepository } from '../../src/core';
 import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository;

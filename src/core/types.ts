@@ -1,3 +1,5 @@
+import type { Ref } from './refs';
+
 export const KINDS = ['done', 'blocker', 'next'] as const;
 export type Kind = (typeof KINDS)[number];
 export const STATUSES = ['open', 'resolved'] as const;
@@ -30,9 +32,6 @@ export function canResolve(kind: string | null, status: string | null): boolean 
   return (kind === 'blocker' || kind === 'next') && status === 'open';
 }
 export const EXPORT_FORMATS = ['md', 'csv', 'bundle'] as const;
-export const REF_TYPES = ['pr', 'jira', 'commit', 'url'] as const;
-type RefType = (typeof REF_TYPES)[number];
-export interface Ref { type: RefType; value: string; repo?: string }
 export const SOURCES = ['cli', 'mcp', 'migration'] as const;
 export type Source = (typeof SOURCES)[number];
 

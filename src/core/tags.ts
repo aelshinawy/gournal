@@ -1,6 +1,5 @@
-import type { Ref } from './types';
 import { stripControl } from './sanitize';
-import { mergeRefs, ticketToRef, type TicketOptions } from './refs';
+import { mergeRefs, ticketToRef, type Ref, type TicketOptions } from './refs';
 
 export function normalizeTags(raw: string[], aliases: Record<string, string> = {}, opts: TicketOptions = {}): { tags: string[]; refs: Ref[] } {
   const tags: string[] = [];

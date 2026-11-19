@@ -1,4 +1,4 @@
-import { newId } from './ulid';
+import { newId } from './ids';
 
 export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
