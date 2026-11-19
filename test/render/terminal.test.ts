@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { subDays } from 'date-fns';
+import { subDays } from '../../src/core/dates';
 import { buildStandup, buildStats, buildWorkLog, resolvePeriod } from '../../src/core';
 import {
   entryLinesText, projectCountsText, standupText, statsText, tagCountsText, workLogText,

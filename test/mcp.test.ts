@@ -1,6 +1,6 @@
 import { execFileSync } from 'child_process';
 import chalk from 'chalk';
-import { format } from 'date-fns';
+import { formatDay } from '../src/core/dates';
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -428,7 +428,7 @@ test('get_standup returns sections in JSON and markdown', async () => {
 test('get_standup carries an older open blocker forward even with from', async () => {
   seed('Old blocker', { kind: 'blocker', createdAt: daysAgo(3) });
   seed('Did a thing');
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const today = formatDay(new Date());
   const r = await call('get_standup', { from: today });
   expect(r.structuredContent.blockers.map((e: any) => e.summary)).toEqual(['Old blocker']);
   expect(r.structuredContent.done[0].entries.map((e: any) => e.summary)).toEqual(['Did a thing']);

@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { format, startOfWeek } from 'date-fns';
+import { formatMonthDay, startOfWeek } from '../src/core/dates';
 import { runIn } from './helpers/run-cli';
 import { openJournal } from '../src/storage/journal';
 import { ftsTest } from './fts5';
@@ -311,9 +311,9 @@ describe('gournal CLI reads on Query and renderers', () => {
   test('weekStartsOn 0 changes the weekly title', async () => {
     seed([{ summary: 'x', createdAt: new Date().toISOString() }]);
     const title = async () => plain((await run('standup', '--week')).stdout).match(/Weekly \((.*?) - /)![1];
-    expect(await title()).toBe(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'MMM dd'));
+    expect(await title()).toBe(formatMonthDay(startOfWeek(new Date(), 1)));
     fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ weekStartsOn: 0 }));
-    expect(await title()).toBe(format(startOfWeek(new Date(), { weekStartsOn: 0 }), 'MMM dd'));
+    expect(await title()).toBe(formatMonthDay(startOfWeek(new Date(), 0)));
   });
 
   test('find --kind blocker,next --status open lists only open items', async () => {

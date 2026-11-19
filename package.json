@@ -54,7 +54,6 @@
     "@modelcontextprotocol/server": "2.4.0",
     "chalk": "^4.1.2",
     "commander": "^13.1.0",
-    "date-fns": "^4.1.0",
     "inquirer": "^12.3.3",
     "zod": "^4.6.6"
   },
