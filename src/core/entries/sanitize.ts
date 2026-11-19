@@ -5,7 +5,7 @@ const CONTROL = /[\u0000-\u001f\u007f-\u009f]/g;
 /** The same set, but tab (\u0009) and newline (\u000a) stay. For multi-line details. */
 const CONTROL_KEEP_TEXT = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
 
-/** Remove every control character. For single-line fields: summary, project, repo, branch, agent, tag, ref. */
+/** Remove every control character. For single-line fields: summary, project, repo, branch, agent, tag, ref, and search terms. */
 export const stripControl = (s: string): string => s.replace(CONTROL, '');
 
 /** Remove control characters except tab and newline. For details. */
