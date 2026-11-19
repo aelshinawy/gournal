@@ -43,13 +43,16 @@ export class InvalidQueryError extends Error {
 const CONTROL_CHARS = /[\u0000-\u001f]/g;
 const HAS_WORD_CHAR = /[\p{L}\p{N}]/u;
 
-/** Split text on whitespace, strip control characters, and drop terms with no letter or digit. */
-function searchTerms(text: string): string[] {
-  return text
-    .split(/\s+/)
-    .filter(Boolean)
+/** Strip control characters from each term and drop terms with no letter or digit. */
+export function cleanSearchTerms(terms: string[]): string[] {
+  return terms
     .map((t) => t.replace(CONTROL_CHARS, ''))
     .filter((t) => HAS_WORD_CHAR.test(t));
+}
+
+/** Split text on whitespace, then clean the terms. */
+function searchTerms(text: string): string[] {
+  return cleanSearchTerms(text.split(/\s+/).filter(Boolean));
 }
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
