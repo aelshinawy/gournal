@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { REF_TYPES } from './refs';
-import { KINDS, KIND_LIST_NOTED, SOURCES, STATUSES } from './types';
+import { REF_TYPES } from '../labels/refs';
+import { KINDS, KIND_LIST_NOTED, SOURCES, STATUSES } from './entry';
 
 export const EntrySchema = z.object({
   id: z.string().describe('Unique id of the entry. The last 8 characters work as a short id.'),

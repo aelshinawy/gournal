@@ -1,4 +1,4 @@
-import { stripControl } from './sanitize';
+import { stripControl } from '../entries/sanitize';
 import { mergeRefs, ticketToRef, type Ref, type TicketOptions } from './refs';
 
 export function normalizeTags(raw: string[], aliases: Record<string, string> = {}, opts: TicketOptions = {}): { tags: string[]; refs: Ref[] } {

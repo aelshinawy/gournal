@@ -1,5 +1,5 @@
 import type { Query } from './query';
-import type { Entry, EntryPatch, NewEntryInput } from './types';
+import type { Entry, EntryPatch, NewEntryInput } from './entry';
 
 export interface EntryRepository {
   /**

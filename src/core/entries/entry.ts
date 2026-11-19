@@ -1,4 +1,4 @@
-import type { Ref } from './refs';
+import type { Ref } from '../labels/refs';
 
 export const KINDS = ['done', 'blocker', 'next'] as const;
 export type Kind = (typeof KINDS)[number];

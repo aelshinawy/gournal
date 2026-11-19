@@ -1,7 +1,7 @@
-import { addDays, startOfWeek } from './dates';
+import { addDays, startOfWeek } from '../dates';
 import type { Activity } from './activity';
-import type { WeekDay } from './config';
-import type { Entry } from './types';
+import type { WeekDay } from '../config';
+import type { Entry } from '../entries/entry';
 
 type LinkReason = 'pr-match' | 'sha-match' | 'branch-window';
 export interface LinkCandidate { entryId: string; activityId: string; reason: LinkReason }

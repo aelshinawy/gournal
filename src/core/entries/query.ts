@@ -1,7 +1,7 @@
-import { endOfDay, parseDay, startOfDay } from './dates';
-import { resolveProjectAlias } from './project';
+import { endOfDay, parseDay, startOfDay } from '../dates';
+import { resolveProjectAlias } from '../labels/project';
 import { stripControl } from './sanitize';
-import type { Kind, Source, Status } from './types';
+import type { Kind, Source, Status } from './entry';
 
 export interface Query {
   project?: string;

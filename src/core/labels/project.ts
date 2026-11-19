@@ -1,4 +1,4 @@
-import { DEFAULT_PROJECT } from './sanitize';
+import { DEFAULT_PROJECT } from '../entries/sanitize';
 
 export interface RepoIdentity {
   project: string;

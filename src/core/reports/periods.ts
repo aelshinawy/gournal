@@ -1,6 +1,6 @@
-import { differenceInDays, formatDay, formatMonthDay, startOfDay, startOfMonth, startOfWeek, subDays } from './dates';
-import type { WeekDay } from './config';
-import { parseBound } from './query';
+import { differenceInDays, formatDay, formatMonthDay, startOfDay, startOfMonth, startOfWeek, subDays } from '../dates';
+import type { WeekDay } from '../config';
+import { parseBound } from '../entries/query';
 
 type PeriodName = 'today' | 'yesterday' | 'week' | 'month' | 'range';
 export interface PeriodOptions { yesterday?: boolean; week?: boolean; month?: boolean; from?: string; to?: string }

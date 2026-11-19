@@ -1,4 +1,4 @@
-import type { Ref } from './refs';
+import type { Ref } from '../labels/refs';
 
 /** C0 controls (all, tab and newline included), DEL, and C1 controls. ESC and the OSC and CSI starters are in here. */
 const CONTROL = /[\u0000-\u001f\u007f-\u009f]/g;

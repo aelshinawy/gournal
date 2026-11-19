@@ -1,5 +1,5 @@
-import { formatDay, subDays } from './dates';
-import type { Entry } from './types';
+import { formatDay, subDays } from '../dates';
+import type { Entry } from '../entries/entry';
 
 export interface StatsModel { total: number; streak: number; byProject: [string, number][]; byTag: [string, number][] }
 

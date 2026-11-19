@@ -1,8 +1,8 @@
-import { formatDay } from './dates';
+import { formatDay } from '../dates';
 import type { Period } from './periods';
-import type { Entry } from './types';
+import type { Entry } from '../entries/entry';
 import { groupBy } from './group';
-import type { Activity } from './activity';
+import type { Activity } from '../activity/activity';
 
 export interface WorkLogModel {
   title: string; start: string; end: string;
