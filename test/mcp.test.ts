@@ -125,6 +125,20 @@ test('a client without roots falls back to the process cwd', async () => {
   expect(journal.repo.find()[0].branch).toBe('b-/proc');
 });
 
+test('a client that never answers roots/list falls back to the process cwd within the roots timeout', async () => {
+  const server = createServer({ journal, identity: identityStub, processCwd });
+  const [ct, st] = InMemoryTransport.createLinkedPair();
+  const c = new Client({ name: 'silent-roots', version: '1.0.0' }, { capabilities: { roots: {} } });
+  c.setRequestHandler(ListRootsRequestSchema, () => new Promise(() => undefined));
+  await Promise.all([c.connect(ct), server.connect(st)]);
+  const started = Date.now();
+  const r = await c.callTool({ name: 'add_entry', arguments: { summary: 'Silent roots' } }) as any;
+  expect(r.isError).toBeFalsy();
+  expect(Date.now() - started).toBeLessThan(5000);
+  expect(journal.repo.find()[0].branch).toBe('b-/proc');
+  await c.close();
+});
+
 test('a relative cwd is ignored', async () => {
   const c = await connect(journal, {});
   await c.callTool({ name: 'add_entry', arguments: { summary: 'Relative', cwd: 'some/dir' } });
