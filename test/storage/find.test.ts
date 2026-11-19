@@ -6,7 +6,7 @@ import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
 import { InvalidQueryError } from '../../src/core';
 import type { NewEntryInput } from '../../src/core';
-import type { EntryRepository } from '../../src/core/repository';
+import type { EntryRepository } from '../../src/core';
 import { ftsMatchExpression, likePattern } from '../../src/storage/search';
 import { makeTmp, rmTmp } from '../helpers/tmp';
 

@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { CONFIG_DEFAULTS, normalizeConfig } from '../../src/core/config';
-import { CONFIG_KEY_DOCS, ENV_VAR_DOCS } from '../../src/core/docs-meta';
+import { CONFIG_DEFAULTS, normalizeConfig } from '../src/core';
+import { CONFIG_KEY_DOCS, ENV_VAR_DOCS } from '../site/scripts/reference/docs-meta';
 
 const EM_DASH = String.fromCharCode(0x2014);
 
@@ -58,7 +58,7 @@ test('env descriptors cover the supported variables only', () => {
       }
     }
   };
-  walk(path.join(__dirname, '..', '..', 'src'));
+  walk(path.join(__dirname, '..', 'src'));
   for (const testOnly of ['GOURNAL_REAL_HOME', 'GOURNAL_TEST_HOME_ROOT', 'GOURNAL_DISABLE_FTS5']) used.delete(testOnly);
   expect(used.size).toBeGreaterThan(0);
   expect(ENV_VAR_DOCS.map((v) => v.name).sort()).toEqual([...used].sort());

@@ -6,7 +6,7 @@ import { openDb } from '../../src/storage/db';
 import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
 import { importLegacy, legacyKey, mechanicalEntry } from '../../src/storage/migrate';
-import type { EntryRepository } from '../../src/core/repository';
+import type { EntryRepository } from '../../src/core';
 import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository; let jsonPath: string;

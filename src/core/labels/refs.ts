@@ -1,4 +1,6 @@
-import type { Ref } from './types';
+export const REF_TYPES = ['pr', 'jira', 'commit', 'url'] as const;
+type RefType = (typeof REF_TYPES)[number];
+export interface Ref { type: RefType; value: string; repo?: string }
 
 const NON_TICKET_PREFIXES: readonly string[] = [
   'step', 'wp', 'phase', 'v', 'sprint', 'week', 'day', 'part', 'round', 'node', 'ios', 'android',

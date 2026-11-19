@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { newId, normalizeConfig, type Config } from '../core';
+import { invalidConfig, isPlainObject, newId, normalizeConfig, type Config } from '../core';
 import { FILE_MODE, ensurePrivateDir, publishExclusive, renameWithRetry, sleepSync, tightenFile } from './private-files';
 
 export type { Config };
@@ -32,21 +32,15 @@ function persisted(raw: Record<string, unknown>, c: Config): Record<string, unkn
   return { ...raw, deviceId: c.deviceId, projectAliases: c.projectAliases, tagAliases: c.tagAliases, ticketPrefixes: c.ticketPrefixes };
 }
 
-function invalid(file: string, reason: string): Error {
-  return new Error(`Config ${file} is not valid JSON object: ${reason}. Fix or delete it; gournal did not change it.`);
-}
-
 function readRaw(file: string): Record<string, unknown> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
   } catch (err) {
-    throw invalid(file, (err as Error).message);
+    throw invalidConfig(file, (err as Error).message);
   }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw invalid(file, 'the value is not an object');
-  }
-  return parsed as Record<string, unknown>;
+  if (!isPlainObject(parsed)) throw invalidConfig(file, 'the value is not an object');
+  return parsed;
 }
 
 type Wait = Pick<LoadConfigHooks, 'sleep' | 'now'>;

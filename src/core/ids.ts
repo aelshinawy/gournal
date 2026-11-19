@@ -17,3 +17,5 @@ export function newId(nowMs?: number): string {
   for (const b of bytes) randomPart += ALPHABET[b & 31];
   return timePart + randomPart;
 }
+
+export const shortId = (id: string): string => id.slice(-8);

@@ -2,6 +2,6 @@ export { standupText, workLogText, statsText, entryLinesText, tagCountsText, pro
 export { standupMarkdown, workLogMarkdown, entriesMarkdown, exportMarkdown } from './markdown';
 export { exportCsv } from './csv';
 export {
-  EntrySchema, ActivitySchema, StandupSchema, WorkLogSchema, EntryListSchema, TagCountsSchema, ProjectCountsSchema,
+  StandupSchema, WorkLogSchema, EntryListSchema, TagCountsSchema, ProjectCountsSchema,
   EntryResultSchema, SyncReportSchema, entryJson, standupJson, workLogJson,
 } from './json';

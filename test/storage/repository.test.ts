@@ -5,7 +5,7 @@ import { openDb } from '../../src/storage/db';
 import { ftsTest } from '../fts5';
 import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository, AmbiguousIdError } from '../../src/storage/sqlite-repository';
-import type { EntryRepository } from '../../src/core/repository';
+import type { EntryRepository } from '../../src/core';
 import { InvalidQueryError } from '../../src/core';
 import { makeTmp, rmTmp } from '../helpers/tmp';
 

@@ -1,22 +1,24 @@
 export {
   KINDS, STATUSES, NOT_RESOLVABLE, EXPORT_FORMATS, parseKind, parseStatus, canResolve, noEntryMessage,
-  type Kind, type Ref, type Source, type Entry, type NewEntryInput, type EntryPatch,
-} from './types';
+  type Kind, type Source, type Entry, type NewEntryInput, type EntryPatch,
+} from './entries/entry';
 export { OPTION_TEXT } from './option-text';
-export { newId } from './ulid';
-export { MAX_SUMMARY, summaryLength, splitSummary, checkSummary, hasLineBreak } from './summary';
-export { stripControl, cleanProject, cleanOpt, cleanDetails, cleanRefs } from './sanitize';
-export { mergeRefs, extractRefs } from './refs';
-export { normalizeTags, closeTags } from './tags';
-export { CONFIG_DEFAULTS, normalizeConfig, type Config } from './config';
-export { InvalidQueryError, cleanSearchTerms, parseBound, resolveProjectAlias, resolveQuery, type Query } from './query';
-export { resolvePeriod } from './periods';
-export { groupBy } from './group';
-export { parseRemoteUrl, projectFor, type RepoIdentity } from './identity';
-export { buildStandup, isEmptyStandup, shortId, type StandupModel } from './standup';
-export { buildWorkLog, type WorkLogModel } from './worklog';
-export { buildStats, type StatsModel } from './stats';
-export { activityCounts, summarizeLinked, type ActivityType, type Activity, type NewActivityInput, type ActivityCounts } from './activity';
-export { BRANCH_WINDOW_MS, matchLinks, type LinkCandidate } from './linking';
-export type { EntryRepository, ActivityRepository, ActivityQuery } from './repository';
-export { CONFIG_KEY_DOCS, ENV_VAR_DOCS } from './docs-meta';
+export { newId, shortId } from './ids';
+export { MAX_SUMMARY, summaryLength, splitSummary, checkSummary, hasLineBreak } from './entries/summary';
+export { stripControl, cleanProject, cleanOpt, cleanDetails, cleanRefs } from './entries/sanitize';
+export { mergeRefs, extractRefs, type Ref } from './labels/refs';
+export { normalizeTags, closeTags } from './labels/tags';
+export { CONFIG_DEFAULTS, normalizeConfig, invalidConfig, isPlainObject, type Config } from './config';
+export { InvalidQueryError, cleanSearchTerms, parseBound, resolveQuery, type Query } from './entries/query';
+export { resolvePeriod } from './reports/periods';
+export { groupBy } from './reports/group';
+export { parseRemoteUrl, projectFor, resolveProjectAlias, type RepoIdentity } from './labels/project';
+export { buildStandup, isEmptyStandup, type StandupModel } from './reports/standup';
+export { buildWorkLog, type WorkLogModel } from './reports/worklog';
+export { buildStats, type StatsModel } from './reports/stats';
+export { EntrySchema, type EntryJson } from './entries/entry-schema';
+export { ActivitySchema, type ActivityJson } from './activity/activity-schema';
+export { activityCounts, summarizeLinked, type ActivityType, type Activity, type NewActivityInput, type ActivityCounts } from './activity/activity';
+export { BRANCH_WINDOW_MS, matchLinks, type LinkCandidate } from './activity/linking';
+export type { EntryRepository } from './entries/entry-repository';
+export type { ActivityRepository, ActivityQuery } from './activity/activity-repository';

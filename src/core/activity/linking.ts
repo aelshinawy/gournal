@@ -1,8 +1,7 @@
-import { addDays } from 'date-fns';
+import { addDays, startOfWeek } from '../dates';
 import type { Activity } from './activity';
-import type { WeekDay } from './config';
-import { resolvePeriod } from './periods';
-import type { Entry } from './types';
+import type { WeekDay } from '../config';
+import type { Entry } from '../entries/entry';
 
 type LinkReason = 'pr-match' | 'sha-match' | 'branch-window';
 export interface LinkCandidate { entryId: string; activityId: string; reason: LinkReason }
@@ -55,7 +54,7 @@ export function matchLinks(input: { entries: Entry[]; activity: Activity[]; week
         for (const a of candidates) if (sameRepo(a.repo, repo)) add(e.id, a.id, 'pr-match');
         continue;
       }
-      const start = resolvePeriod({ week: true }, new Date(e.createdAt), input.weekStartsOn).start;
+      const start = startOfWeek(new Date(e.createdAt), input.weekStartsOn);
       const end = addDays(start, 7);
       const inWeek = candidates.filter((a) => {
         const t = new Date(a.occurredAt);

@@ -1,4 +1,5 @@
-export type ActivityType = 'commit' | 'pr_opened' | 'pr_merged' | 'review';
+export const ACTIVITY_TYPES = ['commit', 'pr_opened', 'pr_merged', 'review'] as const;
+export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
 export interface Activity {
   id: string;

@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { Command } from 'commander';
-import { CONFIG_KEY_DOCS, ENV_VAR_DOCS } from '../src/core';
+import { CONFIG_KEY_DOCS, ENV_VAR_DOCS } from '../site/scripts/reference/docs-meta';
 import {
   generateReference, inertProgram, orphanExamples, ownedFilesOnDisk, referenceSidebar, writeReference, REFERENCE_DIR,
 } from '../site/scripts/reference/generate';

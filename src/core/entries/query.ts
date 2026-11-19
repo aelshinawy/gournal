@@ -1,5 +1,7 @@
-import { endOfDay, parse, startOfDay } from 'date-fns';
-import type { Kind, Source, Status } from './types';
+import { endOfDay, parseDay, startOfDay } from '../dates';
+import { resolveProjectAlias } from '../labels/project';
+import { stripControl } from './sanitize';
+import type { Kind, Source, Status } from './entry';
 
 export interface Query {
   project?: string;
@@ -38,15 +40,15 @@ export class InvalidQueryError extends Error {
   }
 }
 
-// C0 control characters (U+0000 to U+001F). SQLite LIKE stops at NUL and FTS5 fails on it.
-// eslint-disable-next-line no-control-regex
-const CONTROL_CHARS = /[\u0000-\u001f]/g;
 const HAS_WORD_CHAR = /[\p{L}\p{N}]/u;
 
-/** Strip control characters from each term and drop terms with no letter or digit. */
+/**
+ * Strip control characters from each term and drop terms with no letter or digit.
+ * SQLite LIKE stops at NUL and FTS5 fails on it.
+ */
 export function cleanSearchTerms(terms: string[]): string[] {
   return terms
-    .map((t) => t.replace(CONTROL_CHARS, ''))
+    .map(stripControl)
     .filter((t) => HAS_WORD_CHAR.test(t));
 }
 
@@ -60,7 +62,7 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 export function parseBound(value: string, side: 'from' | 'to'): number {
   let date: Date;
   if (DATE_ONLY.test(value)) {
-    const day = parse(value, 'yyyy-MM-dd', new Date());
+    const day = parseDay(value);
     date = side === 'from' ? startOfDay(day) : endOfDay(day);
   } else {
     date = new Date(value);
@@ -68,15 +70,6 @@ export function parseBound(value: string, side: 'from' | 'to'): number {
   const ms = date.getTime();
   if (isNaN(ms)) throw new InvalidQueryError(`Invalid date: ${value}`);
   return ms;
-}
-
-export function resolveProjectAlias(name: string, aliases: Record<string, string>): string {
-  if (Object.prototype.hasOwnProperty.call(aliases, name)) return aliases[name];
-  const lower = name.toLowerCase();
-  for (const key of Object.keys(aliases)) {
-    if (key.toLowerCase() === lower) return aliases[key];
-  }
-  return name;
 }
 
 export function resolveQuery(q: Query, aliases: Record<string, string>): ResolvedQuery {

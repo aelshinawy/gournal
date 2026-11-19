@@ -37,7 +37,7 @@ npm run check:dashes
 
 The code in `src/` has layers. A layer imports only from the layers below it.
 
-1. `core`: pure logic. It does no I/O and imports no Node built-in modules.
+1. `core`: pure logic. It imports only core files and the packages that ADR 0002 allows (today only `zod`). Its files sit in the folders `entries`, `labels`, `activity`, and `reports`.
 2. `storage` and `sources`.
 3. `render`.
 4. `adapters`.

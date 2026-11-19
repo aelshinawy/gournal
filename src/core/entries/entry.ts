@@ -1,15 +1,27 @@
+import type { Ref } from '../labels/refs';
+
 export const KINDS = ['done', 'blocker', 'next'] as const;
 export type Kind = (typeof KINDS)[number];
 export const STATUSES = ['open', 'resolved'] as const;
 export type Status = (typeof STATUSES)[number];
 
+/** Joins words as "a or b" for two words and "a, b, or c" for three or more. */
+function orList(words: readonly string[]): string {
+  if (words.length <= 2) return words.join(' or ');
+  return `${words.slice(0, -1).join(', ')}, or ${words[words.length - 1]}`;
+}
+
+const KIND_NOTES: Record<Kind, string | null> = { done: null, blocker: 'something stops you', next: 'a planned step' };
+/** The kinds with a short note for each, for example "done, blocker (something stops you), or next (a planned step)". */
+export const KIND_LIST_NOTED = orList(KINDS.map((k) => (KIND_NOTES[k] === null ? k : `${k} (${KIND_NOTES[k]})`)));
+
 export function parseKind(value: string): Kind {
-  if (!(KINDS as readonly string[]).includes(value)) throw new Error(`Unknown kind "${value}". Use done, blocker, or next.`);
+  if (!(KINDS as readonly string[]).includes(value)) throw new Error(`Unknown kind "${value}". Use ${orList(KINDS)}.`);
   return value as Kind;
 }
 
 export function parseStatus(value: string): Status {
-  if (!(STATUSES as readonly string[]).includes(value)) throw new Error(`Unknown status "${value}". Use open or resolved.`);
+  if (!(STATUSES as readonly string[]).includes(value)) throw new Error(`Unknown status "${value}". Use ${orList(STATUSES)}.`);
   return value as Status;
 }
 
@@ -20,9 +32,8 @@ export function canResolve(kind: string | null, status: string | null): boolean 
   return (kind === 'blocker' || kind === 'next') && status === 'open';
 }
 export const EXPORT_FORMATS = ['md', 'csv', 'bundle'] as const;
-type RefType = 'pr' | 'jira' | 'commit' | 'url';
-export interface Ref { type: RefType; value: string; repo?: string }
-export type Source = 'cli' | 'mcp' | 'migration';
+export const SOURCES = ['cli', 'mcp', 'migration'] as const;
+export type Source = (typeof SOURCES)[number];
 
 export interface Entry {
   id: string;

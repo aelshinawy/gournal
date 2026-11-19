@@ -1,10 +1,9 @@
 import type { Period } from './periods';
-import type { Entry } from './types';
+import type { Entry } from '../entries/entry';
 import { groupBy } from './group';
-import { activityCounts } from './activity';
-import type { Activity, ActivityCounts } from './activity';
-
-export const shortId = (id: string): string => id.slice(-8);
+import { shortId } from '../ids';
+import { activityCounts } from '../activity/activity';
+import type { Activity, ActivityCounts } from '../activity/activity';
 
 export interface StandupModel {
   title: string; start: string; end: string; isMultiDay: boolean;

@@ -1,5 +1,5 @@
 import { endOfDay, startOfDay } from 'date-fns';
-import { InvalidQueryError, parseBound, resolveProjectAlias, resolveQuery } from '../../src/core';
+import { InvalidQueryError, cleanSearchTerms, parseBound, resolveProjectAlias, resolveQuery } from '../../src/core';
 
 test('date-only to is the end of that local day', () =>
   expect(parseBound('2026-11-15', 'to')).toBe(new Date(2026, 10, 15, 23, 59, 59, 999).getTime()));
@@ -14,6 +14,7 @@ test('an entry late on the to day is included', () => {
 });
 test('invalid date names the value', () => {
   expect(() => parseBound('soon', 'from')).toThrow('Invalid date: soon');
+  expect(() => parseBound('0000-01-01', 'from')).toThrow('Invalid date: 0000-01-01');
   expect(() => parseBound('garbage', 'from')).toThrow(InvalidQueryError);
 });
 test('alias lookup is exact first, then case-insensitive', () => {
@@ -50,6 +51,9 @@ test('an empty kind list means no kind filter', () => {
   expect(resolveQuery({ kind: [] }, {}).kind).toBeUndefined();
   expect(resolveQuery({ kind: ['next'] }, {}).kind).toEqual(['next']);
 });
+
+test('search terms lose DEL and C1 control characters', () =>
+  expect(cleanSearchTerms(['a\u007fb', 'c\u0085d', '\u009f', 'e\u0007f'])).toEqual(['ab', 'cd', 'ef']));
 
 test('text terms drop control characters and terms with no letter or digit', () => {
   expect(resolveQuery({ text: 'a\u0000b' }, {}).terms).toEqual(['ab']);
