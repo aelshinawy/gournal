@@ -21,4 +21,3 @@ export { ActivitySchema, type ActivityJson } from './activity-schema';
 export { activityCounts, summarizeLinked, type ActivityType, type Activity, type NewActivityInput, type ActivityCounts } from './activity';
 export { BRANCH_WINDOW_MS, matchLinks, type LinkCandidate } from './linking';
 export type { EntryRepository, ActivityRepository, ActivityQuery } from './repository';
-export { CONFIG_KEY_DOCS, ENV_VAR_DOCS } from './docs-meta';

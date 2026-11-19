@@ -1,8 +1,8 @@
-import { CONFIG_KEY_DOCS, ENV_VAR_DOCS } from '../../../src/core';
+import { CONFIG_KEY_DOCS, ENV_VAR_DOCS } from './docs-meta';
 import type { GeneratedPage } from './cli';
 import { GENERATED_NOTE, code, firstSentence, frontmatter, table } from './markdown';
 
-const NOTE = `<!-- ${GENERATED_NOTE} Edit descriptors in src/core/docs-meta.ts. -->`;
+const NOTE = `<!-- ${GENERATED_NOTE} Edit descriptors in site/scripts/reference/docs-meta.ts. -->`;
 
 export function configPage(): GeneratedPage {
   const rows = CONFIG_KEY_DOCS.map((k) => [
