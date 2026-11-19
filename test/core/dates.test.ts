@@ -49,7 +49,7 @@ describe('date functions in the process zone', () => {
 
   test('parseDay reads a strict day at local midnight and gives an invalid date for a bad day', () => {
     expect(fmt(dates.parseDay('2026-03-29'))).toBe('2026-03-29 00:00');
-    for (const bad of ['2026-02-30', '2026-04-31', '2026-13-01', '2026-00-10']) {
+    for (const bad of ['2026-02-30', '2026-04-31', '2026-13-01', '2026-00-10', '0000-01-01']) {
       expect(Number.isNaN(dates.parseDay(bad).getTime())).toBe(true);
     }
   });

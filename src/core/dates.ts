@@ -15,10 +15,7 @@ function checked(d: Date): Date {
   return d;
 }
 
-function year(d: Date): string {
-  const y = d.getFullYear();
-  return y < 0 ? `-${String(-y).padStart(4, '0')}` : String(y).padStart(4, '0');
-}
+const year = (d: Date): string => String(d.getFullYear()).padStart(4, '0');
 
 export const formatDay = (d: Date): string => `${year(checked(d))}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 export const formatMonthDay = (d: Date): string => `${MONTHS[checked(d).getMonth()]} ${pad(d.getDate())}`;
@@ -110,6 +107,7 @@ export function parseDay(s: string): Date {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
   if (!m) return new Date(NaN);
   const y = Number(m[1]);
+  if (y < 1) return new Date(NaN);
   const mo = Number(m[2]);
   const da = Number(m[3]);
   const d = new Date(0);

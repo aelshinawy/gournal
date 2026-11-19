@@ -14,6 +14,7 @@ test('an entry late on the to day is included', () => {
 });
 test('invalid date names the value', () => {
   expect(() => parseBound('soon', 'from')).toThrow('Invalid date: soon');
+  expect(() => parseBound('0000-01-01', 'from')).toThrow('Invalid date: 0000-01-01');
   expect(() => parseBound('garbage', 'from')).toThrow(InvalidQueryError);
 });
 test('alias lookup is exact first, then case-insensitive', () => {
