@@ -8,6 +8,7 @@ import { ROOT, tsFiles } from './helpers/source-files';
  */
 const FACTS: { fact: string; pattern: RegExp; owner: string }[] = [
   { fact: 'temp folder creation in tests', pattern: /\bmkdtemp(Sync)?\(/, owner: 'test/helpers/tmp.ts' },
+  { fact: 'the MCP server SDK import', pattern: /from '@modelcontextprotocol\/server/, owner: 'src/adapters/mcp/sdk.ts' },
 ];
 
 const self = path.relative(ROOT, __filename).split(path.sep).join('/');
