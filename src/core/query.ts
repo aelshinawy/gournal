@@ -1,4 +1,5 @@
 import { endOfDay, parseDay, startOfDay } from './dates';
+import { stripControl } from './sanitize';
 import type { Kind, Source, Status } from './types';
 
 export interface Query {
@@ -38,15 +39,12 @@ export class InvalidQueryError extends Error {
   }
 }
 
-// C0 control characters (U+0000 to U+001F). SQLite LIKE stops at NUL and FTS5 fails on it.
-// eslint-disable-next-line no-control-regex
-const CONTROL_CHARS = /[\u0000-\u001f]/g;
 const HAS_WORD_CHAR = /[\p{L}\p{N}]/u;
 
 /** Strip control characters from each term and drop terms with no letter or digit. */
 export function cleanSearchTerms(terms: string[]): string[] {
   return terms
-    .map((t) => t.replace(CONTROL_CHARS, ''))
+    .map(stripControl)
     .filter((t) => HAS_WORD_CHAR.test(t));
 }
 

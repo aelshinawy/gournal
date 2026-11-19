@@ -11,6 +11,7 @@ const FACTS: { fact: string; pattern: RegExp; owner: string }[] = [
   { fact: 'the entry schema', pattern: /\bEntrySchema = z\.object\(/, owner: 'src/core/entry-schema.ts' },
   { fact: 'the activity schema', pattern: /\bActivitySchema = z\.object\(/, owner: 'src/core/activity-schema.ts' },
   { fact: 'the config error text', pattern: /new Error\(`Config \$\{file\} is not valid JSON object/, owner: 'src/core/config.ts' },
+  { fact: 'the control character set', pattern: /\\u0000-\\u001f/, owner: 'src/core/sanitize.ts' },
 ];
 
 const self = path.relative(ROOT, __filename).split(path.sep).join('/');
