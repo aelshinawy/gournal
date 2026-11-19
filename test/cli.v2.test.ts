@@ -35,12 +35,13 @@ describe('gournal CLI on the SQLite journal', () => {
     expect(rows(home)[0].status).toBe('resolved');
   });
 
-  test('add --resolves exits 0, and a bad id is an error', async () => {
+  test('add --resolves drops a bad id with a note and keeps the entry', async () => {
     const id = suffix((await run('add', 'Blocked', '-k', 'blocker')).stdout);
-    expect((await run('add', 'Fixed it', '--resolves', id)).status).toBe(0);
-    const bad = await run('add', 'Nope', '--resolves', 'ZZZZZZZZ');
-    expect(bad.status).toBe(1);
-    expect(bad.stderr).toContain('No entry with id');
+    const r = await run('add', 'Fixed it', '--resolves', `${id},ZZZZZZZZ`);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/^✓ Entry added! \([0-9A-Z]{8}\)$/);
+    expect(r.stderr).toBe('Could not resolve ZZZZZZZZ: No entry with id "ZZZZZZZZ"');
+    expect(rows(home).map((x) => x.status)).toEqual(['resolved', null]);
   });
 
   test('add rejects an unknown kind', async () => {
@@ -62,12 +63,19 @@ describe('gournal CLI on the SQLite journal', () => {
     expect(restore.stdout).toContain('second');
   });
 
-  test('add with a near-duplicate tag prints no similar-tag note', async () => {
+  test('add with a near-duplicate tag prints a similar-tag note on stderr', async () => {
     await run('add', 'first', '-t', 'review');
     const r = await run('add', 'second', '-t', 'reveiw');
     expect(r.status).toBe(0);
     expect(r.stdout).toMatch(/^✓ Entry added! \([0-9A-Z]{8}\)$/);
-    expect(r.stderr).toBe('');
+    expect(r.stderr).toBe('New tag "reveiw". Close existing tags: review');
+  });
+
+  test('add prints similar-tag notes, then dropped resolves, on stderr', async () => {
+    await run('add', 'first', '-t', 'review');
+    const r = await run('add', 'second', '-t', 'reveiw', '--resolves', 'ZZZZZZZZ');
+    expect(r.status).toBe(0);
+    expect(r.stderr).toBe(['New tag "reveiw". Close existing tags: review', 'Could not resolve ZZZZZZZZ: No entry with id "ZZZZZZZZ"'].join('\n'));
   });
 
   test('a split add prints the added line, then the note, and nothing else', async () => {

@@ -25,7 +25,7 @@ const long = `${'word '.repeat(40)}end.`;
 let now = 1_000_000;
 const clock = () => now;
 const writer = (o: Partial<EntryWriterOptions> = {}) =>
-  createEntryWriter(journal, { retryMemory: false, clock, resolves: 'strict', ...o });
+  createEntryWriter(journal, { retryMemory: false, clock, ...o });
 const add = (w: EntryWriter, o: Partial<AddInput> = {}) =>
   w.add({ summary: 'x', identity: ID, source: 'mcp', ...o });
 const seed = (summary: string, o: Partial<NewEntryInput> = {}) =>
@@ -164,61 +164,44 @@ describe('update summary rule', () => {
 });
 
 describe('resolves policy', () => {
-  test('strict: a valid id resolves the target', () => {
+  test('a writer has no resolves option', () => {
+    // @ts-expect-error the option is gone
+    createEntryWriter(journal, { retryMemory: false, clock, resolves: 'strict' });
+  });
+
+  test('an open blocker is resolved', () => {
     const b = seed('stuck', { kind: 'blocker' });
-    const { entry, notes } = add(writer(), { resolves: [b.id] });
-    expect(journal.repo.get(b.id)).toMatchObject({ status: 'resolved', resolvedByEntryId: entry.id });
-    expect(notes).toEqual([]);
-  });
-
-  test('strict: an unknown id throws and stores nothing', () => {
-    const before = journal.repo.find().length;
-    expect(() => add(writer(), { resolves: ['ZZZZZZZZ'] })).toThrow('No entry with id "ZZZZZZZZ"');
-    expect(journal.repo.find()).toHaveLength(before);
-  });
-
-  test('strict: a non-open target throws and stores nothing', () => {
-    const blocker = seed('stuck', { kind: 'blocker' });
-    const done = seed('finished');
-    const before = journal.repo.find().length;
-    expect(() => add(writer(), { resolves: [blocker.id, done.id] })).toThrow(NOT_RESOLVABLE);
-    expect(journal.repo.get(blocker.id)!.status).toBe('open');
-    expect(journal.repo.find()).toHaveLength(before);
-  });
-
-  test('lenient: an open blocker is resolved', () => {
-    const b = seed('stuck', { kind: 'blocker' });
-    const { entry } = add(writer({ resolves: 'lenient' }), { resolves: [b.id] });
+    const { entry } = add(writer(), { resolves: [b.id] });
     expect(journal.repo.get(b.id)).toMatchObject({ status: 'resolved', resolvedByEntryId: entry.id });
   });
 
-  test('lenient: an unknown id is dropped with a note and the entry is stored', () => {
-    const { entry, notes } = add(writer({ resolves: 'lenient' }), { resolves: ['ZZZZZZZZ'] });
+  test('an unknown id is dropped with a note and the entry is stored', () => {
+    const { entry, notes } = add(writer(), { resolves: ['ZZZZZZZZ'] });
     expect(notes).toEqual([{ type: 'resolveDropped', id: 'ZZZZZZZZ', reason: 'No entry with id "ZZZZZZZZ"' }]);
     expect(journal.repo.get(entry.id)).not.toBeNull();
   });
 
-  test('lenient: valid ids are kept and a non-open one is dropped', () => {
+  test('valid ids are kept and a non-open one is dropped', () => {
     const blocker = seed('stuck', { kind: 'blocker' });
     const done = seed('finished');
-    const { notes } = add(writer({ resolves: 'lenient' }), { resolves: [blocker.id, done.id.slice(-8)] });
+    const { notes } = add(writer(), { resolves: [blocker.id, done.id.slice(-8)] });
     expect(notes).toContainEqual({ type: 'resolveDropped', id: done.id.slice(-8), reason: NOT_RESOLVABLE });
     expect(journal.repo.get(blocker.id)!.status).toBe('resolved');
   });
 
-  test('lenient: a full id and its suffix resolve once', () => {
+  test('a full id and its suffix resolve once', () => {
     const b = seed('stuck', { kind: 'blocker' });
-    const { entry, notes } = add(writer({ resolves: 'lenient' }), { resolves: [b.id, b.id.slice(-8)] });
+    const { entry, notes } = add(writer(), { resolves: [b.id, b.id.slice(-8)] });
     expect(notes).toEqual([]);
     expect(journal.repo.get(b.id)!.resolvedByEntryId).toBe(entry.id);
   });
 
-  test('lenient: a target that turns non-open inside the transaction is dropped', () => {
+  test('a target that turns non-open inside the transaction is dropped', () => {
     const b = seed('stuck', { kind: 'blocker' });
     const orig = journal.repo.transaction.bind(journal.repo);
     // Another process resolves the blocker right as the write transaction starts.
     journal.repo.transaction = ((fn: () => unknown) => orig(() => { journal.repo.resolve(b.id); return fn(); })) as typeof journal.repo.transaction;
-    const { entry, notes } = add(writer({ resolves: 'lenient' }), { resolves: [b.id.slice(-8)] });
+    const { entry, notes } = add(writer(), { resolves: [b.id.slice(-8)] });
     expect(notes).toEqual([{ type: 'resolveDropped', id: b.id.slice(-8), reason: NOT_RESOLVABLE }]);
     expect(journal.repo.get(entry.id)).not.toBeNull();
   });
@@ -249,7 +232,7 @@ describe('similar-tag notes', () => {
 
   test('notes come in the order similar-tag notes, dropped resolves, split', () => {
     seed('first', { tags: ['review'] });
-    const w = writer({ resolves: 'lenient', retryMemory: true });
+    const w = writer({ retryMemory: true });
     const { notes } = add(w, { summary: long, details: 'd', tags: ['reveiw'], resolves: ['ZZZZZZZZ'] });
     expect(notes.map((n) => n.type)).toEqual(['similarTag', 'resolveDropped', 'split']);
   });

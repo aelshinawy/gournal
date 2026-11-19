@@ -3,7 +3,7 @@
 // An adapter (CLI or MCP) parses its input, resolves the identity, and calls this module.
 // The summary rule, the resolves policy, the similar-tag check, and the relink live here.
 // The repository keeps `cleanSummary` as an invariant guard, so a bad summary never reaches the database.
-// The module returns Write notes (facts about a write that did not stop it). Each adapter words them.
+// The module returns Write notes (facts about a write that did not stop it). write-note-text.ts holds the wording that the adapters share.
 import { canResolve, checkSummary, closeTags, noEntryMessage, normalizeTags, NOT_RESOLVABLE } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref, RepoIdentity, Source } from '../core';
 import type { Journal } from '../storage';
@@ -41,8 +41,6 @@ export interface EntryWriterOptions {
   retryMemory: boolean;
   /** Epoch milliseconds. Feeds the retry memory only. */
   clock: () => number;
-  /** Temporary switch. PR 2 deletes it and keeps 'lenient'. */
-  resolves: 'strict' | 'lenient';
 }
 
 export interface EntryWriter {
@@ -109,30 +107,25 @@ export function createEntryWriter(
       refs: input.refs,
     };
     const dropped: WriteNote[] = [];
-    let entry: Entry;
-    if (opts.resolves === 'strict') {
-      entry = repo.add({ ...base, resolves: input.resolves });
-    } else {
-      // A bad resolves id never stops the entry. The check and the add share one transaction.
-      entry = repo.transaction(() => {
-        const valid = new Set<string>();
-        for (const id of input.resolves ?? []) {
-          try {
-            const target = repo.get(id);
-            if (!target) {
-              dropped.push({ type: 'resolveDropped', id, reason: noEntryMessage(id) });
-            } else if (!canResolve(target.kind, target.status)) {
-              dropped.push({ type: 'resolveDropped', id, reason: NOT_RESOLVABLE });
-            } else {
-              valid.add(target.id);
-            }
-          } catch (err) {
-            dropped.push({ type: 'resolveDropped', id, reason: err instanceof Error ? err.message : String(err) });
+    // A bad resolves id never stops the entry. The check and the add share one transaction.
+    const entry = repo.transaction(() => {
+      const valid = new Set<string>();
+      for (const id of input.resolves ?? []) {
+        try {
+          const target = repo.get(id);
+          if (!target) {
+            dropped.push({ type: 'resolveDropped', id, reason: noEntryMessage(id) });
+          } else if (!canResolve(target.kind, target.status)) {
+            dropped.push({ type: 'resolveDropped', id, reason: NOT_RESOLVABLE });
+          } else {
+            valid.add(target.id);
           }
+        } catch (err) {
+          dropped.push({ type: 'resolveDropped', id, reason: err instanceof Error ? err.message : String(err) });
         }
-        return repo.add({ ...base, resolves: [...valid] });
-      });
-    }
+      }
+      return repo.add({ ...base, resolves: [...valid] });
+    });
     relinkAfterWrite(journal, [entry.id]);
     const notes: WriteNote[] = [...similar, ...dropped];
     if (check.summary !== text) notes.push({ type: 'split' });

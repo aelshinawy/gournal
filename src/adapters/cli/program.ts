@@ -4,6 +4,7 @@ import { execGh, resolveIdentity, type GhRunner } from '../../sources';
 import { maybeAutoSync, parseSince, runSync, syncSummaryLine } from '../sync';
 import { startMcpServer } from '../mcp';
 import { createEntryWriter } from '../entry-writer';
+import { writeNoteText } from '../write-note-text';
 import { standupModel, workLogModel } from '../reports';
 import { EXPORT_FORMATS, OPTION_TEXT, buildStats, parseKind, parseStatus, resolveQuery, shortId, stripControl } from '../../core';
 import type { Query } from '../../core';
@@ -98,7 +99,7 @@ export function buildProgram(io: CliIo): Command {
     }
   };
 
-  const writerFor = (journal: Journal) => createEntryWriter(journal, { retryMemory: false, clock: Date.now, resolves: 'strict' });
+  const writerFor = (journal: Journal) => createEntryWriter(journal, { retryMemory: false, clock: Date.now });
 
   program
     .exitOverride()
@@ -117,7 +118,7 @@ export function buildProgram(io: CliIo): Command {
     .option('-t, --tags <tags>', 'Tag the entry. Separate tags with commas.', '')
     .option('-d, --details <text>', 'Save longer text with the entry. The summary stays one line.')
     .addOption(new Option('-k, --kind <kind>', 'Set the entry kind: done (default), blocker, or next.').default(undefined, 'done'))
-    .option('--resolves <ids>', 'Close the open blocker or next entries with these ids. Separate ids with commas. One unknown id stops the add, and gournal stores nothing.')
+    .option('--resolves <ids>', 'Close the open blocker or next entries with these ids. Separate ids with commas. Gournal drops an id that it cannot resolve, adds the entry, and prints a note.')
     .action(async (summary: string, options: { tags: string; details?: string; kind?: string; resolves?: string }) => {
       const kind = options.kind === undefined ? undefined : parseKind(options.kind);
       await withJournal((journal) => {
@@ -135,6 +136,7 @@ export function buildProgram(io: CliIo): Command {
         if (notes.some((n) => n.type === 'split')) {
           io.out(chalk.yellow('Note: summary was long, the rest went to details.'));
         }
+        for (const note of notes) if (note.type !== 'split') io.err(writeNoteText(note));
       });
     });
 
