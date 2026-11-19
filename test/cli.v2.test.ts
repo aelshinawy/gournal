@@ -32,12 +32,12 @@ describe('gournal CLI on the SQLite journal', () => {
     const res = await run('resolve', id);
     expect(res.status).toBe(0);
     expect(res.stdout).toContain('Stuck on CI');
+    expect(rows(home)[0].status).toBe('resolved');
   });
 
   test('add --resolves closes a blocker, and a bad id is an error', async () => {
     const id = suffix((await run('add', 'Blocked', '-k', 'blocker')).stdout);
     expect((await run('add', 'Fixed it', '--resolves', id)).status).toBe(0);
-    expect(rows(home)[0].status).toBe('resolved');
     const bad = await run('add', 'Nope', '--resolves', 'ZZZZZZZZ');
     expect(bad.status).toBe(1);
     expect(bad.stderr).toContain('No entry with id');
