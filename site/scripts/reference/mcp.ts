@@ -144,10 +144,10 @@ function childSchema(schema: JSONSchema, root: JSONSchema): { props?: Record<str
 
 /**
  * JSON Schema of a zod schema that tools share, without the description of the outer object. It uses the
- * converter and target that src/adapters/mcp/sdk.ts uses, so the result compares equal to the schema in a tool listing.
+ * converter and the 2020-12 target that the MCP SDK uses, so the result compares equal to the schema in a tool listing.
  */
 function sharedSchema(schema: z.ZodType): JSONSchema {
-  return withoutMeta(z.toJSONSchema(schema, { target: 'draft-7', io: 'output' }) as JSONSchema);
+  return withoutMeta(z.toJSONSchema(schema, { target: 'draft-2020-12', io: 'output' }) as JSONSchema);
 }
 
 function withoutMeta(schema: JSONSchema): JSONSchema {
