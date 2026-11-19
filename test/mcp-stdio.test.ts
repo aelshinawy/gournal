@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { makeTmp, rmTmp } from './helpers/tmp';
 
+const ANSWER_TIMEOUT_MS = 20000;
 const ROOT = path.resolve(__dirname, '..');
 
 const hasId2 = (line: string): boolean => {
@@ -20,6 +21,7 @@ test('gournal mcp writes only JSON-RPC lines to stdout', async () => {
     ['-r', 'ts-node/register/transpile-only', path.join(ROOT, 'src/cli.ts'), 'mcp'],
     { env: { ...process.env, HOME: home, USERPROFILE: home, GOURNAL_HOME: gournalHome }, stdio: ['pipe', 'pipe', 'pipe'] },
   );
+  let timer: NodeJS.Timeout | undefined;
   try {
     let out = '';
     let err = '';
@@ -39,7 +41,10 @@ test('gournal mcp writes only JSON-RPC lines to stdout', async () => {
     });
     send({ jsonrpc: '2.0', method: 'notifications/initialized' });
     send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
-    const early = await Promise.race([gotResult.then(() => false), exited.then(() => true)]);
+    const timedOut = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`gournal mcp did not answer tools/list in ${ANSWER_TIMEOUT_MS} ms. stdout: ${out}\nstderr: ${err}`)), ANSWER_TIMEOUT_MS);
+    });
+    const early = await Promise.race([gotResult.then(() => false), exited.then(() => true), timedOut]);
     if (early) throw new Error(`gournal mcp exited before answering tools/list. stdout: ${out}\nstderr: ${err}`);
     child.stdin.end();
     await exited;
@@ -51,6 +56,7 @@ test('gournal mcp writes only JSON-RPC lines to stdout', async () => {
     const list = msgs.find(m => m.id === 2);
     expect(list.result.tools).toHaveLength(12);
   } finally {
+    clearTimeout(timer);
     child.kill();
     rmTmp(home);
     rmTmp(gournalHome);
