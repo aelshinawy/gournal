@@ -158,7 +158,11 @@ export function createEntryWriter(
     update,
     resolve: (id, by) => repo.resolve(id, by),
     delete: (id) => repo.softDelete(id),
-    restore: (id) => repo.restore(id),
+    restore: (id) => {
+      const entry = repo.restore(id);
+      relinkAfterWrite(journal, [entry.id]);
+      return entry;
+    },
     undo: () => {
       const latest = repo.latestForDevice();
       return latest ? repo.softDelete(latest.id) : null;

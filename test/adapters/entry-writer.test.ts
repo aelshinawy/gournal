@@ -260,6 +260,15 @@ describe('relink after write', () => {
     w.update(entry.id, { refs: [{ type: 'pr', value: '5' }] });
     expect(journal.activity.linkedTo([entry.id])[entry.id]).toHaveLength(1);
   });
+
+  test('restore relinks the entry to stored activity', () => {
+    const w = writer();
+    const { entry } = add(w, { identity: { project: 'p', repo: 'acme/widgets', branch: null }, refs: [{ type: 'pr', value: '5' }] });
+    w.delete(entry.id);
+    pr(); // sync stores activity while the entry is removed; upsert does not link
+    w.restore(entry.id);
+    expect(journal.activity.linkedTo([entry.id])[entry.id] ?? []).toHaveLength(1);
+  });
 });
 
 describe('pass-through methods', () => {
