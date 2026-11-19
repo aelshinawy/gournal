@@ -1,5 +1,4 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
@@ -8,11 +7,11 @@ import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository, AmbiguousIdError } from '../../src/storage/sqlite-repository';
 import type { EntryRepository } from '../../src/core/repository';
 import { InvalidQueryError } from '../../src/core';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository;
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-repo-'));
+  home = makeTmp('gournal-repo-');
   const dbPath = path.join(home, 'gournal.db');
   db = openDb(dbPath);
   config = loadConfig(home);

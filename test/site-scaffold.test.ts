@@ -1,9 +1,9 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { execFileSync, spawnSync } from 'child_process';
 import { npmCli, npmCommand } from './helpers/npm';
 import { siteConfig } from './helpers/site-config';
+import { makeTmp } from './helpers/tmp';
 
 const root = path.resolve(__dirname, '..');
 const docsRoot = path.join(root, 'site/src/content/docs/docs');
@@ -100,7 +100,7 @@ describe('check-dashes', () => {
     spawnSync(process.execPath, [script, dir], { encoding: 'utf8', cwd: root });
 
   test('check-dashes fails on an em dash and passes on a clean tree', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dashes-'));
+    const dir = makeTmp('dashes-');
     try {
       fs.writeFileSync(path.join(dir, 'clean.md'), 'Clean text, with a comma.\n');
       expect(run(dir).status).toBe(0);
@@ -114,7 +114,7 @@ describe('check-dashes', () => {
   });
 
   test('check-dashes skips node_modules and dist', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dashes-'));
+    const dir = makeTmp('dashes-');
     try {
       for (const skip of ['node_modules', 'dist']) {
         fs.mkdirSync(path.join(dir, skip));

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // knip finds src/cli.ts (package.json bin), the npm scripts, and the jest test files by itself.
+  // These entries are scripts that a tool or a test starts by path.
+  "entry": [
+    "site/scripts/examples/record.ts",
+    "site/scripts/examples/seed.ts",
+    "scripts/demo/fixture.ts"
+  ],
+  "project": ["src/**/*.ts", "test/**/*.ts", "site/scripts/**/*.ts", "scripts/**/*.{ts,mjs}"],
+  // Layer fixtures are input for dependency-cruiser. Other fixtures run as child processes.
+  "ignore": ["test/fixtures/**"],
+  // test/helpers/npm.ts resolves npm only when it is installed. It is not a dependency.
+  "ignoreDependencies": ["npm"]
+}

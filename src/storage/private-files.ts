@@ -3,7 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { isDefaultHome } from './home';
 
-export const DIR_MODE = 0o700;
+const DIR_MODE = 0o700;
 export const FILE_MODE = 0o600;
 
 /**

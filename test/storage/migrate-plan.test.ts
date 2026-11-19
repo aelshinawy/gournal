@@ -1,5 +1,4 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 import { DatabaseSync } from 'node:sqlite';
@@ -9,7 +8,7 @@ import { createRepository } from '../../src/storage/sqlite-repository';
 import { importLegacy, applyPlan, renderPlanDiff } from '../../src/storage/migrate';
 import type { MigrationPlan, PlanItem } from '../../src/storage/migrate';
 import type { EntryRepository } from '../../src/core/repository';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository;
 let jsonPath: string; let dbPath: string; let stderr: jest.SpyInstance;
@@ -29,7 +28,7 @@ const byIndex = (i: number) => {
 const apply = (p: MigrationPlan, dryRun = false) => applyPlan(db, repo, config, jsonPath, p, { dryRun });
 
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-plan-'));
+  home = makeTmp('gournal-plan-');
   dbPath = path.join(home, 'gournal.db');
   db = openDb(dbPath);
   jsonPath = path.join(home, 'entries.json');

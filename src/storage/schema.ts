@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
-export const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 2;
 
 // Timestamp columns are INTEGER epoch milliseconds. Tables are STRICT, so ISO text is rejected.
 // Repository code converts ISO strings to and from ms at its boundary.
@@ -145,7 +145,7 @@ export function migrateSchema(db: DatabaseSync): void {
 // node:sqlite build has FTS5. Databases made before this change already have it, and those stay valid.
 
 // GOURNAL_DISABLE_FTS5=1 acts as a build without FTS5. Tests use it. Only hasFts5 reads it.
-export const DISABLE_FTS5_ENV = 'GOURNAL_DISABLE_FTS5';
+const DISABLE_FTS5_ENV = 'GOURNAL_DISABLE_FTS5';
 
 // A guarded probe, not pragma_compile_options: it tests the capability itself (FTS5 can also come from
 // a loaded extension). The probe table is in the temp schema, so it takes no lock on the database file.

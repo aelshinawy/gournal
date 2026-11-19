@@ -1,11 +1,10 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { GhError, type GhRunner } from '../src/sources';
 import { openJournal, type Journal } from '../src/storage/journal';
 import { AUTO_SYNC_BUDGET_MS, SYNC_LEASE, SYNC_STATE, maybeAutoSync, relinkAfterWrite, runSync } from '../src/adapters/sync';
 import { fakeGh } from './helpers/fake-gh';
-import { rmTmp } from './helpers/tmp';
+import { makeTmp, rmTmp } from './helpers/tmp';
 
 const fx = (n: string) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'github', n), 'utf8'));
 const NOW = new Date('2026-11-15T12:00:00.000Z');
@@ -34,7 +33,7 @@ let other: Journal;
 const savedNoAuto = process.env.GOURNAL_NO_AUTOSYNC;
 beforeEach(() => {
   delete process.env.GOURNAL_NO_AUTOSYNC; // the global setup sets it; the gate tests need it unset
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-sync-'));
+  home = makeTmp('gournal-sync-');
   journal = openJournal(home);
   other = openJournal(home);
 });
@@ -248,7 +247,7 @@ test('concurrent syncs use one lease and make no duplicates', async () => {
   expect(statuses).toEqual(['failed', 'ok']);
   const failed = a.status === 'failed' ? a : b;
   expect(failed.warning).toBe('Another GitHub sync is running; try again in a minute.');
-  const single = openJournal(fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-sync-one-')));
+  const single = openJournal(makeTmp('gournal-sync-one-'));
   await runSync(single, fakeGh(routes(since)), { auto: false, now: NOW });
   expect(journal.activity.find().length).toBe(single.activity.find().length);
   single.close();
@@ -365,7 +364,7 @@ describe('relinkAfterWrite', () => {
 
 test('a legacy-imported entry with a pr ref links to existing activity', async () => {
   await runSync(journal, fakeGh(routes(new Date(NOW.getTime() - 30 * DAY))), { auto: false, now: NOW });
-  const legacyHome = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-sync-legacy-'));
+  const legacyHome = makeTmp('gournal-sync-legacy-');
   try {
     const first = openJournal(legacyHome);
     first.activity.upsert(journal.activity.find());

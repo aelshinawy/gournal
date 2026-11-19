@@ -1,5 +1,4 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
@@ -9,7 +8,7 @@ import { createRepository } from '../../src/storage/sqlite-repository';
 import { exportBundle, importBundle } from '../../src/storage/bundle';
 import { ftsTest } from '../fts5';
 import { runIn } from '../helpers/run-cli';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 // GOURNAL_DISABLE_FTS5=1 makes the detection function report "no FTS5", like an official Linux Node build.
 const FLAG = 'GOURNAL_DISABLE_FTS5';
@@ -17,7 +16,7 @@ let dir: string; let file: string; let config: Config;
 const outerFlag = process.env[FLAG];
 const restoreFlag = () => { if (outerFlag === undefined) delete process.env[FLAG]; else process.env[FLAG] = outerFlag; };
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-search-'));
+  dir = makeTmp('gournal-search-');
   file = path.join(dir, 'gournal.db');
   config = loadConfig(dir);
   restoreFlag();

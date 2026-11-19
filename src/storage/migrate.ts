@@ -21,7 +21,7 @@ type Sanitized = LegacyEntry & { nonStringMessage?: true };
 const MAX_MS = 2 ** 48 - 1;
 
 /** Fill defaults for a malformed item. Strings stay exactly as written. Nothing is dropped. */
-export function sanitize(raw: unknown): Sanitized {
+function sanitize(raw: unknown): Sanitized {
   const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
   const m = o.message;
   const base = {

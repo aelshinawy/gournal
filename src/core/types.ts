@@ -20,7 +20,7 @@ export function canResolve(kind: string | null, status: string | null): boolean 
   return (kind === 'blocker' || kind === 'next') && status === 'open';
 }
 export const EXPORT_FORMATS = ['md', 'csv', 'bundle'] as const;
-export type RefType = 'pr' | 'jira' | 'commit' | 'url';
+type RefType = 'pr' | 'jira' | 'commit' | 'url';
 export interface Ref { type: RefType; value: string; repo?: string }
 export type Source = 'cli' | 'mcp' | 'migration';
 

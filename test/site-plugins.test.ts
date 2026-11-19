@@ -1,8 +1,8 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { pathToFileURL } from 'url';
+import { makeTmp } from './helpers/tmp';
 
 const plugins = path.resolve(__dirname, '../site/plugins');
 
@@ -100,7 +100,7 @@ test('the overview check runs once per document', () => {
 
 // Run the focusable plugin hook over a Markdown source: one render pass per entry in `passes`.
 function renderNames(source: string, blocks: number, passes: number): string[][] {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ecf-'));
+  const dir = makeTmp('ecf-');
   const file = path.join(dir, 'doc.md');
   fs.writeFileSync(file, source);
   const mod = moduleUrl('ec-focusable.mjs');

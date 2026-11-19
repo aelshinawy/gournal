@@ -1,10 +1,7 @@
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
 import { openJournal, type Journal } from '../../src/storage/journal';
 import { standupModel } from '../../src/adapters/reports';
 import type { NewActivityInput } from '../../src/core';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 const NOW = new Date('2026-11-15T12:00:00.000Z');
 const TODAY = '2026-11-15T09:00:00.000Z';
@@ -13,7 +10,7 @@ const YESTERDAY = '2026-11-14T09:00:00.000Z';
 let home: string;
 let journal: Journal;
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-reports-'));
+  home = makeTmp('gournal-reports-');
   journal = openJournal(home);
 });
 afterEach(() => {

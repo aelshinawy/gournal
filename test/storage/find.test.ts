@@ -1,5 +1,3 @@
-import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
@@ -10,11 +8,11 @@ import { InvalidQueryError } from '../../src/core';
 import type { NewEntryInput } from '../../src/core';
 import type { EntryRepository } from '../../src/core/repository';
 import { ftsMatchExpression, likePattern } from '../../src/storage/search';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository;
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-find-'));
+  home = makeTmp('gournal-find-');
   const dbPath = path.join(home, 'gournal.db');
   db = openDb(dbPath);
   config = loadConfig(home);
@@ -138,7 +136,7 @@ describe('search modes', () => {
   const searchWith = (disableFts5: boolean, text: string): string[] => {
     const prev = process.env.GOURNAL_DISABLE_FTS5;
     if (disableFts5) process.env.GOURNAL_DISABLE_FTS5 = '1'; else delete process.env.GOURNAL_DISABLE_FTS5;
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-modes-'));
+    const dir = makeTmp('gournal-modes-');
     const dbPath = path.join(dir, 'gournal.db');
     const modeDb = openDb(dbPath);
     try {

@@ -1,5 +1,4 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
@@ -8,7 +7,7 @@ import { createRepository } from '../../src/storage/sqlite-repository';
 import { importLegacy } from '../../src/storage/migrate';
 import { exportBundle, importBundle } from '../../src/storage/bundle';
 import type { EntryRepository } from '../../src/core/repository';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 interface Side { db: DatabaseSync; repo: EntryRepository }
 let home: string; let config: Config; let stderr: jest.SpyInstance; let sides: Side[];
@@ -19,7 +18,7 @@ const legacy = [
 const wait = (n = 15) => { const s = Date.now(); while (Date.now() - s < n) { /* ensure a later updatedAt */ } };
 
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-pristine-'));
+  home = makeTmp('gournal-pristine-');
   config = loadConfig(home);
   fs.writeFileSync(path.join(home, 'entries.json'), JSON.stringify(legacy));
   stderr = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);

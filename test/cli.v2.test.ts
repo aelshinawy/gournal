@@ -1,5 +1,4 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { DatabaseSync } from 'node:sqlite';
@@ -9,9 +8,9 @@ import { openJournal } from '../src/storage/journal';
 import { ftsTest } from './fts5';
 import { GhError, type GhRunner } from '../src/sources';
 import type { NewActivityInput } from '../src/core';
-import { rmTmp } from './helpers/tmp';
+import { makeRealTmp, makeTmp, rmTmp } from './helpers/tmp';
 
-const mkHome = () => fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cli-v2-'));
+const mkHome = () => makeTmp('gournal-cli-v2-');
 const rows = (home: string, sql = 'SELECT id, summary, details, status, deleted_at FROM entries ORDER BY created_at') => {
   const db = new DatabaseSync(path.join(home, 'gournal.db'));
   try { return db.prepare(sql).all() as Record<string, string | number | null>[]; } finally { db.close(); }
@@ -151,7 +150,7 @@ describe('gournal CLI on the SQLite journal', () => {
     let tmpBase: string;
     let repoDir: string;
     beforeEach(() => {
-      tmpBase = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-git-')));
+      tmpBase = makeRealTmp('gournal-git-');
       repoDir = path.join(tmpBase, 'collection-app');
       fs.mkdirSync(repoDir);
       const g = (...a: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main', '-C', repoDir, ...a], { stdio: 'ignore' });

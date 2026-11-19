@@ -1,7 +1,7 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { stopHook, HOOK_REASON } from '../../src/adapters/setup/hook';
+import { makeTmp } from '../helpers/tmp';
 
 let dir: string;
 let home: string;
@@ -20,7 +20,7 @@ const input = (file: string, extra: Record<string, unknown> = {}, id = 's1') =>
   JSON.stringify({ session_id: id, transcript_path: file, stop_hook_active: false, ...extra });
 
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-hook-'));
+  dir = makeTmp('gournal-hook-');
   home = path.join(dir, 'home');
   fs.mkdirSync(home);
 });

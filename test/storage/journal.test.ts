@@ -1,16 +1,15 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { openJournal } from '../../src/storage/journal';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let home: string;
 let stderr: jest.SpyInstance;
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-journal-'));
+  home = makeTmp('gournal-journal-');
   stderr = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
 });
 afterEach(() => { stderr.mockRestore(); rmTmp(home); });

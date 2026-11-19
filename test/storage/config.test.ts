@@ -4,12 +4,12 @@ import path from 'path';
 import { CONFIG_DEFAULTS } from '../../src/core';
 import { loadConfig } from '../../src/storage/config';
 import { gournalHome } from '../../src/storage/home';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let dir: string;
 const savedHome = process.env.GOURNAL_HOME;
 const savedNoAuto = process.env.GOURNAL_NO_AUTOSYNC;
-beforeEach(() => { delete process.env.GOURNAL_NO_AUTOSYNC; dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cfg-')); });
+beforeEach(() => { delete process.env.GOURNAL_NO_AUTOSYNC; dir = makeTmp('gournal-cfg-'); });
 afterEach(() => {
   if (savedHome === undefined) delete process.env.GOURNAL_HOME; else process.env.GOURNAL_HOME = savedHome;
   if (savedNoAuto === undefined) delete process.env.GOURNAL_NO_AUTOSYNC; else process.env.GOURNAL_NO_AUTOSYNC = savedNoAuto;
@@ -85,7 +85,7 @@ test.each([
 });
 
 test.each(['projectAliases', 'tagAliases'])('%s with an alias chain is rejected', (key) => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cfg-chain-'));
+  const home = makeTmp('gournal-cfg-chain-');
   try {
     fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ deviceId: 'D', [key]: { a: 'b', b: 'c' } }));
     expect(() => loadConfig(home)).toThrow('alias chain at "a"');

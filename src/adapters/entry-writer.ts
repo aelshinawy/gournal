@@ -10,7 +10,7 @@ import type { Journal } from '../storage';
 import { relinkAfterWrite } from './sync';
 
 export const RETRY_WINDOW_MS = 10 * 60 * 1000;
-export const RETRY_PREFIX = 60;
+const RETRY_PREFIX = 60;
 
 /** A Write note: a fact about a write that did not stop it. Each adapter words it. */
 export type WriteNote =
@@ -18,7 +18,7 @@ export type WriteNote =
   | { type: 'resolveDropped'; id: string; reason: string }
   | { type: 'similarTag'; tag: string; close: string[] };
 
-export interface WriteResult { entry: Entry; notes: WriteNote[] }
+interface WriteResult { entry: Entry; notes: WriteNote[] }
 
 export interface AddInput {
   summary: string;               // raw, untrimmed
@@ -32,7 +32,7 @@ export interface AddInput {
   resolves?: string[];
 }
 
-export interface UpdateInput {
+interface UpdateInput {
   summary?: string; details?: string; kind?: Kind; project?: string; tags?: string[]; refs?: Ref[];
 }
 

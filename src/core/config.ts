@@ -2,7 +2,7 @@ import { newId } from './ulid';
 
 export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-export interface GithubConfig {
+interface GithubConfig {
   autoSync: boolean;
   autoSyncMinutes: number;
   initialSyncDays: number;

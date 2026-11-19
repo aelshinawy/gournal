@@ -11,7 +11,7 @@ export interface LegacyEntry {
   tags: string[];
 }
 
-export const BACKUP_PATTERN = /^entries-\d{4}-\d{2}-\d{2}\.json$/;
+const BACKUP_PATTERN = /^entries-\d{4}-\d{2}-\d{2}\.json$/;
 
 export class CorruptJournalError extends Error {
   readonly path: string;
@@ -27,11 +27,11 @@ export class CorruptJournalError extends Error {
   }
 }
 
-export function backupsDir(filePath: string): string {
+function backupsDir(filePath: string): string {
   return path.join(path.dirname(filePath), 'backups');
 }
 
-export function listBackupsSync(filePath: string): string[] {
+function listBackupsSync(filePath: string): string[] {
   let names: string[];
   try {
     names = fs.readdirSync(backupsDir(filePath));
@@ -42,17 +42,9 @@ export function listBackupsSync(filePath: string): string[] {
   return names.filter((n) => BACKUP_PATTERN.test(n)).sort();
 }
 
-export async function listBackups(filePath: string): Promise<string[]> {
-  return listBackupsSync(filePath);
-}
-
-export function latestBackupSync(filePath: string): string | null {
+function latestBackupSync(filePath: string): string | null {
   const names = listBackupsSync(filePath);
   return names.length ? path.join(backupsDir(filePath), names[names.length - 1]) : null;
-}
-
-export async function latestBackup(filePath: string): Promise<string | null> {
-  return latestBackupSync(filePath);
 }
 
 /**

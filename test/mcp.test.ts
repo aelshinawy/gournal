@@ -1,6 +1,3 @@
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
 import { execFileSync } from 'child_process';
 import chalk from 'chalk';
 import { format } from 'date-fns';
@@ -13,7 +10,7 @@ import { createServer, SERVER_INSTRUCTIONS, type ServerDeps } from '../src/adapt
 import { GhError, resolveIdentity, type GhRunner } from '../src/sources';
 import type { NewEntryInput } from '../src/core';
 import { openJournal, type Journal } from '../src/storage/journal';
-import { rmTmp } from './helpers/tmp';
+import { makeRealTmp, makeTmp, rmTmp } from './helpers/tmp';
 
 let home: string;
 let journal: Journal;
@@ -37,7 +34,7 @@ async function connect(j?: Journal, deps: Partial<ServerDeps> = {}, roots?: stri
 }
 
 beforeEach(async () => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-mcp-'));
+  home = makeTmp('gournal-mcp-');
   journal = openJournal(home);
   client = await connect(journal);
   identityStub.mockClear();
@@ -136,7 +133,7 @@ test('a relative cwd is ignored', async () => {
 });
 
 test('the default identity applies config aliases to a real repo', async () => {
-  const repoDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-git-')));
+  const repoDir = makeRealTmp('gournal-git-');
   try {
     const g = (...a: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main', '-C', repoDir, ...a], { stdio: 'ignore' });
     g('init'); g('remote', 'add', 'origin', 'git@github.com:acme/collection-app.git'); g('commit', '--allow-empty', '-m', 'i');

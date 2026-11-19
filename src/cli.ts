@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import './adapters/suppress-warnings';
-import { runCli } from './adapters/cli';
+import { runCli } from './adapters';
 
 // A reader that closes the pipe early (`gournal export | head -1`) is not an error.
 process.stdout.on('error', (err: NodeJS.ErrnoException) => {

@@ -1,7 +1,7 @@
 // Small Markdown helpers for the reference generator. Output is byte-stable.
 
 /** Escape text for one table cell: pipes and line breaks would break the row. */
-export function cell(text: string): string {
+function cell(text: string): string {
   return text.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 }
 
@@ -20,7 +20,7 @@ export function code(text: string): string {
 }
 
 /** Quote a YAML scalar only when a bare scalar would be unsafe. */
-export function yamlString(value: string): string {
+function yamlString(value: string): string {
   return /^[A-Za-z0-9][A-Za-z0-9 ,.()/_-]*$/.test(value) && !/\s$/.test(value) ? value : JSON.stringify(value);
 }
 

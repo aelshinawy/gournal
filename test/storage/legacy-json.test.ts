@@ -1,15 +1,14 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { CorruptJournalError, readLegacyEntries } from '../../src/storage/legacy-json';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 describe('legacy entries.json reader', () => {
   let dir: string;
   let file: string;
 
   beforeEach(() => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-legacy-'));
+    dir = makeTmp('gournal-legacy-');
     file = path.join(dir, 'entries.json');
   });
   afterEach(() => rmTmp(dir));

@@ -41,6 +41,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run lint
+      - run: npm run knip
       - run: npm run typecheck
       - run: npm run check:dashes
       # The coverage gate runs on Linux and macOS. Windows skips mode-bit tests, so it runs the plain suite.

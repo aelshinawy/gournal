@@ -1,11 +1,8 @@
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
 import { runIn } from './helpers/run-cli';
-import { rmTmp } from './helpers/tmp';
+import { makeTmp, rmTmp } from './helpers/tmp';
 
 test('find rejects an invalid --from even when the journal is empty', async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-'));
+  const home = makeTmp('gournal-');
   try {
     const res = await runIn(home, ['find', 'x', '--from', 'garbage']);
     expect(res.status).toBe(1);
@@ -16,7 +13,7 @@ test('find rejects an invalid --from even when the journal is empty', async () =
 });
 
 test('find with blank text matches nothing', async () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-'));
+  const home = makeTmp('gournal-');
   try {
     const add = await runIn(home, ['add', 'something']);
     expect(add.status).toBe(0);
