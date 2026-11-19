@@ -1,6 +1,8 @@
 import { randomBytes } from 'crypto';
 import { format } from 'date-fns';
+import type { z } from 'zod';
 import { InvalidQueryError, parseBound } from '../core';
+import type { SyncReportSchema } from '../render';
 import { fetchActivity, GhError, type GhRunner } from '../sources';
 import type { Journal } from '../storage';
 
@@ -19,15 +21,7 @@ const MANUAL_CALL_TIMEOUT_MS = 60_000;
 const MAX_REASON = 100;
 const DAY_MS = 86_400_000;
 
-export interface SyncReport {
-  status: 'ok' | 'partial' | 'skipped' | 'failed';
-  since: string;
-  inserted: number;
-  updated: number;
-  linked: number;
-  /** The one line to print, or null. */
-  warning: string | null;
-}
+export type SyncReport = z.infer<typeof SyncReportSchema>;
 
 type SyncJournal = Pick<Journal, 'repo' | 'activity' | 'config'>;
 type Reason = { kind: GhError['kind']; text: string };
