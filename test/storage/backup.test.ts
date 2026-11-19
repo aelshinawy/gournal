@@ -1,16 +1,15 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
 import { ftsTest } from '../fts5';
 import { backupDbIfNeeded } from '../../src/storage/backup';
 import { asPlatform } from '../helpers/platform';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let dir: string; let file: string; let db: DatabaseSync;
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-bak-'));
+  dir = makeTmp('gournal-bak-');
   file = path.join(dir, 'gournal.db');
   db = openDb(file);
   db.prepare('INSERT INTO entries (id, created_at, updated_at, device_id, summary, details) VALUES (?, 1, 1, ?, ?, ?)')

@@ -1,14 +1,13 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { publishExclusive, renameWithRetry, writePrivateFile, writeExportFile } from '../../src/storage/private-files';
 import { asPlatform } from '../helpers/platform';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 const posix = process.platform === 'win32' ? test.skip : test;
 
 let tmp: string;
-beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-private-')); });
+beforeEach(() => { tmp = makeTmp('gournal-private-'); });
 afterEach(() => rmTmp(tmp));
 
 posix('the temp file is removed when the final rename fails', () => {

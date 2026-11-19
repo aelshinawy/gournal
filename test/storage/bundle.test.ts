@@ -1,5 +1,3 @@
-import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import type { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
@@ -9,7 +7,7 @@ import { createRepository } from '../../src/storage/sqlite-repository';
 import { exportBundle, importBundle } from '../../src/storage/bundle';
 import { createActivityRepository } from '../../src/storage/activity-repository';
 import type { EntryRepository } from '../../src/core/repository';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository;
 function open(name: string) {
@@ -18,7 +16,7 @@ function open(name: string) {
   return { d, r: createRepository(d, config, dbPath) };
 }
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-bundle-'));
+  home = makeTmp('gournal-bundle-');
   config = loadConfig(home);
   ({ d: db, r: repo } = open('a.db'));
 });

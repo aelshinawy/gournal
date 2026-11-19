@@ -1,14 +1,13 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { openDb, CorruptDatabaseError } from '../../src/storage/db';
 import { hasFts5, ftsTest } from '../fts5';
 import { loadConfig } from '../../src/storage/config';
 import { runIn } from '../helpers/run-cli';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let dir: string; let file: string;
-beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-db-')); file = path.join(dir, 'gournal.db'); });
+beforeEach(() => { dir = makeTmp('gournal-db-'); file = path.join(dir, 'gournal.db'); });
 afterEach(() => rmTmp(dir));
 
 const ins = (db: any, id: string, summary: string, details: string | null = null) =>

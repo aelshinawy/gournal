@@ -1,16 +1,13 @@
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
 import { openJournal } from '../../src/storage/journal';
 import type { Journal } from '../../src/storage/journal';
 import type { NewActivityInput } from '../../src/core';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let home: string;
 let journal: Journal;
 let other: Journal;
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-activity-'));
+  home = makeTmp('gournal-activity-');
   journal = openJournal(home);
   other = openJournal(home);
 });

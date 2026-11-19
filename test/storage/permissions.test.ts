@@ -1,11 +1,10 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { openJournal } from '../../src/storage/journal';
 import { backupDbIfNeeded, snapshotDb } from '../../src/storage/backup';
 import { stopHook } from '../../src/adapters/setup/hook';
 import { ensurePrivateFile, tightenFile } from '../../src/storage/private-files';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 const posix = process.platform === 'win32' ? describe.skip : describe;
 const mode = (p: string): number => fs.statSync(p).mode & 0o777;
@@ -14,7 +13,7 @@ const oct = (p: string): string => mode(p).toString(8);
 let tmp: string;
 let oldUmask: number;
 beforeEach(() => {
-  tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-perm-'));
+  tmp = makeTmp('gournal-perm-');
   oldUmask = process.umask();
 });
 afterEach(() => {

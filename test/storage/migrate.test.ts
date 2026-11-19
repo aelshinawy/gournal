@@ -1,5 +1,4 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 import { DatabaseSync } from 'node:sqlite';
@@ -8,7 +7,7 @@ import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
 import { importLegacy, legacyKey, mechanicalEntry } from '../../src/storage/migrate';
 import type { EntryRepository } from '../../src/core/repository';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let home: string; let db: DatabaseSync; let config: Config; let repo: EntryRepository; let jsonPath: string;
 let stderr: jest.SpyInstance;
@@ -18,7 +17,7 @@ const mapRows = () => db.prepare('SELECT * FROM legacy_map ORDER BY legacy_index
 const errText = () => stderr.mock.calls.map((c) => String(c[0])).join('');
 
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-migrate-'));
+  home = makeTmp('gournal-migrate-');
   config = { ...loadConfig(home), ticketPrefixes: ['sbdc'] };
   const dbPath = path.join(home, 'gournal.db');
   db = openDb(dbPath);

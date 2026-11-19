@@ -1,10 +1,9 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { spawn } from 'child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
-import { rmTmp } from '../helpers/tmp';
+import { makeTmp, rmTmp } from '../helpers/tmp';
 
 const fixture = path.join(__dirname, '..', 'fixtures', 'repo-opener.ts');
 
@@ -24,7 +23,7 @@ function runOpener(home: string, startAt: number): Promise<void> {
 
 describe('openDb first-open race', () => {
   let home: string;
-  beforeEach(() => { home = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-race-')); });
+  beforeEach(() => { home = makeTmp('gournal-race-'); });
   afterEach(() => rmTmp(home));
 
   test('6 processes that open a new database at the same time all succeed', async () => {
