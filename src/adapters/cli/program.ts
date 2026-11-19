@@ -4,8 +4,8 @@ import { execGh, resolveIdentity, type GhRunner } from '../../sources';
 import { maybeAutoSync, parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
 import { startMcpServer } from '../mcp';
 import { standupModel, workLogModel } from '../reports';
-import { EXPORT_FORMATS, KINDS, OPTION_TEXT, STATUSES, buildStats, checkSummary, resolveQuery, shortId, stripControl } from '../../core';
-import type { Kind, Query, Status } from '../../core';
+import { EXPORT_FORMATS, OPTION_TEXT, buildStats, checkSummary, parseKind, parseStatus, resolveQuery, shortId, stripControl } from '../../core';
+import type { Query } from '../../core';
 import {
   entryLinesText, exportCsv, exportMarkdown, projectCountsText, standupText, statsText, tagCountsText, workLogText,
 } from '../../render';
@@ -15,7 +15,7 @@ import path from 'path';
 import { VERSION } from '../version';
 import { clearConfirmQuestion } from './prompts';
 import { execFileRunner, setupClaude, stopHook, type CommandRunner } from '../setup';
-import { openJournal, exportBundle, importBundle, backupDbIfNeeded, gournalHome, userHomePath, hasFts5, rebuildSearchIndex, importLegacy, applyPlan, renderPlanDiff, writePrivateFile, writeExportFile, assertExportTarget, assertTargetDir } from '../../storage';
+import { openJournal, exportBundle, importBundle, gournalHome, userHomePath, hasFts5, rebuildSearchIndex, importLegacy, applyPlan, renderPlanDiff, writePrivateFile, writeExportFile, assertExportTarget, assertTargetDir } from '../../storage';
 import type { Journal, MigrationPlan } from '../../storage';
 
 export interface CliIo {
@@ -56,20 +56,15 @@ interface FindCliOptions {
 
 /** Build one Query from CLI options. Validate every value here, so a bad option fails before the journal opens. */
 function buildQuery(options: Partial<FindCliOptions>, text?: string): Query {
-  const kind = splitList(options.kind);
-  for (const k of kind) {
-    if (!(KINDS as readonly string[]).includes(k)) throw new Error(`Unknown kind "${k}". Use done, blocker, or next.`);
-  }
-  if (options.status !== undefined && !(STATUSES as readonly string[]).includes(options.status)) {
-    throw new Error(`Unknown status "${options.status}". Use open or resolved.`);
-  }
+  const kind = splitList(options.kind).map(parseKind);
+  const status = options.status === undefined ? undefined : parseStatus(options.status);
   const query: Query = {
     project: options.project,
     repo: options.repo,
     tags: splitList(options.tags),
     text,
-    kind: kind.length > 0 ? (kind as Kind[]) : undefined,
-    status: options.status as Status | undefined,
+    kind: kind.length > 0 ? kind : undefined,
+    status,
     from: options.from,
     to: options.to,
     limit: options.limit === undefined ? undefined : Number(options.limit),
@@ -93,6 +88,15 @@ export function buildProgram(io: CliIo): Command {
     }
   };
 
+  /** A failed daily backup warns and never stops the command. */
+  const backupWithWarning = (journal: Journal): void => {
+    try {
+      journal.backupIfNeeded();
+    } catch (err) {
+      io.err(`gournal: daily backup failed: ${(err as Error).message}`);
+    }
+  };
+
   program
     .exitOverride()
     .configureOutput({
@@ -112,9 +116,7 @@ export function buildProgram(io: CliIo): Command {
     .addOption(new Option('-k, --kind <kind>', 'Set the entry kind: done (default), blocker, or next.').default(undefined, 'done'))
     .option('--resolves <ids>', 'Close the open blocker or next entries with these ids. Separate ids with commas. One unknown id stops the add, and gournal stores nothing.')
     .action(async (summary: string, options: { tags: string; details?: string; kind?: string; resolves?: string }) => {
-      if (options.kind !== undefined && !(KINDS as readonly string[]).includes(options.kind)) {
-        throw new Error(`Unknown kind "${options.kind}". Use done, blocker, or next.`);
-      }
+      const kind = options.kind === undefined ? undefined : parseKind(options.kind);
       const check = checkSummary(summary, options.details, { allowSplit: true });
       if (!check.ok) throw new Error(check.error);
       await withJournal((journal) => {
@@ -123,7 +125,7 @@ export function buildProgram(io: CliIo): Command {
         const entry = repo.add({
           summary: check.summary,
           details: check.details,
-          kind: options.kind as Kind | undefined,
+          kind,
           project: id.project,
           repo: id.repo ?? undefined,
           branch: id.branch ?? undefined,
@@ -320,15 +322,12 @@ export function buildProgram(io: CliIo): Command {
         if (err instanceof SyntaxError) throw new Error(`Bundle file ${file} is not valid JSON: ${err.message}`);
         throw err;
       }
-      await withJournal(({ db, repo, config }) => {
+      await withJournal((journal) => {
+        const { db, repo, config } = journal;
         // An empty database has nothing to protect. It must not take the day's backup slot.
         const hasEntries = (db.prepare('SELECT 1 AS x FROM entries LIMIT 1').get() as { x: number } | undefined) !== undefined;
         if (hasEntries) {
-          try {
-            backupDbIfNeeded(db, path.join(io.home, 'gournal.db'));
-          } catch (err) {
-            io.err(`gournal: daily backup failed: ${(err as Error).message}`);
-          }
+          backupWithWarning(journal);
         }
         const r = importBundle(db, bundle, config);
         io.out(chalk.green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged, ${r.deduplicated} duplicates merged.`));
@@ -411,14 +410,11 @@ export function buildProgram(io: CliIo): Command {
     .command('rebuild')
     .description('Drop and recreate the full-text search index. It takes today\'s backup first, if none exists yet. Run it only when every gournal process uses a Node build with FTS5.')
     .action(async () => {
-      await withJournal(({ db }) => {
+      await withJournal((journal) => {
+        const { db } = journal;
         // Check FTS5 first, so a refusal does not use up the daily backup slot.
         if (!hasFts5(db)) throw new Error(NO_FTS5_MESSAGE);
-        try {
-          backupDbIfNeeded(db, path.join(io.home, 'gournal.db'));
-        } catch (err) {
-          io.err(`gournal: daily backup failed: ${(err as Error).message}`);
-        }
+        backupWithWarning(journal);
         const { indexed } = rebuildSearchIndex(db);
         io.out(chalk.green(`Search index rebuilt: ${indexed} entries.`));
       });

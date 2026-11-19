@@ -86,7 +86,14 @@ function tempPath(file: string): string {
   return path.join(path.dirname(file), `.config.${process.pid}.${newId()}.tmp`);
 }
 
+/** Read the config file and apply the environment override. GOURNAL_NO_AUTOSYNC=1 turns auto-sync off. The file stays unchanged. */
 export function loadConfig(home: string, hooks: LoadConfigHooks = {}): Config {
+  const config = loadConfigFile(home, hooks);
+  if (process.env.GOURNAL_NO_AUTOSYNC === '1') return { ...config, github: { ...config.github, autoSync: false } };
+  return config;
+}
+
+function loadConfigFile(home: string, hooks: LoadConfigHooks): Config {
   const file = path.join(home, 'config.json');
   const warn = hooks.warn ?? defaultWarn;
   ensurePrivateDir(home);
