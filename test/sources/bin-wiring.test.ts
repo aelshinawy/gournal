@@ -14,6 +14,10 @@ beforeEach(() => {
 });
 
 describe('git identity', () => {
+  afterEach(() => {
+    execFileSyncMock.mockReset();
+  });
+
   test('every git call uses the resolved binary and a hidden window', () => {
     execFileSyncMock.mockReturnValue('');
     resolveIdentity('/some/dir', {});
@@ -23,10 +27,6 @@ describe('git identity', () => {
       expect(call[0]).toBe('RESOLVED-git');
       expect(call[2]).toMatchObject({ windowsHide: true });
     }
-  });
-
-  afterEach(() => {
-    execFileSyncMock.mockReset();
   });
 
   test('an error inside the lookup falls back to the default project', () => {
