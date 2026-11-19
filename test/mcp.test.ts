@@ -709,6 +709,8 @@ describe('get_standup and get_work_log with activity', () => {
 
   test('get_standup adds the sync warning as the last markdown line and as syncWarning', async () => {
     delete process.env.GOURNAL_NO_AUTOSYNC;
+    journal.close();
+    journal = openJournal(home); // the config loader reads the override at open
     seed('Did a thing');
     const c = await connect(journal, { gh: down });
     const r: any = await c.callTool({ name: 'get_standup', arguments: {} });
@@ -720,6 +722,8 @@ describe('get_standup and get_work_log with activity', () => {
 
   test('get_work_log runs auto-sync and reports the warning', async () => {
     delete process.env.GOURNAL_NO_AUTOSYNC;
+    journal.close();
+    journal = openJournal(home); // the config loader reads the override at open
     seed('Did a thing');
     const c = await connect(journal, { gh: down });
     const r: any = await c.callTool({ name: 'get_work_log', arguments: {} });

@@ -307,10 +307,16 @@ describe('auto sync gate', () => {
     await maybeAutoSync({ ...journal, config: { ...journal.config, github: { ...journal.config.github, autoSync: false } } }, g4, new Date(due.getTime() + DAY));
     expect(g4.calls).toHaveLength(0);
 
+    // The config loader reads the override, so open the journal again with it set.
     process.env.GOURNAL_NO_AUTOSYNC = '1';
-    const g5 = ok(due);
-    await maybeAutoSync(journal, g5, new Date(due.getTime() + DAY));
-    expect(g5.calls).toHaveLength(0);
+    const muted = openJournal(home);
+    try {
+      const g5 = ok(due);
+      await maybeAutoSync(muted, g5, new Date(due.getTime() + DAY));
+      expect(g5.calls).toHaveLength(0);
+    } finally {
+      muted.close();
+    }
   });
 
   test('a failed attempt counts as an attempt', async () => {

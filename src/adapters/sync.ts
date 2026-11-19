@@ -141,7 +141,7 @@ export async function runSync(
 export async function maybeAutoSync(journal: SyncJournal, gh: GhRunner, now: Date): Promise<string | null> {
   try {
     const { github } = journal.config;
-    if (!github.autoSync || process.env.GOURNAL_NO_AUTOSYNC === '1') return null;
+    if (!github.autoSync) return null;
     const last = journal.repo.getState(SYNC_STATE.lastAttemptAt);
     const lastMs = last === null ? NaN : Date.parse(last);
     if (Number.isFinite(lastMs) && now.getTime() - lastMs < github.autoSyncMinutes * 60_000) return null;

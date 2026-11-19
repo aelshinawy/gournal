@@ -8,9 +8,11 @@ import { rmTmp } from '../helpers/tmp';
 
 let dir: string;
 const savedHome = process.env.GOURNAL_HOME;
-beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cfg-')); });
+const savedNoAuto = process.env.GOURNAL_NO_AUTOSYNC;
+beforeEach(() => { delete process.env.GOURNAL_NO_AUTOSYNC; dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gournal-cfg-')); });
 afterEach(() => {
   if (savedHome === undefined) delete process.env.GOURNAL_HOME; else process.env.GOURNAL_HOME = savedHome;
+  if (savedNoAuto === undefined) delete process.env.GOURNAL_NO_AUTOSYNC; else process.env.GOURNAL_NO_AUTOSYNC = savedNoAuto;
   rmTmp(dir);
 });
 
@@ -19,6 +21,20 @@ test('loadConfig creates a stable deviceId', () => {
   expect(a.deviceId).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
   expect(b).toEqual(a);
   expect(a).toEqual({ deviceId: a.deviceId, projectAliases: {}, tagAliases: {}, ticketPrefixes: [], ...CONFIG_DEFAULTS });
+});
+test('GOURNAL_NO_AUTOSYNC=1 turns github.autoSync off and leaves the file unchanged', () => {
+  fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify({ deviceId: 'D1', github: { autoSync: true } }));
+  loadConfig(dir); // the first load fills the missing keys
+  const before = fs.readFileSync(path.join(dir, 'config.json'), 'utf8');
+  process.env.GOURNAL_NO_AUTOSYNC = '1';
+  expect(loadConfig(dir).github.autoSync).toBe(false);
+  expect(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')).toBe(before);
+});
+test('another GOURNAL_NO_AUTOSYNC value keeps the configured github.autoSync', () => {
+  process.env.GOURNAL_NO_AUTOSYNC = '0';
+  expect(loadConfig(dir).github.autoSync).toBe(true);
+  delete process.env.GOURNAL_NO_AUTOSYNC;
+  expect(loadConfig(dir).github.autoSync).toBe(true);
 });
 test('loadConfig fills missing keys and keeps existing values', () => {
   fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify({ deviceId: 'D1', tagAliases: { a: 'b' } }));
