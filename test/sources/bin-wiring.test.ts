@@ -24,6 +24,21 @@ describe('git identity', () => {
       expect(call[2]).toMatchObject({ windowsHide: true });
     }
   });
+
+  afterEach(() => {
+    execFileSyncMock.mockReset();
+  });
+
+  test('an error inside the lookup falls back to the default project', () => {
+    execFileSyncMock.mockImplementation((_b: string, args: string[]) => {
+      if (args.includes('rev-parse')) return '/top\n/top/.git';
+      if (args.includes('symbolic-ref')) return 'main';
+      return '';
+    });
+    const boom = () => { throw new Error('boom'); };
+    const aliases = new Proxy({}, { has: boom, get: boom, getOwnPropertyDescriptor: boom, ownKeys: boom });
+    expect(resolveIdentity('/x', aliases as Record<string, string>)).toEqual({ project: 'uncategorized', repo: null, branch: null });
+  });
 });
 
 describe('gh', () => {
