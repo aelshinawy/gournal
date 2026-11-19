@@ -5,7 +5,7 @@ import * as dates from '../../src/core/dates';
 const ROOT = path.resolve(__dirname, '..', '..');
 const PROBE = path.join('test', 'fixtures', 'dates', 'probe.ts');
 
-type Probe = { zone: string; offset: number; instants: string[][]; local: string[] };
+type Probe = { zone: string; offset: number; instants: string[][]; diffs: number[]; local: string[] };
 
 /** Run the probe in a child process with TZ set. Node reads TZ at start, so a zone needs a new process. */
 function runProbe(zone: string, instants: string[]): Probe {
@@ -21,8 +21,10 @@ function runProbe(zone: string, instants: string[]): Probe {
 const L = (y: number, m: number, d: number, h = 0, mi = 0): Date => new Date(y, m - 1, d, h, mi);
 const fmt = dates.formatDayTime;
 
+// These cases run in the zone of the jest process. CI uses UTC, so they do not cover DST there.
+// The zone cases below pin New York and Berlin in a child process.
 describe('date functions in the process zone', () => {
-  test('startOfWeek returns the start day itself and the week before for the day before', () => {
+  test('startOfWeek returns the start day itself and the week before for the day before (DST only if the process zone has DST)', () => {
     expect(fmt(dates.startOfWeek(L(2026, 3, 8, 0, 30), 0))).toBe('2026-03-08 00:00'); // Sunday, start day
     expect(fmt(dates.startOfWeek(L(2026, 3, 7, 23, 30), 0))).toBe('2026-03-01 00:00'); // day before
     expect(fmt(dates.startOfWeek(L(2026, 3, 30, 0, 30), 1))).toBe('2026-03-30 00:00'); // Monday, start day
@@ -33,7 +35,7 @@ describe('date functions in the process zone', () => {
     expect(fmt(dates.startOfMonth(L(2026, 3, 29, 23, 30)))).toBe('2026-03-01 00:00');
   });
 
-  test('differenceInDays counts whole calendar days across DST days', () => {
+  test('differenceInDays counts whole calendar days (across DST days only if the process zone has DST)', () => {
     expect(dates.differenceInDays(L(2026, 3, 9), L(2026, 3, 8))).toBe(1);
     expect(dates.differenceInDays(L(2026, 3, 30), L(2026, 3, 29))).toBe(1);
     expect(dates.differenceInDays(L(2026, 3, 9, 23, 30), L(2026, 3, 8, 0, 30))).toBe(1);
@@ -84,25 +86,30 @@ describe('date functions in the process zone', () => {
   });
 });
 
-const ZONES: Record<string, { offset: number; parseIso: string; instants: Record<string, string[]> }> = {
+// Per-instant columns: 12 format and day values, then startOfWeek(0), startOfWeek(1), and startOfMonth.
+// The literals come from a date-fns 4.1.0 run in each zone.
+// diffs are differenceInDays for the PAIRS in the probe.
+const ZONES: Record<string, { offset: number; parseIso: string; diffs: number[]; instants: Record<string, string[]> }> = {
   'America/New_York': {
     offset: 300,
+    diffs: [1, 1, 1, 1, 0, 0, 0],
     parseIso: '2026-03-29T04:00:00.000Z',
     instants: {
-      '2026-03-08T05:30:00.000Z': ['2026-03-08', 'Mar 08', 'Sun Mar 08', '00:30', 'Sun 08 00:30', 'Sun 08 - 00:30', '2026-03-08 00:30', 'Mar Sun 08 - 00:30', '2026-03-08T05:00:00.000Z', '2026-03-09T03:59:59.999Z', '2026-03-09T04:30:00.000Z', '2026-03-07T05:30:00.000Z'],
-      '2026-03-09T03:30:00.000Z': ['2026-03-08', 'Mar 08', 'Sun Mar 08', '23:30', 'Sun 08 23:30', 'Sun 08 - 23:30', '2026-03-08 23:30', 'Mar Sun 08 - 23:30', '2026-03-08T05:00:00.000Z', '2026-03-09T03:59:59.999Z', '2026-03-10T03:30:00.000Z', '2026-03-08T04:30:00.000Z'],
-      '2026-11-01T04:30:00.000Z': ['2026-11-01', 'Nov 01', 'Sun Nov 01', '00:30', 'Sun 01 00:30', 'Sun 01 - 00:30', '2026-11-01 00:30', 'Nov Sun 01 - 00:30', '2026-11-01T04:00:00.000Z', '2026-11-02T04:59:59.999Z', '2026-11-02T05:30:00.000Z', '2026-10-31T04:30:00.000Z'],
-      '2026-11-02T04:30:00.000Z': ['2026-11-01', 'Nov 01', 'Sun Nov 01', '23:30', 'Sun 01 23:30', 'Sun 01 - 23:30', '2026-11-01 23:30', 'Nov Sun 01 - 23:30', '2026-11-01T04:00:00.000Z', '2026-11-02T04:59:59.999Z', '2026-11-03T04:30:00.000Z', '2026-11-01T03:30:00.000Z']
+      '2026-03-08T05:30:00.000Z': ['2026-03-08', 'Mar 08', 'Sun Mar 08', '00:30', 'Sun 08 00:30', 'Sun 08 - 00:30', '2026-03-08 00:30', 'Mar Sun 08 - 00:30', '2026-03-08T05:00:00.000Z', '2026-03-09T03:59:59.999Z', '2026-03-09T04:30:00.000Z', '2026-03-07T05:30:00.000Z', '2026-03-08T05:00:00.000Z', '2026-03-02T05:00:00.000Z', '2026-03-01T05:00:00.000Z'],
+      '2026-03-09T03:30:00.000Z': ['2026-03-08', 'Mar 08', 'Sun Mar 08', '23:30', 'Sun 08 23:30', 'Sun 08 - 23:30', '2026-03-08 23:30', 'Mar Sun 08 - 23:30', '2026-03-08T05:00:00.000Z', '2026-03-09T03:59:59.999Z', '2026-03-10T03:30:00.000Z', '2026-03-08T04:30:00.000Z', '2026-03-08T05:00:00.000Z', '2026-03-02T05:00:00.000Z', '2026-03-01T05:00:00.000Z'],
+      '2026-11-01T04:30:00.000Z': ['2026-11-01', 'Nov 01', 'Sun Nov 01', '00:30', 'Sun 01 00:30', 'Sun 01 - 00:30', '2026-11-01 00:30', 'Nov Sun 01 - 00:30', '2026-11-01T04:00:00.000Z', '2026-11-02T04:59:59.999Z', '2026-11-02T05:30:00.000Z', '2026-10-31T04:30:00.000Z', '2026-11-01T04:00:00.000Z', '2026-10-26T04:00:00.000Z', '2026-11-01T04:00:00.000Z'],
+      '2026-11-02T04:30:00.000Z': ['2026-11-01', 'Nov 01', 'Sun Nov 01', '23:30', 'Sun 01 23:30', 'Sun 01 - 23:30', '2026-11-01 23:30', 'Nov Sun 01 - 23:30', '2026-11-01T04:00:00.000Z', '2026-11-02T04:59:59.999Z', '2026-11-03T04:30:00.000Z', '2026-11-01T03:30:00.000Z', '2026-11-01T04:00:00.000Z', '2026-10-26T04:00:00.000Z', '2026-11-01T04:00:00.000Z']
     }
   },
   'Europe/Berlin': {
     offset: -60,
+    diffs: [1, 1, 1, 1, 0, 0, 0],
     parseIso: '2026-03-28T23:00:00.000Z',
     instants: {
-      '2026-03-28T23:30:00.000Z': ['2026-03-29', 'Mar 29', 'Sun Mar 29', '00:30', 'Sun 29 00:30', 'Sun 29 - 00:30', '2026-03-29 00:30', 'Mar Sun 29 - 00:30', '2026-03-28T23:00:00.000Z', '2026-03-29T21:59:59.999Z', '2026-03-29T22:30:00.000Z', '2026-03-27T23:30:00.000Z'],
-      '2026-03-29T21:30:00.000Z': ['2026-03-29', 'Mar 29', 'Sun Mar 29', '23:30', 'Sun 29 23:30', 'Sun 29 - 23:30', '2026-03-29 23:30', 'Mar Sun 29 - 23:30', '2026-03-28T23:00:00.000Z', '2026-03-29T21:59:59.999Z', '2026-03-30T21:30:00.000Z', '2026-03-28T22:30:00.000Z'],
-      '2026-10-24T22:30:00.000Z': ['2026-10-25', 'Oct 25', 'Sun Oct 25', '00:30', 'Sun 25 00:30', 'Sun 25 - 00:30', '2026-10-25 00:30', 'Oct Sun 25 - 00:30', '2026-10-24T22:00:00.000Z', '2026-10-25T22:59:59.999Z', '2026-10-25T23:30:00.000Z', '2026-10-23T22:30:00.000Z'],
-      '2026-10-25T22:30:00.000Z': ['2026-10-25', 'Oct 25', 'Sun Oct 25', '23:30', 'Sun 25 23:30', 'Sun 25 - 23:30', '2026-10-25 23:30', 'Oct Sun 25 - 23:30', '2026-10-24T22:00:00.000Z', '2026-10-25T22:59:59.999Z', '2026-10-26T22:30:00.000Z', '2026-10-24T21:30:00.000Z']
+      '2026-03-28T23:30:00.000Z': ['2026-03-29', 'Mar 29', 'Sun Mar 29', '00:30', 'Sun 29 00:30', 'Sun 29 - 00:30', '2026-03-29 00:30', 'Mar Sun 29 - 00:30', '2026-03-28T23:00:00.000Z', '2026-03-29T21:59:59.999Z', '2026-03-29T22:30:00.000Z', '2026-03-27T23:30:00.000Z', '2026-03-28T23:00:00.000Z', '2026-03-22T23:00:00.000Z', '2026-02-28T23:00:00.000Z'],
+      '2026-03-29T21:30:00.000Z': ['2026-03-29', 'Mar 29', 'Sun Mar 29', '23:30', 'Sun 29 23:30', 'Sun 29 - 23:30', '2026-03-29 23:30', 'Mar Sun 29 - 23:30', '2026-03-28T23:00:00.000Z', '2026-03-29T21:59:59.999Z', '2026-03-30T21:30:00.000Z', '2026-03-28T22:30:00.000Z', '2026-03-28T23:00:00.000Z', '2026-03-22T23:00:00.000Z', '2026-02-28T23:00:00.000Z'],
+      '2026-10-24T22:30:00.000Z': ['2026-10-25', 'Oct 25', 'Sun Oct 25', '00:30', 'Sun 25 00:30', 'Sun 25 - 00:30', '2026-10-25 00:30', 'Oct Sun 25 - 00:30', '2026-10-24T22:00:00.000Z', '2026-10-25T22:59:59.999Z', '2026-10-25T23:30:00.000Z', '2026-10-23T22:30:00.000Z', '2026-10-24T22:00:00.000Z', '2026-10-18T22:00:00.000Z', '2026-09-30T22:00:00.000Z'],
+      '2026-10-25T22:30:00.000Z': ['2026-10-25', 'Oct 25', 'Sun Oct 25', '23:30', 'Sun 25 23:30', 'Sun 25 - 23:30', '2026-10-25 23:30', 'Oct Sun 25 - 23:30', '2026-10-24T22:00:00.000Z', '2026-10-25T22:59:59.999Z', '2026-10-26T22:30:00.000Z', '2026-10-24T21:30:00.000Z', '2026-10-24T22:00:00.000Z', '2026-10-18T22:00:00.000Z', '2026-09-30T22:00:00.000Z']
     }
   }
 };
@@ -130,6 +137,10 @@ zoneDescribe(honored || process.platform !== 'win32' ? 'zone cases' : skippedNam
 
     test.each(Object.entries(spec.instants))('instant %s', (iso, expected) => {
       expect(out.instants[Object.keys(spec.instants).indexOf(iso)]).toEqual(expected);
+    });
+
+    test('differenceInDays counts calendar days across the DST changes', () => {
+      expect(out.diffs).toEqual(spec.diffs);
     });
 
     test('parseIso reads a bare day as local midnight, and new Date reads it as UTC midnight', () => {
