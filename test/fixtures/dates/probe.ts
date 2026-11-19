@@ -1,6 +1,6 @@
 // Child process for test/core/dates.test.ts. It prints one JSON line.
 // The test sets TZ in the child env. Each argument is an ISO instant.
-import * as dates from './date-fns-dates';
+import * as dates from '../../../src/core/dates';
 
 const instants = process.argv.slice(2).map((iso) => {
   const d = new Date(iso);

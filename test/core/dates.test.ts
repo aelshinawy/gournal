@@ -1,6 +1,6 @@
 import { spawnSync } from 'child_process';
 import path from 'path';
-import * as dates from '../fixtures/dates/date-fns-dates';
+import * as dates from '../../src/core/dates';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const PROBE = path.join('test', 'fixtures', 'dates', 'probe.ts');
@@ -14,7 +14,7 @@ function runProbe(zone: string, instants: string[]): Probe {
     env: { ...process.env, TZ: zone },
     encoding: 'utf8'
   });
-  if (res.status !== 0) throw new Error(`probe failed (${res.status}): ${res.stderr}`);
+  if (res.status !== 0) throw new Error(`probe failed (${res.status}): ${res.error ?? res.stderr}`);
   return JSON.parse(res.stdout.trim()) as Probe;
 }
 
@@ -50,6 +50,12 @@ describe('date functions in the process zone', () => {
   test('parseDay reads a strict day at local midnight and gives an invalid date for a bad day', () => {
     expect(fmt(dates.parseDay('2026-03-29'))).toBe('2026-03-29 00:00');
     for (const bad of ['2026-02-30', '2026-04-31', '2026-13-01', '2026-00-10']) {
+      expect(Number.isNaN(dates.parseDay(bad).getTime())).toBe(true);
+    }
+  });
+
+  test('parseDay is stricter than date-fns parse and rejects a short month, a short year, and other shapes', () => {
+    for (const bad of ['2026-2-3', '26-03-29', '2026-03-29T00:00', ' 2026-03-29']) {
       expect(Number.isNaN(dates.parseDay(bad).getTime())).toBe(true);
     }
   });
@@ -112,6 +118,7 @@ if (!honored && process.platform !== 'win32') {
   });
 }
 
+// Selects the suite name. Only a Windows runner that ignores TZ gets the skip name. On other platforms the guard test above fails instead.
 zoneDescribe(honored || process.platform !== 'win32' ? 'zone cases' : skippedName, () => {
   describe.each(Object.entries(ZONES))('%s', (zone, spec) => {
     const out = runProbe(zone, Object.keys(spec.instants));
