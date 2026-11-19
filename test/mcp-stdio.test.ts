@@ -47,7 +47,7 @@ test('gournal mcp writes only JSON-RPC lines to stdout', async () => {
     const early = await Promise.race([gotResult.then(() => false), exited.then(() => true), timedOut]);
     if (early) throw new Error(`gournal mcp exited before answering tools/list. stdout: ${out}\nstderr: ${err}`);
     child.stdin.end();
-    await exited;
+    await Promise.race([exited, timedOut]);
 
     const lines = out.split('\n').filter(l => l.length > 0);
     expect(lines.length).toBeGreaterThanOrEqual(2);

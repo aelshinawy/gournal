@@ -12,7 +12,9 @@ function draft07<T extends z.ZodType>(schema: T): StandardSchemaWithJSON<z.input
     input: () => z.toJSONSchema(schema, { target: 'draft-7', io: 'input' }),
     output: () => z.toJSONSchema(schema, { target: 'draft-7', io: 'output' }),
   };
-  return Object.assign(Object.create(schema), { '~standard': { ...std, jsonSchema } });
+  const out = Object.create(schema);
+  Object.defineProperty(out, '~standard', { value: { ...std, jsonSchema }, enumerable: false });
+  return out;
 }
 
 export interface FrozenToolConfig<Shape extends z.ZodRawShape> {
