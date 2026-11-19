@@ -1,11 +1,11 @@
 // Child process for test/render/day-header.test.ts. It prints one JSON line.
 // The test sets TZ in the child env. The entry is on Sunday 29 March 2026 in New York.
-import chalk from 'chalk';
 import { buildWorkLog, resolvePeriod } from '../../../src/core';
 import { workLogMarkdown, workLogText } from '../../../src/render';
+import { forceColor } from '../../../src/render/style';
 import { makeEntry } from '../../core/factory';
 
-chalk.level = 0;
+forceColor(false);
 
 const now = new Date('2026-03-29T18:00:00.000Z');
 const entry = makeEntry({ createdAt: '2026-03-29T12:00:00.000Z' });

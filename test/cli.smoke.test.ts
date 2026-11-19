@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import chalk from 'chalk';
+import { forceColor } from '../src/render/style';
 import { runCli } from '../src/adapters/cli/program';
 import { runIn } from './helpers/run-cli';
 import { openDb } from '../src/storage/db';
@@ -40,16 +40,15 @@ describe('in-process runner', () => {
     }
     expect(process.exitCode).toBe(before);
   });
-  test('runIn output has no ANSI even when chalk colour is on', async () => {
-    const level = chalk.level;
-    chalk.level = 3;
+  test('runIn output has no ANSI even when color is forced on', async () => {
+    const prev = forceColor(true);
     try {
       const r = await runIn(home, ['add', 'colour check']);
       expect(r.stdout).toContain('Entry added!');
       expect(r.stdout).not.toMatch(/\u001b\[/);
-      expect(chalk.level).toBe(3);
+      expect(forceColor(prev)).toBe(true);
     } finally {
-      chalk.level = level;
+      forceColor(prev);
     }
   });
   test('version matches package.json', async () =>

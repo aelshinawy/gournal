@@ -1,5 +1,5 @@
 import { execFileSync } from 'child_process';
-import chalk from 'chalk';
+import { forceColor } from '../src/render/style';
 import { formatDay } from '../src/core/dates';
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 
@@ -497,10 +497,10 @@ test('export_entries has no notice below the limit and accepts tags, from, to, a
 });
 
 describe('ANSI', () => {
-  const level = chalk.level;
-  afterEach(() => { chalk.level = level; });
+  let prev: boolean | undefined;
+  afterEach(() => { forceColor(prev); });
   test('no tool output contains ANSI with colour forced on', async () => {
-    chalk.level = 3;
+    prev = forceColor(true);
     seed('Old blocker', { kind: 'blocker', createdAt: daysAgo(30), tags: ['t'] });
     seed('Done thing', { tags: ['t'] });
     const calls: [string, Record<string, unknown>][] = [

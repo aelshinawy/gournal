@@ -1,5 +1,4 @@
 import { Command, CommanderError, Option } from 'commander';
-import chalk from 'chalk';
 import { execGh, resolveIdentity, type GhRunner } from '../../sources';
 import { maybeAutoSync, parseSince, runSync, syncSummaryLine } from '../sync';
 import { startMcpServer } from '../mcp';
@@ -9,7 +8,7 @@ import { standupModel, workLogModel } from '../reports';
 import { EXPORT_FORMATS, OPTION_TEXT, buildStats, parseKind, parseStatus, resolveQuery, shortId, stripControl } from '../../core';
 import type { Query } from '../../core';
 import {
-  entryLinesText, exportCsv, exportMarkdown, projectCountsText, standupText, statsText, tagCountsText, workLogText,
+  bold, entryLinesText, exportCsv, exportMarkdown, green, projectCountsText, red, standupText, statsText, tagCountsText, workLogText, yellow,
 } from '../../render';
 import inquirer from 'inquirer';
 import fs from 'fs';
@@ -132,9 +131,9 @@ export function buildProgram(io: CliIo): Command {
           tags: splitList(options.tags),
           resolves: splitList(options.resolves),
         });
-        io.out(chalk.green(`✓ Entry added! (${shortId(entry.id)})`));
+        io.out(green(`✓ Entry added! (${shortId(entry.id)})`));
         if (notes.some((n) => n.type === 'split')) {
-          io.out(chalk.yellow('Note: summary was long, the rest went to details.'));
+          io.out(yellow('Note: summary was long, the rest went to details.'));
         }
         for (const note of notes) if (note.type !== 'split') io.err(writeNoteText(note));
       });
@@ -148,7 +147,7 @@ export function buildProgram(io: CliIo): Command {
       let confirmed: boolean;
       try {
         ({ confirm: confirmed } = await inquirer.prompt([
-          { ...clearConfirmQuestion, message: chalk.red(clearConfirmQuestion.message) },
+          { ...clearConfirmQuestion, message: red(clearConfirmQuestion.message) },
         ]));
       } catch {
         throw new Error('Not a terminal; nothing cleared.');
@@ -156,7 +155,7 @@ export function buildProgram(io: CliIo): Command {
       if (!confirmed) return;
       await withJournal((journal) => {
         const count = writerFor(journal).clear();
-        io.out(chalk.green(`✓ Cleared ${count} entries (restore any with gournal restore <id>).`));
+        io.out(green(`✓ Cleared ${count} entries (restore any with gournal restore <id>).`));
       });
     });
 
@@ -167,10 +166,10 @@ export function buildProgram(io: CliIo): Command {
       await withJournal((journal) => {
         const removed = writerFor(journal).undo();
         if (!removed) {
-          io.out(chalk.yellow('No entries to undo.'));
+          io.out(yellow('No entries to undo.'));
           return;
         }
-        io.out(chalk.green(`✓ Removed: ${stripControl(removed.summary)} (restore with gournal restore ${shortId(removed.id)})`));
+        io.out(green(`✓ Removed: ${stripControl(removed.summary)} (restore with gournal restore ${shortId(removed.id)})`));
       });
     });
 
@@ -181,7 +180,7 @@ export function buildProgram(io: CliIo): Command {
     .action(async (id: string) => {
       await withJournal((journal) => {
         const entry = writerFor(journal).restore(id);
-        io.out(chalk.green(`✓ Restored: ${stripControl(entry.summary)}`));
+        io.out(green(`✓ Restored: ${stripControl(entry.summary)}`));
       });
     });
 
@@ -192,7 +191,7 @@ export function buildProgram(io: CliIo): Command {
     .action(async (id: string) => {
       await withJournal((journal) => {
         const entry = writerFor(journal).resolve(id);
-        io.out(chalk.green(`✓ Resolved: ${stripControl(entry.summary)}`));
+        io.out(green(`✓ Resolved: ${stripControl(entry.summary)}`));
       });
     });
 
@@ -301,7 +300,7 @@ export function buildProgram(io: CliIo): Command {
 
         if (options.output) {
           writeExportFile(options.output, output, options.force === true);
-          io.out(chalk.green(`✓ Exported ${count} entries to ${options.output}`));
+          io.out(green(`✓ Exported ${count} entries to ${options.output}`));
         } else {
           io.out(output);
         }
@@ -328,7 +327,7 @@ export function buildProgram(io: CliIo): Command {
           backupWithWarning(journal);
         }
         const r = importBundle(db, bundle, config);
-        io.out(chalk.green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged, ${r.deduplicated} duplicates merged.`));
+        io.out(green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged, ${r.deduplicated} duplicates merged.`));
         // The bundle's legacy keys are in place now. The legacy import adds only lines the bundle did not know.
         const jsonPath = path.join(io.home, 'entries.json');
         if (fs.existsSync(jsonPath)) {
@@ -357,7 +356,7 @@ export function buildProgram(io: CliIo): Command {
       const query = buildQuery(options, text);
       await withJournal(({ repo }) => {
         const results = repo.find(query);
-        io.out(chalk.bold(`Found ${results.length} entries:\n`));
+        io.out(bold(`Found ${results.length} entries:\n`));
         if (results.length > 0) io.out(entryLinesText(results));
       });
     });
@@ -414,7 +413,7 @@ export function buildProgram(io: CliIo): Command {
         if (!hasFts5(db)) throw new Error(NO_FTS5_MESSAGE);
         backupWithWarning(journal);
         const { indexed } = rebuildSearchIndex(db);
-        io.out(chalk.green(`Search index rebuilt: ${indexed} entries.`));
+        io.out(green(`Search index rebuilt: ${indexed} entries.`));
       });
     });
 
@@ -491,7 +490,7 @@ export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<n
   } catch (err) {
     // Commander has already written its own help, version, and usage errors.
     if (err instanceof CommanderError) return err.exitCode;
-    full.err(chalk.red(err instanceof Error ? err.message : String(err)));
+    full.err(red(err instanceof Error ? err.message : String(err)));
     return 1;
   }
 }

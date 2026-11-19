@@ -1,4 +1,4 @@
-import chalk from 'chalk';
+import { forceColor, red } from '../../src/render/style';
 import { buildStandup, buildWorkLog, resolvePeriod } from '../../src/core';
 import { entriesMarkdown, exportCsv, exportMarkdown, standupMarkdown, standupJson, workLogMarkdown, workLogJson } from '../../src/render';
 import { makeActivity, makeEntry } from '../core/factory';
@@ -72,18 +72,17 @@ describe('markdown renderers', () => {
     expect(exportMarkdown([])).toBe('# Gournal Export\n\nNo entries found.\n');
   });
 
-  test('markdown, json, and csv never contain ANSI, even with chalk forced on', () => {
-    const level = chalk.level;
-    chalk.level = 3;
+  test('markdown, json, and csv never contain ANSI, even with color forced on', () => {
+    const prev = forceColor(true);
     try {
-      expect(chalk.red('x')).toContain('\x1b');
+      expect(red('x')).toContain('\x1b');
       const outputs = [
         standupMarkdown(model), workLogMarkdown(buildWorkLog(period, [done])), entriesMarkdown([done, blocker]),
         exportMarkdown([done]), exportCsv([done]), JSON.stringify(standupJson(model)),
         JSON.stringify(workLogJson(buildWorkLog(period, [done]))),
       ];
       for (const o of outputs) expect(o).not.toContain('\x1b');
-    } finally { chalk.level = level; }
+    } finally { forceColor(prev); }
   });
 
   describe('activity', () => {
@@ -131,12 +130,11 @@ describe('markdown renderers', () => {
     });
 
     test('markdown and json stay free of ANSI with activity', () => {
-      const level = chalk.level;
-      chalk.level = 3;
+      const prev = forceColor(true);
       try {
         expect(standupMarkdown(withActivity)).not.toContain('\x1b');
         expect(JSON.stringify(standupJson(withActivity))).not.toContain('\x1b');
-      } finally { chalk.level = level; }
+      } finally { forceColor(prev); }
     });
   });
 });

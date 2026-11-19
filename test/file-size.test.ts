@@ -10,7 +10,7 @@ const MAX_LINES = 250;
  * max is the line count on the day the row was added. A file on the list must not grow.
  */
 const ALLOWED: Record<string, { max: number; phase: string }> = {
-  'src/adapters/cli/program.ts': { max: 497, phase: 'Phase 6 (adapters)' },
+  'src/adapters/cli/program.ts': { max: 496, phase: 'Phase 6 (adapters)' },
   'src/adapters/mcp/server.ts': { max: 393, phase: 'Phase 6 (adapters)' },
   'src/adapters/setup/claude.ts': { max: 360, phase: 'Phase 6 (adapters)' },
   'src/storage/migrate.ts': { max: 326, phase: 'Phase 5 (storage)' },
