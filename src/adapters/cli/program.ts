@@ -4,8 +4,8 @@ import { execGh, resolveIdentity, type GhRunner } from '../../sources';
 import { maybeAutoSync, parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
 import { startMcpServer } from '../mcp';
 import { standupModel, workLogModel } from '../reports';
-import { EXPORT_FORMATS, KINDS, OPTION_TEXT, STATUSES, buildStats, checkSummary, resolveQuery, shortId, stripControl } from '../../core';
-import type { Kind, Query, Status } from '../../core';
+import { EXPORT_FORMATS, OPTION_TEXT, buildStats, checkSummary, parseKind, parseStatus, resolveQuery, shortId, stripControl } from '../../core';
+import type { Query } from '../../core';
 import {
   entryLinesText, exportCsv, exportMarkdown, projectCountsText, standupText, statsText, tagCountsText, workLogText,
 } from '../../render';
@@ -56,20 +56,15 @@ interface FindCliOptions {
 
 /** Build one Query from CLI options. Validate every value here, so a bad option fails before the journal opens. */
 function buildQuery(options: Partial<FindCliOptions>, text?: string): Query {
-  const kind = splitList(options.kind);
-  for (const k of kind) {
-    if (!(KINDS as readonly string[]).includes(k)) throw new Error(`Unknown kind "${k}". Use done, blocker, or next.`);
-  }
-  if (options.status !== undefined && !(STATUSES as readonly string[]).includes(options.status)) {
-    throw new Error(`Unknown status "${options.status}". Use open or resolved.`);
-  }
+  const kind = splitList(options.kind).map(parseKind);
+  const status = options.status === undefined ? undefined : parseStatus(options.status);
   const query: Query = {
     project: options.project,
     repo: options.repo,
     tags: splitList(options.tags),
     text,
-    kind: kind.length > 0 ? (kind as Kind[]) : undefined,
-    status: options.status as Status | undefined,
+    kind: kind.length > 0 ? kind : undefined,
+    status,
     from: options.from,
     to: options.to,
     limit: options.limit === undefined ? undefined : Number(options.limit),
@@ -112,9 +107,7 @@ export function buildProgram(io: CliIo): Command {
     .addOption(new Option('-k, --kind <kind>', 'Set the entry kind: done (default), blocker, or next.').default(undefined, 'done'))
     .option('--resolves <ids>', 'Close the open blocker or next entries with these ids. Separate ids with commas. One unknown id stops the add, and gournal stores nothing.')
     .action(async (summary: string, options: { tags: string; details?: string; kind?: string; resolves?: string }) => {
-      if (options.kind !== undefined && !(KINDS as readonly string[]).includes(options.kind)) {
-        throw new Error(`Unknown kind "${options.kind}". Use done, blocker, or next.`);
-      }
+      const kind = options.kind === undefined ? undefined : parseKind(options.kind);
       const check = checkSummary(summary, options.details, { allowSplit: true });
       if (!check.ok) throw new Error(check.error);
       await withJournal((journal) => {
@@ -123,7 +116,7 @@ export function buildProgram(io: CliIo): Command {
         const entry = repo.add({
           summary: check.summary,
           details: check.details,
-          kind: options.kind as Kind | undefined,
+          kind,
           project: id.project,
           repo: id.repo ?? undefined,
           branch: id.branch ?? undefined,
