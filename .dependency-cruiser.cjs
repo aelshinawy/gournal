@@ -5,20 +5,11 @@ const LAYER = SRC + '([^/]+)/';
 module.exports = {
   forbidden: [
     {
-      name: 'core-no-io',
-      comment: 'core is pure: no Node built-in modules and no I/O or UI packages.',
+      name: 'core-allowlist',
+      comment: 'core imports only core files and allowlisted packages. zod is the only package (ADR 0002).',
       severity: 'error',
       from: { path: SRC + 'core/' },
-      to: {
-        dependencyTypes: ['core'],
-      },
-    },
-    {
-      name: 'core-no-io',
-      comment: 'core is pure: no Node built-in modules and no I/O or UI packages.',
-      severity: 'error',
-      from: { path: SRC + 'core/' },
-      to: { path: '(?:^|/)node_modules/(chalk|inquirer|commander|@modelcontextprotocol)(?:/|$)' },
+      to: { pathNot: [SRC + 'core/', '(?:^|/)node_modules/zod(?:/|$)'] },
     },
     {
       name: 'layer-order',
