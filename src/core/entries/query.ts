@@ -42,7 +42,10 @@ export class InvalidQueryError extends Error {
 
 const HAS_WORD_CHAR = /[\p{L}\p{N}]/u;
 
-/** Strip control characters from each term and drop terms with no letter or digit. */
+/**
+ * Strip control characters from each term and drop terms with no letter or digit.
+ * SQLite LIKE stops at NUL and FTS5 fails on it.
+ */
 export function cleanSearchTerms(terms: string[]): string[] {
   return terms
     .map(stripControl)
