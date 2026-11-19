@@ -358,11 +358,31 @@ test('add_entry text lists the header, similar-tag notes, dropped resolves, then
   expect(r.structuredContent.notes).toEqual(notes);
 });
 
-test('update_entry with a split summary keeps one text line and no notes', async () => {
+test('update_entry text lists the header, then the split note', async () => {
   const e = seed('one');
+  const note = 'Summary was too long and was split; full text is in details.';
   const r = await call('update_entry', { id: e.id.slice(-8), summary: `${'word '.repeat(40)}end.`, details: 'given' });
-  expect(text(r)).toBe(`Entry ${e.id.slice(-8)} updated: ${r.structuredContent.entry.summary}`);
-  expect(r.structuredContent.notes).toEqual([]);
+  expect(text(r)).toBe(`Entry ${e.id.slice(-8)} updated: ${r.structuredContent.entry.summary}\n${note}`);
+  expect(r.structuredContent.notes).toEqual([note]);
+});
+
+test('a retried update_entry through the server is split', async () => {
+  const e = seed('one');
+  const long = `${'word '.repeat(40)}end.`;
+  const first = await call('update_entry', { id: e.id, summary: long });
+  expect(first.isError).toBe(true);
+  expect(journal.repo.get(e.id)).toEqual(e);
+  const second = await call('update_entry', { id: e.id, summary: long });
+  expect(second.isError).toBeFalsy();
+  expect(second.structuredContent.entry.details).toBe(long);
+  expect(second.structuredContent.notes).toEqual(['Summary was too long and was split; full text is in details.']);
+});
+
+test('update_entry and add_entry describe summary the same way', async () => {
+  const { tools } = await client.listTools();
+  const desc = (n: string) => (tools.find((t: any) => t.name === n)!.inputSchema.properties as any).summary.description;
+  expect(desc('update_entry')).toBe(desc('add_entry'));
+  expect(desc('update_entry')).toContain('retry a summary with the same first 60 characters within 10 minutes');
 });
 
 test('a retry through the server is split', async () => {

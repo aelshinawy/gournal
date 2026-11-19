@@ -23,7 +23,7 @@ A summary is one line. It has at most 120 characters. Gournal counts Unicode cha
 
 Put longer text in details. The CLI helps you when you break the rule. It keeps the first sentence as the summary, shortens it to 120 characters with `...` when needed, and moves the full text to details. It then prints a note.
 
-The `add_entry` MCP tool is stricter. It rejects a long summary that has no details, and it returns an error that tells the agent to shorten the summary and use details. If the agent sends the same text again, the tool splits it.
+The `add_entry` and `update_entry` MCP tools are stricter. They reject a long summary that has no details, and they return an error that tells the agent to shorten the summary and use details. If the agent sends the same text again, the tool splits it.
 
 ## Kinds and carry-forward
 

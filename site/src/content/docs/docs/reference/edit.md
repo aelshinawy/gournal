@@ -16,7 +16,7 @@ Change fields of an existing entry. Fields that you omit stay as they are.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | `string` | yes | Full id or the last 8 characters of the entry. |
-| `summary` | `string` | no | One line, max 120 characters. Put longer text in `details`. |
+| `summary` | `string` | no | One line, max 120 characters. A longer summary is split into details when you pass `details`, or when you retry a summary with the same first 60 characters within 10 minutes. Otherwise the server rejects it. |
 | `details` | `string` | no | New longer text for the entry. |
 | `kind` | `"done" \| "blocker" \| "next"` | no | New kind: done, blocker, or next. A change of kind sets the status to open (none for done) and clears the resolution. |
 | `project` | `string` | no | New project name. |

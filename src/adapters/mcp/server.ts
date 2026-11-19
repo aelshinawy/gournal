@@ -17,6 +17,8 @@ import {
 import { openJournal } from '../../storage';
 import { standupModel, workLogModel } from '../reports';
 
+const SUMMARY_TEXT = 'One line, max 120 characters. A longer summary is split into details when you pass `details`, or when you retry a summary with the same first 60 characters within 10 minutes. Otherwise the server rejects it.';
+
 export const SERVER_INSTRUCTIONS = [
   'Gournal is the user\'s work journal. Log each distinct piece of finished work with add_entry.',
   'Always pass project. summary is one line, max 120 characters. Put longer text in details.',
@@ -124,7 +126,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       description: 'Add a journal entry. Pass `project` explicitly whenever you know it, and pass `cwd` so that gournal can record the repo and branch. The server process\'s own working directory is not a reliable signal for which project the calling agent is actually in. Fields come from the explicit arguments first, then from `cwd`, then from the first client root, and last from the server\'s own cwd (only when `project` is omitted).',
       outputSchema: EntryResultSchema,
       inputSchema: {
-        summary: z.string().max(CAPS.summary).optional().describe('One line, max 120 characters. A longer summary is split into details when you pass `details`, or when you retry a summary with the same first 60 characters within 10 minutes. Otherwise the server rejects it.'),
+        summary: z.string().max(CAPS.summary).optional().describe(SUMMARY_TEXT),
         message: z.string().max(CAPS.summary).optional().describe('Deprecated alias for summary. Use summary instead.'),
         details: z.string().max(CAPS.details).optional().describe('Longer text for this entry. Use it when the summary needs more room.'),
         kind: KIND.default('done').describe('Entry kind: done (default), blocker (something stops you), or next (a planned step).'),
@@ -164,7 +166,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       outputSchema: EntryResultSchema,
       inputSchema: {
         id: z.string().min(1).max(CAPS.id).describe('Full id or the last 8 characters of the entry.'),
-        summary: z.string().max(CAPS.summary).optional().describe('One line, max 120 characters. Put longer text in `details`.'),
+        summary: z.string().max(CAPS.summary).optional().describe(SUMMARY_TEXT),
         details: z.string().max(CAPS.details).optional().describe('New longer text for the entry.'),
         kind: KIND.optional().describe('New kind: done, blocker, or next. A change of kind sets the status to open (none for done) and clears the resolution.'),
         project: shortText().optional().describe('New project name.'),
@@ -176,10 +178,11 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       id: string; summary?: string; details?: string; kind?: 'done' | 'blocker' | 'next'; project?: string;
       tags?: string[]; refs?: { type: 'pr' | 'jira' | 'commit' | 'url'; value: string; repo?: string }[];
     }, journal) => {
-      const { entry } = getWriter(journal).update(args.id, {
+      const { entry, notes } = getWriter(journal).update(args.id, {
         summary: args.summary, details: args.details, kind: args.kind, project: args.project, tags: args.tags, refs: args.refs,
       });
-      return entryResult(`Entry ${shortId(entry.id)} updated: ${entry.summary}`, entry);
+      const lines = notes.map(writeNoteText);
+      return entryResult([`Entry ${shortId(entry.id)} updated: ${entry.summary}`, ...lines].join('\n'), entry, lines);
     })
   );
 
