@@ -4,6 +4,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { ActivityRepository, EntryRepository } from '../core';
 import type { Config } from '../core';
 import { createActivityRepository } from './activity-repository';
+import { backupDbIfNeeded } from './backup';
 import { loadConfig } from './config';
 import { openDb } from './db';
 import { gournalHome } from './home';
@@ -16,6 +17,8 @@ export interface Journal {
   activity: ActivityRepository;
   db: DatabaseSync;
   config: Config;
+  /** Take today's backup if none exists yet. Throws when the backup fails. */
+  backupIfNeeded(): void;
   close(): void;
 }
 
@@ -41,7 +44,7 @@ export function openJournal(home: string = gournalHome(), opts: { legacyImport?:
         process.stderr.write(`gournal: legacy import failed; will retry (${(err as Error).message})\n`);
       }
     }
-    return { repo, activity, db, config, close: () => db.close() };
+    return { repo, activity, db, config, backupIfNeeded: () => { backupDbIfNeeded(db, dbPath); }, close: () => db.close() };
   } catch (err) {
     try { db.close(); } catch { /* ignore */ }
     throw err;
