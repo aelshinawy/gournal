@@ -4,13 +4,13 @@ import type { WeekDay } from './config';
 import { resolvePeriod } from './periods';
 import type { Entry } from './types';
 
-export type LinkReason = 'pr-match' | 'sha-match' | 'branch-window';
+type LinkReason = 'pr-match' | 'sha-match' | 'branch-window';
 export interface LinkCandidate { entryId: string; activityId: string; reason: LinkReason }
 
 export const BRANCH_WINDOW_MS = 7_200_000;
 const MIN_SHA_LENGTH = 7;
 
-export function sameRepo(a: string | null | undefined, b: string | null | undefined): boolean {
+function sameRepo(a: string | null | undefined, b: string | null | undefined): boolean {
   return !!a && !!b && a.toLowerCase() === b.toLowerCase();
 }
 

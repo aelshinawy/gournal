@@ -1,19 +1,22 @@
-export * from './types';
-export * from './option-text';
-export * from './ulid';
-export * from './summary';
-export * from './sanitize';
-export * from './refs';
-export * from './tags';
-export * from './config';
-export * from './query';
-export * from './periods';
-export * from './group';
-export * from './identity';
-export * from './standup';
-export * from './worklog';
-export * from './stats';
-export * from './activity';
-export * from './linking';
+export {
+  KINDS, STATUSES, NOT_RESOLVABLE, EXPORT_FORMATS, parseKind, parseStatus, canResolve, noEntryMessage,
+  type Kind, type Ref, type Source, type Entry, type NewEntryInput, type EntryPatch,
+} from './types';
+export { OPTION_TEXT } from './option-text';
+export { newId } from './ulid';
+export { MAX_SUMMARY, summaryLength, splitSummary, checkSummary, hasLineBreak } from './summary';
+export { stripControl, cleanProject, cleanOpt, cleanDetails, cleanRefs } from './sanitize';
+export { mergeRefs, extractRefs } from './refs';
+export { normalizeTags, closeTags } from './tags';
+export { CONFIG_DEFAULTS, normalizeConfig, type Config } from './config';
+export { InvalidQueryError, cleanSearchTerms, parseBound, resolveProjectAlias, resolveQuery, type Query } from './query';
+export { resolvePeriod } from './periods';
+export { groupBy } from './group';
+export { parseRemoteUrl, projectFor, type RepoIdentity } from './identity';
+export { buildStandup, isEmptyStandup, shortId, type StandupModel } from './standup';
+export { buildWorkLog, type WorkLogModel } from './worklog';
+export { buildStats, type StatsModel } from './stats';
+export { activityCounts, summarizeLinked, type ActivityType, type Activity, type NewActivityInput, type ActivityCounts } from './activity';
+export { BRANCH_WINDOW_MS, matchLinks, type LinkCandidate } from './linking';
 export type { EntryRepository, ActivityRepository, ActivityQuery } from './repository';
-export * from './docs-meta';
+export { CONFIG_KEY_DOCS, ENV_VAR_DOCS } from './docs-meta';

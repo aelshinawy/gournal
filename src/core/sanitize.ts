@@ -9,7 +9,7 @@ const CONTROL_KEEP_TEXT = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
 export const stripControl = (s: string): string => s.replace(CONTROL, '');
 
 /** Remove control characters except tab and newline. For details. */
-export const stripControlKeepText = (s: string): string => s.replace(CONTROL_KEEP_TEXT, '');
+const stripControlKeepText = (s: string): string => s.replace(CONTROL_KEEP_TEXT, '');
 
 /** The project an entry gets when none is given or when nothing is left after stripping. */
 export const DEFAULT_PROJECT = 'uncategorized';

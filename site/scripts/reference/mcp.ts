@@ -30,14 +30,14 @@ export interface Tool {
   outputSchema?: JSONSchema;
 }
 
-export const SHAPES_URL = '/docs/reference/output-shapes/';
+const SHAPES_URL = '/docs/reference/output-shapes/';
 
 /**
  * Names for output shapes that two or more tools share. The key is the sorted tool names of the
  * group, joined with a comma. The value is the shape slug. The page heading and the anchor come
  * from the slug: `entry-result` gives `## Entry result` and `#entry-result`.
  */
-export const SHAPE_NAMES: Readonly<Record<string, string>> = {
+const SHAPE_NAMES: Readonly<Record<string, string>> = {
   'add_entry,delete_entry,resolve_entry,update_entry': 'entry-result',
   'find_entries,list_entries': 'entry-list',
 };
@@ -211,7 +211,7 @@ export function schemaRows(schema: JSONSchema): string[][] {
 
 // ---- pages ----
 
-export function canonical(value: unknown): string {
+function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   if (value && typeof value === 'object') {
     const o = value as Record<string, unknown>;

@@ -44,7 +44,7 @@ export const ActivitySchema = z.object({
   pr: z.number().nullable().describe('PR number that the item belongs to, or null.'),
   payload: z.record(z.string(), z.unknown()).describe('Extra data from GitHub, for example the review state.'),
 });
-export type ActivityJson = z.infer<typeof ActivitySchema>;
+type ActivityJson = z.infer<typeof ActivitySchema>;
 
 const LinkedActivitySchema = z.record(z.string(), z.array(ActivitySchema).describe('Activity items linked to this entry.'));
 

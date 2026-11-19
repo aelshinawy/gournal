@@ -2,7 +2,7 @@ import { differenceInDays, format, startOfDay, startOfMonth, startOfWeek, subDay
 import type { WeekDay } from './config';
 import { parseBound } from './query';
 
-export type PeriodName = 'today' | 'yesterday' | 'week' | 'month' | 'range';
+type PeriodName = 'today' | 'yesterday' | 'week' | 'month' | 'range';
 export interface PeriodOptions { yesterday?: boolean; week?: boolean; month?: boolean; from?: string; to?: string }
 export interface Period { name: PeriodName; start: Date; end: Date; title: string; isMultiDay: boolean }
 

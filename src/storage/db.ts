@@ -5,8 +5,6 @@ import { BACKUP_PATTERN } from './backup';
 import { ensureSearchIndex, migrateSchema } from './schema';
 import { ensurePrivateDir, ensurePrivateFile, sleepSync, tightenBackups, tightenDbFiles } from './private-files';
 
-export { ensureSearchIndex, migrateSchema, SCHEMA_VERSION } from './schema';
-
 export class CorruptDatabaseError extends Error {
   readonly path: string;
   readonly latestBackup: string | null;

@@ -103,7 +103,7 @@ function stopGroups(settings: Json): unknown[] {
 }
 
 /** The gournal hook entries in settings, in order. */
-export function gournalHooks(settings: Json, current?: StopHook): Json[] {
+function gournalHooks(settings: Json, current?: StopHook): Json[] {
   const out: Json[] = [];
   for (const group of stopGroups(settings)) {
     if (!isObj(group) || !Array.isArray(group.hooks)) continue;

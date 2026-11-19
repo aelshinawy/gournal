@@ -27,13 +27,13 @@ export interface SetupIo {
 
 export interface SetupOptions { uninstall: boolean; yes: boolean; hook: boolean }
 
-export interface ExecOptions { windowsHide: true; windowsVerbatimArguments?: true; env?: NodeJS.ProcessEnv }
+interface ExecOptions { windowsHide: true; windowsVerbatimArguments?: true; env?: NodeJS.ProcessEnv }
 type RunResult = Awaited<ReturnType<CommandRunner>>;
 /** One process start, with no retry. ENOENT maps to code 127. */
 export type ExecOnce = (file: string, args: string[], options: ExecOptions) => Promise<RunResult>;
 
 /** Production: execFile, no shell. Never throws. */
-export const execOnce: ExecOnce = (file, args, options) =>
+const execOnce: ExecOnce = (file, args, options) =>
   new Promise((resolve) => {
     const done = (error: Error | null, stdout: string, stderr: string): void => {
       if (error === null) return resolve({ code: 0, stdout, stderr });

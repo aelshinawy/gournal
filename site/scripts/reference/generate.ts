@@ -11,7 +11,7 @@ import { listTools, sharedShapes, toolSection } from './mcp';
 export type { GeneratedPage };
 
 export const REFERENCE_DIR = 'src/content/docs/docs/reference';
-export const SIDEBAR_FILE = 'src/generated/reference-sidebar.json';
+const SIDEBAR_FILE = 'src/generated/reference-sidebar.json';
 
 export interface SidebarGroup { label: string; collapsed: boolean; items: string[] }
 
@@ -24,7 +24,7 @@ export function referenceSidebar(): SidebarGroup[] {
   }));
 }
 
-export function sidebarJson(): string {
+function sidebarJson(): string {
   return `${JSON.stringify(referenceSidebar(), null, 2)}\n`;
 }
 
@@ -32,7 +32,7 @@ export function sidebarJson(): string {
  * Paths the generator owns, relative to the reference folder. It deletes any other file in a
  * directory entry. The generator owns the whole reference folder.
  */
-export const OWNED: ReadonlyArray<{ dir: string } | { file: string }> = [{ dir: '.' }];
+const OWNED: ReadonlyArray<{ dir: string } | { file: string }> = [{ dir: '.' }];
 
 /** A program build must not open the journal. These no-op seams keep it inert. */
 export function inertProgram() {

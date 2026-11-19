@@ -20,7 +20,7 @@ export interface Bundle {
   activity?: Activity[];
 }
 
-export interface LegacyMapRow {
+interface LegacyMapRow {
   legacyIndex: number;
   timestamp: string;
   messageHash: string;

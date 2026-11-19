@@ -1,6 +1,6 @@
 import type { Ref } from './types';
 
-export const NON_TICKET_PREFIXES: readonly string[] = [
+const NON_TICKET_PREFIXES: readonly string[] = [
   'step', 'wp', 'phase', 'v', 'sprint', 'week', 'day', 'part', 'round', 'node', 'ios', 'android',
   'gpt', 'utf', 'sha', 'iso', 'http', 'https', 'covid', 'es', 'py', 'python', 'rfc', 'ipv', 'win', 'macos',
 ];

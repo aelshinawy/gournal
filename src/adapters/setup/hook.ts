@@ -4,7 +4,7 @@ import readline from 'readline';
 import { ensurePrivateDir, writePrivateFile } from '../../storage';
 
 export const HOOK_REASON = 'Gournal: this session edited files but logged no work. Call add_entry once with a summary of the work (pass project and cwd). Then stop.';
-export const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
+const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'];
 
 const STATE_FILE = 'hook-state.json';
 const PRUNE_MS = 7 * 24 * 60 * 60 * 1000;
