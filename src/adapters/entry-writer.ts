@@ -149,6 +149,11 @@ export function createEntryWriter(
       patch.summary = check.summary;
       if (check.details !== null) patch.details = check.details;
       split = check.split;
+      // A split with no given details keeps the existing details after the overflow.
+      if (split && input.details === undefined && check.details !== null) {
+        const existing = repo.get(id)?.details;
+        if (existing) patch.details = `${check.details}\n\n${existing}`;
+      }
     } else if (input.details !== undefined) {
       patch.details = input.details;
     }

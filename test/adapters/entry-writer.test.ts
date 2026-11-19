@@ -145,6 +145,22 @@ describe('update summary rule', () => {
     expect(entry.details).toBe(long);
   });
 
+  test('a split update keeps the existing details after the overflow', () => {
+    const w = writer({ retryMemory: true });
+    const e = seed('one', { details: 'keep me' });
+    expect(() => w.update(e.id, { summary: long })).toThrow('max 120');
+    const { entry, notes } = w.update(e.id, { summary: long });
+    expect(entry.details).toBe(`${long}\n\nkeep me`);
+    expect(notes).toEqual([{ type: 'split' }]);
+  });
+
+  test('existing details do not make a first long update split', () => {
+    const w = writer({ retryMemory: true });
+    const e = seed('one', { details: 'keep me' });
+    expect(() => w.update(e.id, { summary: long })).toThrow('max 120');
+    expect(journal.repo.get(e.id)).toEqual(e);
+  });
+
   test('a rejected add makes the same update a retry', () => {
     const w = writer({ retryMemory: true });
     expect(() => add(w, { summary: long })).toThrow('max 120');
