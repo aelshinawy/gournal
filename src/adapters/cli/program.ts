@@ -1,10 +1,11 @@
 import { Command, CommanderError, Option } from 'commander';
 import chalk from 'chalk';
 import { execGh, resolveIdentity, type GhRunner } from '../../sources';
-import { maybeAutoSync, parseSince, relinkAfterWrite, runSync, syncSummaryLine } from '../sync';
+import { maybeAutoSync, parseSince, runSync, syncSummaryLine } from '../sync';
 import { startMcpServer } from '../mcp';
+import { createEntryWriter } from '../entry-writer';
 import { standupModel, workLogModel } from '../reports';
-import { EXPORT_FORMATS, OPTION_TEXT, buildStats, checkSummary, parseKind, parseStatus, resolveQuery, shortId, stripControl } from '../../core';
+import { EXPORT_FORMATS, OPTION_TEXT, buildStats, parseKind, parseStatus, resolveQuery, shortId, stripControl } from '../../core';
 import type { Query } from '../../core';
 import {
   entryLinesText, exportCsv, exportMarkdown, projectCountsText, standupText, statsText, tagCountsText, workLogText,
@@ -97,6 +98,8 @@ export function buildProgram(io: CliIo): Command {
     }
   };
 
+  const writerFor = (journal: Journal) => createEntryWriter(journal, { retryMemory: false, clock: Date.now, resolves: 'strict' });
+
   program
     .exitOverride()
     .configureOutput({
@@ -117,25 +120,19 @@ export function buildProgram(io: CliIo): Command {
     .option('--resolves <ids>', 'Close the open blocker or next entries with these ids. Separate ids with commas. One unknown id stops the add, and gournal stores nothing.')
     .action(async (summary: string, options: { tags: string; details?: string; kind?: string; resolves?: string }) => {
       const kind = options.kind === undefined ? undefined : parseKind(options.kind);
-      const check = checkSummary(summary, options.details, { allowSplit: true });
-      if (!check.ok) throw new Error(check.error);
       await withJournal((journal) => {
-        const { repo, config } = journal;
-        const id = resolveIdentity(io.cwd, config.projectAliases);
-        const entry = repo.add({
-          summary: check.summary,
-          details: check.details,
+        const identity = resolveIdentity(io.cwd, journal.config.projectAliases);
+        const { entry, notes } = writerFor(journal).add({
+          summary,
+          details: options.details,
           kind,
-          project: id.project,
-          repo: id.repo ?? undefined,
-          branch: id.branch ?? undefined,
+          identity,
           source: 'cli',
           tags: splitList(options.tags),
           resolves: splitList(options.resolves),
         });
-        relinkAfterWrite(journal, [entry.id]);
         io.out(chalk.green(`✓ Entry added! (${shortId(entry.id)})`));
-        if (check.summary !== summary.trim()) {
+        if (notes.some((n) => n.type === 'split')) {
           io.out(chalk.yellow('Note: summary was long, the rest went to details.'));
         }
       });
@@ -155,8 +152,8 @@ export function buildProgram(io: CliIo): Command {
         throw new Error('Not a terminal; nothing cleared.');
       }
       if (!confirmed) return;
-      await withJournal(({ repo }) => {
-        const count = repo.softDeleteAll();
+      await withJournal((journal) => {
+        const count = writerFor(journal).clear();
         io.out(chalk.green(`✓ Cleared ${count} entries (restore any with gournal restore <id>).`));
       });
     });
@@ -165,13 +162,12 @@ export function buildProgram(io: CliIo): Command {
     .command('undo')
     .description('Remove the last entry that you added on this device. Restore it later by id.')
     .action(async () => {
-      await withJournal(({ repo }) => {
-        const latest = repo.latestForDevice();
-        if (!latest) {
+      await withJournal((journal) => {
+        const removed = writerFor(journal).undo();
+        if (!removed) {
           io.out(chalk.yellow('No entries to undo.'));
           return;
         }
-        const removed = repo.softDelete(latest.id);
         io.out(chalk.green(`✓ Removed: ${stripControl(removed.summary)} (restore with gournal restore ${shortId(removed.id)})`));
       });
     });
@@ -181,8 +177,8 @@ export function buildProgram(io: CliIo): Command {
     .argument('<id>', 'The full id or the last 8 characters of the removed entry.')
     .description('Bring back a removed entry.')
     .action(async (id: string) => {
-      await withJournal(({ repo }) => {
-        const entry = repo.restore(id);
+      await withJournal((journal) => {
+        const entry = writerFor(journal).restore(id);
         io.out(chalk.green(`✓ Restored: ${stripControl(entry.summary)}`));
       });
     });
@@ -192,8 +188,8 @@ export function buildProgram(io: CliIo): Command {
     .argument('<id>', 'The full id or the last 8 characters of the entry.')
     .description('Mark an open blocker or next entry as resolved.')
     .action(async (id: string) => {
-      await withJournal(({ repo }) => {
-        const entry = repo.resolve(id);
+      await withJournal((journal) => {
+        const entry = writerFor(journal).resolve(id);
         io.out(chalk.green(`✓ Resolved: ${stripControl(entry.summary)}`));
       });
     });
