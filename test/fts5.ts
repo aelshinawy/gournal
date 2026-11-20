@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { hasFts5 as detect } from '../src/storage/schema';
+import { hasFts5 as detect } from '../src/storage/search-index';
 
 // True when this node:sqlite build has FTS5 and the run does not simulate a build without it.
 // Official Linux Node builds have no FTS5. GOURNAL_DISABLE_FTS5=1 npx jest simulates that here.

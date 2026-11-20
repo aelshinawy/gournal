@@ -4,7 +4,7 @@ import type { Entry, EntryPatch, Kind, NewEntryInput, Query, Ref } from '../core
 import type { EntryRepository } from '../core';
 import { BUMP_UPDATED_AT, createWriter } from './writer';
 import type { Writer } from './writer';
-import { searchIndexLive } from './schema';
+import { searchIndexLive } from './search-index';
 import { ftsMatchExpression, likePattern } from './search';
 import type { Config } from '../core';
 import { hydrateRows, replaceRefs as replaceRefRows, replaceTags as replaceTagRows } from './entry-rows';

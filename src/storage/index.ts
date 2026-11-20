@@ -7,4 +7,4 @@ export { ensurePrivateDir, writeViaTemp, writePrivateFile, writeExportFile, asse
 export { importLegacy } from './legacy/legacy-import';
 export { applyPlan, renderPlanDiff } from './legacy/migration-plan';
 export type { MigrationPlan } from './legacy/migration-plan';
-export { rebuildSearchIndex, hasFts5 } from './schema';
+export { rebuildSearchIndex, hasFts5 } from './search-index';
