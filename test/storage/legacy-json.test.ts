@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { CorruptJournalError, readLegacyEntries } from '../../src/storage/legacy-json';
+import { CorruptJournalError, readLegacyEntries } from '../../src/storage/legacy/legacy-json';
 import { makeTmp, rmTmp } from '../helpers/tmp';
 
 describe('legacy entries.json reader', () => {

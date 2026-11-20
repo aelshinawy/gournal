@@ -5,8 +5,9 @@ import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
 import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
-import { importLegacy, applyPlan, renderPlanDiff } from '../../src/storage/migrate';
-import type { MigrationPlan, PlanItem } from '../../src/storage/migrate';
+import { importLegacy } from '../../src/storage/legacy/legacy-import';
+import { applyPlan, renderPlanDiff } from '../../src/storage/legacy/migration-plan';
+import type { MigrationPlan, PlanItem } from '../../src/storage/legacy/migration-plan';
 import type { EntryRepository } from '../../src/core';
 import { makeTmp, rmTmp } from '../helpers/tmp';
 
