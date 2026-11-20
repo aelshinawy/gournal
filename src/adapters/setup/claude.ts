@@ -128,7 +128,7 @@ const SERVER = 'gournal';
 
 /**
  * Write through a symlink: the temp file goes next to the real target, so the link stays a link.
- * An existing file keeps its mode. Windows has no mode bits to keep, and a read-only copy would
+ * An existing file keeps its mode through the copy, so its temp starts private. Windows has no mode bits to keep, and a read-only copy would
  * block the rename, so it skips the copy.
  */
 function writeAtomic(file: string, content: string, platform: NodeJS.Platform): void {
@@ -140,7 +140,7 @@ function writeAtomic(file: string, content: string, platform: NodeJS.Platform): 
       fs.writeFileSync(tmp, content, 'utf8');
       if (platform !== 'win32' && fs.existsSync(real)) fs.chmodSync(tmp, fs.statSync(real).mode & 0o7777);
     },
-    { mode: 0o666, rename: { platform } },
+    { mode: fs.existsSync(real) ? 0o600 : 0o666, rename: { platform } },
   );
 }
 
