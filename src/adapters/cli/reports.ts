@@ -8,6 +8,7 @@ import { exportCsv, exportMarkdown, green, standupText, statsText, workLogText }
 import { exportBundle, writeExportFile, assertExportTarget } from '../../storage';
 import type { CliContext } from './context';
 import { buildQuery, splitList, type PeriodCliOptions } from './options';
+import { withSpinner, SYNC_SPINNER_TEXT } from './spinner';
 
 export function registerStandup(program: Command, ctx: CliContext): void {
   program
@@ -25,7 +26,7 @@ export function registerStandup(program: Command, ctx: CliContext): void {
     .action(async (options: PeriodCliOptions & { activity?: boolean }) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
       await ctx.withJournal(async (journal) => {
-        const warning = await maybeAutoSync(journal, ctx.io.gh ?? execGh(), new Date());
+        const warning = await withSpinner(SYNC_SPINNER_TEXT, () => maybeAutoSync(journal, ctx.io.gh ?? execGh(), new Date()), ctx.io.spinnerStream);
         if (warning) ctx.io.err(warning);
         const model = standupModel(journal, { ...options, tags: splitList(options.tags) }, new Date());
         ctx.io.out(standupText(model, { expandActivity: options.activity === true }));
@@ -48,7 +49,7 @@ export function registerLog(program: Command, ctx: CliContext): void {
     .action(async (options: PeriodCliOptions) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
       await ctx.withJournal(async (journal) => {
-        const warning = await maybeAutoSync(journal, ctx.io.gh ?? execGh(), new Date());
+        const warning = await withSpinner(SYNC_SPINNER_TEXT, () => maybeAutoSync(journal, ctx.io.gh ?? execGh(), new Date()), ctx.io.spinnerStream);
         if (warning) ctx.io.err(warning);
         ctx.io.out(workLogText(workLogModel(journal, { ...options, tags: splitList(options.tags) }, new Date())));
       });

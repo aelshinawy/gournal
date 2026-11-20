@@ -67,3 +67,63 @@ test('gournal sync appends the stop reason when partial', async () => {
   expect(r.status).toBe(0);
   expect(r.stdout).toMatch(/links\. Stopped early \(GitHub rate limit reached\); run gournal sync again to continue\.$/);
 });
+
+describe('the sync spinner', () => {
+  const KEYS = ['CI', 'TERM', 'GOURNAL_NO_AUTOSYNC'] as const;
+  const saved: Record<string, string | undefined> = {};
+  beforeEach(() => {
+    for (const k of KEYS) saved[k] = process.env[k];
+    delete process.env.CI;
+    delete process.env.GOURNAL_NO_AUTOSYNC;
+    process.env.TERM = 'xterm';
+  });
+  afterEach(() => {
+    for (const k of KEYS) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+
+  /** Waits 40 ms before each gh call, so the spinner has time to draw. */
+  const slow = (gh: GhRunner): GhRunner => async (args, opts) => {
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    return gh(args, opts);
+  };
+
+  function stream(isTTY: boolean): { isTTY: boolean; chunks: string[]; write(chunk: string): boolean } {
+    const chunks: string[] = [];
+    return { isTTY, chunks, write: (chunk) => { chunks.push(chunk); return true; } };
+  }
+
+  test('gournal sync draws on a terminal and clears the line', async () => {
+    const s = stream(true);
+    const r = await runIn(home, ['sync'], { gh: slow(anyDateGh()), spinnerStream: s });
+    expect(r.status).toBe(0);
+    expect(s.chunks[0]).toBe('\r| Syncing GitHub activity');
+    expect(s.chunks[s.chunks.length - 1]).toBe(`\r${' '.repeat(25)}\r`);
+    expect(r.stdout).toMatch(/^Synced GitHub activity since /);
+  });
+
+  test('gournal sync writes no frame to a pipe', async () => {
+    const s = stream(false);
+    const r = await runIn(home, ['sync'], { gh: slow(anyDateGh()), spinnerStream: s });
+    expect(r.status).toBe(0);
+    expect(s.chunks).toEqual([]);
+    expect(r.stderr).not.toContain('Syncing GitHub activity');
+  });
+
+  test.each(['standup', 'log'])('the auto-sync before %s draws on a terminal', async (cmd) => {
+    const s = stream(true);
+    const r = await runIn(home, [cmd], { gh: slow(anyDateGh()), spinnerStream: s });
+    expect(r.status).toBe(0);
+    expect(s.chunks[0]).toBe('\r| Syncing GitHub activity');
+  });
+
+  test('an auto-sync that is not due draws nothing', async () => {
+    await runIn(home, ['sync'], { gh: anyDateGh() });
+    const s = stream(true);
+    const r = await runIn(home, ['standup'], { gh: slow(anyDateGh()), spinnerStream: s });
+    expect(r.status).toBe(0);
+    expect(s.chunks).toEqual([]);
+  });
+});

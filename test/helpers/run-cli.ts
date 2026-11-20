@@ -1,12 +1,13 @@
 import { forceColor } from '../../src/render/style';
 import type { GhRunner } from '../../src/sources';
 import { runCli } from '../../src/adapters/cli/program';
+import type { SpinnerStream } from '../../src/adapters/cli/spinner';
 
 /** Run the CLI in this process. Collects out, err, and process.stderr writes. Calls must not overlap: the color switch and the stderr spy are shared. */
 export async function runIn(
   home: string,
   args: string[],
-  opts: { cwd?: string; isTTY?: boolean; gh?: GhRunner } = {},
+  opts: { cwd?: string; isTTY?: boolean; gh?: GhRunner; spinnerStream?: SpinnerStream } = {},
 ): Promise<{ status: number; stdout: string; stderr: string }> {
   const prev = forceColor(false);
   const out: string[] = [];
@@ -21,6 +22,7 @@ export async function runIn(
       cwd: opts.cwd ?? process.cwd(),
       isTTY: opts.isTTY ?? false,
       gh: opts.gh,
+      spinnerStream: opts.spinnerStream,
       out: (t) => out.push(t),
       err: (t) => err.push(t),
     });

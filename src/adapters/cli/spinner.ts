@@ -3,6 +3,7 @@ export interface SpinnerStream { isTTY?: boolean; write(chunk: string): boolean 
 
 const FRAMES = ['|', '/', '-', '\\'];
 export const FRAME_MS = 80;
+export const SYNC_SPINNER_TEXT = 'Syncing GitHub activity';
 
 /** True only on a real terminal that can redraw a line. */
 const canDraw = (stream: SpinnerStream, env: NodeJS.ProcessEnv): boolean =>
