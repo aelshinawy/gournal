@@ -1,0 +1,268 @@
+{
+  "format": "gournal-bundle",
+  "schemaVersion": 1,
+  "exportedAt": "2026-11-20T01:28:05.691Z",
+  "deviceId": "01M7V92RSJTYGE5AECY271D1C5",
+  "entries": [
+    {
+      "id": "01KYPN2580C40ZCZQWSVH629N8",
+      "createdAt": "2026-07-29T10:00:00.000Z",
+      "updatedAt": "2026-11-20T01:28:05.688Z",
+      "deletedAt": null,
+      "deviceId": "01M7V92RSJTYGE5AECY271D1C5",
+      "summary": "Legacy one",
+      "details": "Legacy one\nwith a body line",
+      "kind": "done",
+      "status": null,
+      "resolvedAt": null,
+      "resolvedByEntryId": null,
+      "project": "legacy",
+      "repo": null,
+      "branch": null,
+      "source": "migration",
+      "agent": null,
+      "tags": [
+        "old"
+      ],
+      "refs": []
+    },
+    {
+      "id": "01KYSCKNP0ZC6XTNNQ245CE4HG",
+      "createdAt": "2026-07-30T11:30:00.000Z",
+      "updatedAt": "2026-11-20T01:28:05.688Z",
+      "deletedAt": null,
+      "deviceId": "01M7V92RSJTYGE5AECY271D1C5",
+      "summary": "Legacy two",
+      "details": null,
+      "kind": "done",
+      "status": null,
+      "resolvedAt": null,
+      "resolvedByEntryId": null,
+      "project": "legacy",
+      "repo": null,
+      "branch": null,
+      "source": "migration",
+      "agent": null,
+      "tags": [],
+      "refs": []
+    },
+    {
+      "id": "01M7V92RSSESSE26V7TRXND957",
+      "createdAt": "2026-11-20T01:28:05.689Z",
+      "updatedAt": "2026-11-20T01:28:05.689Z",
+      "deletedAt": null,
+      "deviceId": "01M7V92RSJTYGE5AECY271D1C5",
+      "summary": "Fix the flaky test",
+      "details": null,
+      "kind": "blocker",
+      "status": "open",
+      "resolvedAt": null,
+      "resolvedByEntryId": null,
+      "project": "gournal",
+      "repo": "acme/widgets",
+      "branch": "fix/flaky",
+      "source": "cli",
+      "agent": null,
+      "tags": [
+        "test"
+      ],
+      "refs": []
+    },
+    {
+      "id": "01M7V92RSSN9SK93GBV8BKJWM0",
+      "createdAt": "2026-11-20T01:28:05.689Z",
+      "updatedAt": "2026-11-20T01:28:05.690Z",
+      "deletedAt": null,
+      "deviceId": "01M7V92RSJTYGE5AECY271D1C5",
+      "summary": "Plan the cleanup",
+      "details": null,
+      "kind": "next",
+      "status": "resolved",
+      "resolvedAt": "2026-11-20T01:28:05.690Z",
+      "resolvedByEntryId": "01M7V92RSTA6BA19VDHBE4RA9Z",
+      "project": "gournal",
+      "repo": null,
+      "branch": null,
+      "source": "cli",
+      "agent": null,
+      "tags": [
+        "plan"
+      ],
+      "refs": []
+    },
+    {
+      "id": "01M7V92RST6AD1V3HVZXFVDGQT",
+      "createdAt": "2026-11-20T01:28:05.690Z",
+      "updatedAt": "2026-11-20T01:28:05.690Z",
+      "deletedAt": "2026-11-20T01:28:05.690Z",
+      "deviceId": "01M7V92RSJTYGE5AECY271D1C5",
+      "summary": "Mistaken entry",
+      "details": null,
+      "kind": "done",
+      "status": null,
+      "resolvedAt": null,
+      "resolvedByEntryId": null,
+      "project": "gournal",
+      "repo": null,
+      "branch": null,
+      "source": "cli",
+      "agent": null,
+      "tags": [],
+      "refs": []
+    },
+    {
+      "id": "01M7V92RSTA6BA19VDHBE4RA9Z",
+      "createdAt": "2026-11-20T01:28:05.690Z",
+      "updatedAt": "2026-11-20T01:28:05.690Z",
+      "deletedAt": null,
+      "deviceId": "01M7V92RSJTYGE5AECY271D1C5",
+      "summary": "Ship the bundle pin",
+      "details": "Pinned the shapes.\nSecond line.",
+      "kind": "done",
+      "status": null,
+      "resolvedAt": null,
+      "resolvedByEntryId": null,
+      "project": "gournal",
+      "repo": "acme/widgets",
+      "branch": "feat/pin",
+      "source": "cli",
+      "agent": "claude",
+      "tags": [
+        "bundle",
+        "tests"
+      ],
+      "refs": [
+        {
+          "type": "pr",
+          "value": "12",
+          "repo": "acme/widgets"
+        },
+        {
+          "type": "jira",
+          "value": "GF-101"
+        }
+      ]
+    },
+    {
+      "id": "01M7V92RSTQBJ3Z4YQJ56EAEWJ",
+      "createdAt": "2026-11-20T01:28:05.690Z",
+      "updatedAt": "2026-11-20T01:28:05.690Z",
+      "deletedAt": null,
+      "deviceId": "01M7V92RSJTYGE5AECY271D1C5",
+      "summary": "Logged through MCP",
+      "details": null,
+      "kind": "done",
+      "status": null,
+      "resolvedAt": null,
+      "resolvedByEntryId": null,
+      "project": "gournal",
+      "repo": null,
+      "branch": null,
+      "source": "mcp",
+      "agent": "claude",
+      "tags": [
+        "mcp"
+      ],
+      "refs": []
+    }
+  ],
+  "activity": [
+    {
+      "id": "01M7V92RSTABKT9XJP2R9VSKQ9",
+      "createdAt": "2026-11-20T01:28:05.690Z",
+      "updatedAt": "2026-11-20T01:28:05.690Z",
+      "deletedAt": null,
+      "deviceId": "01M7V92RSJTYGE5AECY271D1C5",
+      "type": "commit",
+      "occurredAt": "2026-11-10T09:00:00.000Z",
+      "repo": "acme/widgets",
+      "branch": "feat/pin",
+      "externalId": "abc1234",
+      "title": "Pin shapes",
+      "url": "https://github.com/acme/widgets/commit/abc1234",
+      "capturedBy": "github",
+      "pr": null,
+      "payload": {
+        "sha": "abc1234",
+        "pr": null
+      }
+    },
+    {
+      "id": "01M7V92RST5126H67JMR7NQGH9",
+      "createdAt": "2026-11-20T01:28:05.690Z",
+      "updatedAt": "2026-11-20T01:28:05.690Z",
+      "deletedAt": null,
+      "deviceId": "01M7V92RSJTYGE5AECY271D1C5",
+      "type": "pr_opened",
+      "occurredAt": "2026-11-10T10:00:00.000Z",
+      "repo": "acme/widgets",
+      "branch": "feat/pin",
+      "externalId": "12",
+      "title": "Add pin",
+      "url": null,
+      "capturedBy": "github",
+      "pr": 12,
+      "payload": {
+        "state": "open",
+        "pr": 12
+      }
+    },
+    {
+      "id": "01M7V92RSTE6TWC4J3VSN9E6R4",
+      "createdAt": "2026-11-20T01:28:05.690Z",
+      "updatedAt": "2026-11-20T01:28:05.690Z",
+      "deletedAt": null,
+      "deviceId": "01M7V92RSJTYGE5AECY271D1C5",
+      "type": "pr_merged",
+      "occurredAt": "2026-11-11T10:00:00.000Z",
+      "repo": "acme/widgets",
+      "branch": null,
+      "externalId": "13",
+      "title": null,
+      "url": null,
+      "capturedBy": "github",
+      "pr": null,
+      "payload": {
+        "merged": true,
+        "pr": null
+      }
+    },
+    {
+      "id": "01M7V92RSTKGF6G643XDT9H2KK",
+      "createdAt": "2026-11-20T01:28:05.690Z",
+      "updatedAt": "2026-11-20T01:28:05.691Z",
+      "deletedAt": "2026-11-20T01:28:05.691Z",
+      "deviceId": "01M7V92RSJTYGE5AECY271D1C5",
+      "type": "review",
+      "occurredAt": "2026-11-12T10:00:00.000Z",
+      "repo": "acme/gadgets",
+      "branch": "main",
+      "externalId": "r9",
+      "title": "Review of 7",
+      "url": null,
+      "capturedBy": "github",
+      "pr": null,
+      "payload": {
+        "verdict": "approved",
+        "pr": null
+      }
+    }
+  ],
+  "legacyMap": [
+    {
+      "legacyIndex": 0,
+      "timestamp": "2026-07-29T10:00:00.000Z",
+      "messageHash": "da2cfe9ee0afe5bf1f8e5fad1bb064622db06039236d69fc1c62763b92306b4c",
+      "occurrence": 0,
+      "entryId": "01KYPN2580C40ZCZQWSVH629N8"
+    },
+    {
+      "legacyIndex": 1,
+      "timestamp": "2026-07-30T11:30:00.000Z",
+      "messageHash": "58604603980e543504431610c8bcdec761752522f2fd909af47ed7667c50f21e",
+      "occurrence": 0,
+      "entryId": "01KYSCKNP0ZC6XTNNQ245CE4HG",
+      "importedAt": null
+    }
+  ]
+}

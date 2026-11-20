@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { invalidConfig, isPlainObject, newId, normalizeConfig, type Config } from '../core';
-import { FILE_MODE, ensurePrivateDir, publishExclusive, renameWithRetry, sleepSync, tightenFile } from './private-files';
+import { invalidConfig, isPlainObject, normalizeConfig, type Config } from '../core';
+import { ensurePrivateDir, publishExclusive, sleepSync, tightenFile, writeViaTemp } from './private-files';
 
 export type { Config };
 
@@ -76,10 +76,6 @@ function readExisting(file: string, wait: Wait): Record<string, unknown> {
   return readRaw(file);
 }
 
-function tempPath(file: string): string {
-  return path.join(path.dirname(file), `.config.${process.pid}.${newId()}.tmp`);
-}
-
 /** Read the config file and apply the environment override. GOURNAL_NO_AUTOSYNC=1 turns auto-sync off. The file stays unchanged. */
 export function loadConfig(home: string, hooks: LoadConfigHooks = {}): Config {
   const config = loadConfigFile(home, hooks);
@@ -98,13 +94,8 @@ function loadConfigFile(home: string, hooks: LoadConfigHooks): Config {
     const { config, changed } = normalizeConfig(file, raw, warn);
     if (changed) {
       // Existing file: atomic replace. The deviceId is already on disk, so it stays stable.
-      const tmp = tempPath(file);
-      try {
-        fs.writeFileSync(tmp, JSON.stringify(persisted(raw, config), null, 2) + '\n', { encoding: 'utf8', mode: FILE_MODE });
-        renameWithRetry(tmp, file);
-      } finally {
-        fs.rmSync(tmp, { force: true });
-      }
+      const json = JSON.stringify(persisted(raw, config), null, 2) + '\n';
+      writeViaTemp(file, (tmp) => fs.writeFileSync(tmp, json, 'utf8'));
     }
     return config;
   }
@@ -112,28 +103,27 @@ function loadConfigFile(home: string, hooks: LoadConfigHooks): Config {
   // First run. Publish without replacing: a hard link fails if another process created the file first.
   // Without hard links, publishExclusive claims the file with an exclusive create. Either way the loser gets EEXIST.
   const { config } = normalizeConfig(file, {}, warn);
-  const tmp = tempPath(file);
-  try {
-    fs.writeFileSync(tmp, JSON.stringify(persisted({}, config), null, 2) + '\n', { encoding: 'utf8', mode: FILE_MODE });
-    hooks.beforePublish?.();
-    for (let attempt = 0; ; attempt++) {
-      let how: 'link' | 'rename';
-      try {
-        how = publishExclusive(tmp, file);
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
-        // Another process won. Use the deviceId it wrote.
-        const state = waitForContent(file, hooks);
-        if (state === 'empty') throw emptyConfig(file);
-        // The winner removed its claim, because its own rename failed. Publish once more.
-        if (state === 'missing' && attempt === 0) continue;
+  const json = JSON.stringify(persisted({}, config), null, 2) + '\n';
+  return writeViaTemp(file, (tmp) => fs.writeFileSync(tmp, json, 'utf8'), {
+    publish: (tmp) => {
+      hooks.beforePublish?.();
+      for (let attempt = 0; ; attempt++) {
+        let how: 'link' | 'rename';
+        try {
+          how = publishExclusive(tmp, file);
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+          // Another process won. Use the deviceId it wrote.
+          const state = waitForContent(file, hooks);
+          if (state === 'empty') throw emptyConfig(file);
+          // The winner removed its claim, because its own rename failed. Publish once more.
+          if (state === 'missing' && attempt === 0) continue;
+          return normalizeConfig(file, readRaw(file), warn).config;
+        }
+        if (how === 'link') return config;
+        // The fallback path: use what is on disk.
         return normalizeConfig(file, readRaw(file), warn).config;
       }
-      if (how === 'link') return config;
-      // The fallback path: use what is on disk.
-      return normalizeConfig(file, readRaw(file), warn).config;
-    }
-  } finally {
-    fs.rmSync(tmp, { force: true });
-  }
+    },
+  });
 }

@@ -362,6 +362,33 @@ symlinkTest('a symlinked settings.json stays a link, the target holds the hook, 
   expect(fs.readdirSync(dotfiles).filter((n) => n.endsWith('.tmp'))).toEqual([]);
 });
 
+// Windows has no POSIX mode bits.
+const posixTest = process.platform === 'win32' ? test.skip : test;
+
+posixTest('an existing settings.json keeps a 0640 mode', async () => {
+  const old = process.umask(0o022);
+  try {
+    writeSettings({ model: 'x' });
+    fs.chmodSync(settingsFile(), 0o640);
+    await run({ hook: true });
+    expect(fs.statSync(settingsFile()).mode & 0o777).toBe(0o640);
+    expect(fs.readdirSync(path.dirname(settingsFile())).filter((n) => n.endsWith('.tmp'))).toEqual([]);
+  } finally {
+    process.umask(old);
+  }
+});
+
+posixTest('a new settings.json gets the default file mode', async () => {
+  const old = process.umask(0o022);
+  try {
+    expect(fs.existsSync(settingsFile())).toBe(false);
+    await run({ hook: true });
+    expect(fs.statSync(settingsFile()).mode & 0o777).toBe(0o644);
+  } finally {
+    process.umask(old);
+  }
+});
+
 // Foreign hooks (F4)
 
 const FOREIGN = '/opt/my-gournal-notes/bin hook stop';

@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { isDefaultHome } from './home';
 
 const DIR_MODE = 0o700;
-export const FILE_MODE = 0o600;
+const FILE_MODE = 0o600;
 
 /**
  * Mode changes are best effort. These codes mean the change cannot or need not happen:
@@ -91,13 +91,13 @@ export function tightenBackups(home: string): void {
 }
 
 /**
- * Reserve an empty 0600 temp file next to target and return its path. The name has a random
- * suffix and the open uses "wx", so an attacker cannot predict it or plant a symlink there.
+ * Reserve an empty temp file next to target and return its path. The mode is 0600 unless given.
+ * The name has a random suffix and the open uses "wx", so an attacker cannot predict it or plant a symlink there.
  */
-export function createPrivateTemp(target: string): string {
+function createPrivateTemp(target: string, mode = FILE_MODE): string {
   const dir = path.dirname(path.resolve(target));
   const tmp = path.join(dir, `.${path.basename(target)}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`);
-  fs.closeSync(fs.openSync(tmp, 'wx', FILE_MODE));
+  fs.closeSync(fs.openSync(tmp, 'wx', mode));
   return tmp;
 }
 
@@ -167,19 +167,38 @@ export function publishExclusive(tmp: string, target: string, deps: RenameDeps =
   return 'rename';
 }
 
+export interface WriteViaTempOptions<T> {
+  /** Mode for the new temp file. The umask applies. Default FILE_MODE (0600). */
+  mode?: number;
+  /** Publish the filled temp at target. Default: renameWithRetry(tmp, target, rename). */
+  publish?: (tmp: string, target: string) => T;
+  /** Test seam for the default publish (platform, rename, sleep). */
+  rename?: RenameDeps;
+}
+
+/**
+ * Write a file by temp file and publish, so a reader never sees a partial file.
+ * The temp file is next to target, has a random name, and is created with "wx".
+ * The temp file is always removed at the end, also on failure.
+ */
+export function writeViaTemp<T = void>(target: string, fill: (tmp: string) => void, opts: WriteViaTempOptions<T> = {}): T {
+  const tmp = createPrivateTemp(target, opts.mode);
+  try {
+    fill(tmp);
+    if (opts.publish) return opts.publish(tmp, target);
+    renameWithRetry(tmp, target, opts.rename);
+    return undefined as T;
+  } finally {
+    fs.rmSync(tmp, { force: true });
+  }
+}
+
 /**
  * Write a 0600 file by temp file and rename, so a reader never sees a partial file.
  * With exclusive set, an existing target is never replaced: the call throws EEXIST.
  */
 export function writePrivateFile(target: string, data: string, opts: { exclusive?: boolean } = {}): void {
-  const tmp = createPrivateTemp(target);
-  try {
-    fs.writeFileSync(tmp, data);
-    if (opts.exclusive) publishExclusive(tmp, target);
-    else renameWithRetry(tmp, target);
-  } finally {
-    fs.rmSync(tmp, { force: true });
-  }
+  writeViaTemp(target, (tmp) => fs.writeFileSync(tmp, data), opts.exclusive ? { publish: (from, to) => void publishExclusive(from, to) } : {});
 }
 
 /** Check that the folder of an output file exists and is a folder. It throws a plain message for each refusal. */

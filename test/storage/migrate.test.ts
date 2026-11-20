@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
 import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
-import { importLegacy, legacyKey, mechanicalEntry } from '../../src/storage/migrate';
+import { importLegacy, legacyKey, mechanicalEntry } from '../../src/storage/legacy/legacy-import';
 import type { EntryRepository } from '../../src/core';
 import { makeTmp, rmTmp } from '../helpers/tmp';
 

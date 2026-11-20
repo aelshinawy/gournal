@@ -1,9 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { execFile } from 'child_process';
-import { newId } from '../../core';
 import { resolveBin, resolveWinShim } from '../../sources';
-import { renameWithRetry } from '../../storage';
+import { writeViaTemp } from '../../storage';
 import { resolveGournalCommand, shellQuote, displayQuote, type CommandEnv } from './command';
 import { SKILL_MARKER, SKILL_MD } from './skill';
 import { addStopHook, removeStopHook, type StopHook } from './settings';
@@ -135,14 +134,14 @@ const SERVER = 'gournal';
 function writeAtomic(file: string, content: string, platform: NodeJS.Platform): void {
   const real = fs.existsSync(file) ? fs.realpathSync(file) : file;
   fs.mkdirSync(path.dirname(real), { recursive: true });
-  const tmp = path.join(path.dirname(real), `.${path.basename(real)}.${process.pid}.${newId()}.tmp`);
-  try {
-    fs.writeFileSync(tmp, content, 'utf8');
-    if (platform !== 'win32' && fs.existsSync(real)) fs.chmodSync(tmp, fs.statSync(real).mode & 0o7777);
-    renameWithRetry(tmp, real, { platform });
-  } finally {
-    fs.rmSync(tmp, { force: true });
-  }
+  writeViaTemp(
+    real,
+    (tmp) => {
+      fs.writeFileSync(tmp, content, 'utf8');
+      if (platform !== 'win32' && fs.existsSync(real)) fs.chmodSync(tmp, fs.statSync(real).mode & 0o7777);
+    },
+    { mode: 0o666, rename: { platform } },
+  );
 }
 
 type SettingsRead = { kind: 'ok'; settings: Json; exists: boolean } | { kind: 'invalid' };

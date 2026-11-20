@@ -27,9 +27,13 @@ export function parseStatus(value: string): Status {
 
 export const NOT_RESOLVABLE = 'only an open blocker or next can be resolved';
 export const noEntryMessage = (id: string): string => `No entry with id "${id}"`;
+/** True for the kinds that start open: blocker and next. */
+export function isActionable(kind: string | null): boolean {
+  return kind === 'blocker' || kind === 'next';
+}
 /** True only for an open blocker or next. */
 export function canResolve(kind: string | null, status: string | null): boolean {
-  return (kind === 'blocker' || kind === 'next') && status === 'open';
+  return isActionable(kind) && status === 'open';
 }
 export const EXPORT_FORMATS = ['md', 'csv', 'bundle'] as const;
 export const SOURCES = ['cli', 'mcp', 'migration'] as const;

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { publishExclusive, renameWithRetry, writePrivateFile, writeExportFile } from '../../src/storage/private-files';
+import { publishExclusive, renameWithRetry, writePrivateFile, writeExportFile, writeViaTemp } from '../../src/storage/private-files';
 import { asPlatform } from '../helpers/platform';
 import { makeTmp, rmTmp } from '../helpers/tmp';
 
@@ -122,6 +122,62 @@ describe('publishExclusive', () => {
     const rename = () => { throw fail('EACCES'); };
     expect(() => publishExclusive(stage('x'), target, { rename })).toThrow('EACCES');
     expect(fs.existsSync(target)).toBe(false);
+  });
+});
+
+describe('writeViaTemp', () => {
+  const modeOf = (file: string) => fs.statSync(file).mode & 0o777;
+
+  posix('writes through a temp file and leaves only the target', () => {
+    const target = path.join(tmp, 't.txt');
+    const prev = process.umask(0o022);
+    try {
+      writeViaTemp(target, (t) => fs.writeFileSync(t, 'a'));
+    } finally {
+      process.umask(prev);
+    }
+    expect(fs.readFileSync(target, 'utf8')).toBe('a');
+    expect(modeOf(target)).toBe(0o600);
+    expect(fs.readdirSync(tmp)).toEqual(['t.txt']);
+  });
+
+  posix('creates the temp with the given mode', () => {
+    const target = path.join(tmp, 't.txt');
+    const prev = process.umask(0o022);
+    try {
+      writeViaTemp(target, (t) => fs.writeFileSync(t, 'a'), { mode: 0o666 });
+    } finally {
+      process.umask(prev);
+    }
+    expect(modeOf(target)).toBe(0o644);
+  });
+
+  test('a throwing fill rethrows and leaves no temp', () => {
+    const target = path.join(tmp, 't.txt');
+    expect(() => writeViaTemp(target, () => { throw new Error('fill'); })).toThrow('fill');
+    expect(fs.readdirSync(tmp)).toEqual([]);
+  });
+
+  test('a custom publish gets the temp and the target, and its result comes back', () => {
+    const target = path.join(tmp, 't.txt');
+    const seen: string[] = [];
+    const result = writeViaTemp(target, (t) => fs.writeFileSync(t, 'a'), {
+      publish: (from, to) => { seen.push(from, to); return 'done'; },
+    });
+    expect(result).toBe('done');
+    expect(seen[0].endsWith('.tmp')).toBe(true);
+    expect(path.dirname(seen[0])).toBe(path.dirname(target));
+    expect(seen[1]).toBe(target);
+    expect(fs.readdirSync(tmp)).toEqual([]);
+  });
+
+  test('the default publish retries a win32 EPERM', () => {
+    const target = path.join(tmp, 't.txt');
+    let calls = 0;
+    const rename = (a: string, b: string) => { if (calls++ === 0) throw fail('EPERM'); fs.renameSync(a, b); };
+    writeViaTemp(target, (t) => fs.writeFileSync(t, 'a'), { rename: { platform: 'win32', rename, sleep: () => {} } });
+    expect(calls).toBe(2);
+    expect(fs.readFileSync(target, 'utf8')).toBe('a');
   });
 });
 

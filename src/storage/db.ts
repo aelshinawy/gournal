@@ -2,7 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
 import { BACKUP_PATTERN } from './backup';
-import { ensureSearchIndex, migrateSchema } from './schema';
+import { migrateSchema } from './schema';
+import { ensureSearchIndex } from './search-index';
 import { ensurePrivateDir, ensurePrivateFile, sleepSync, tightenBackups, tightenDbFiles } from './private-files';
 
 export class CorruptDatabaseError extends Error {

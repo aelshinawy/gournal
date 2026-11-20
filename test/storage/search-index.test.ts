@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
-import { hasFts5, resetSearchIndexNotice, rebuildSearchIndex, searchIndexLive } from '../../src/storage/schema';
+import { hasFts5, resetSearchIndexNotice, rebuildSearchIndex, searchIndexLive } from '../../src/storage/search-index';
 import { loadConfig, type Config } from '../../src/storage/config';
 import { createRepository } from '../../src/storage/sqlite-repository';
 import { exportBundle, importBundle } from '../../src/storage/bundle';

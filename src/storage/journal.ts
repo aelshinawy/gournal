@@ -9,7 +9,7 @@ import { loadConfig } from './config';
 import { openDb } from './db';
 import { gournalHome } from './home';
 import { createWriter } from './writer';
-import { importLegacy } from './migrate';
+import { importLegacy } from './legacy/legacy-import';
 import { createRepository } from './sqlite-repository';
 
 export interface Journal {
