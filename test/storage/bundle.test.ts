@@ -169,6 +169,80 @@ test.each([
   expect(repo.find({ includeDeleted: true })).toEqual([]);
 });
 
+// Pins of what the hand validator accepts and rejects today. The zod switch must keep every row.
+const goodAct = () => ({ id: '01ARZ3NDEKTSV4RRFFQ69G5FB0', createdAt: '2026-11-10T10:00:00.000Z', updatedAt: '2026-11-10T10:00:00.000Z',
+  deletedAt: null, deviceId: 'd', type: 'pr_opened', occurredAt: '2026-11-10T10:00:00.000Z', repo: 'acme/widgets', branch: null,
+  externalId: '5', title: null, url: null, capturedBy: 'github', pr: 5, payload: {} });
+const goodRow = () => ({ legacyIndex: 0, timestamp: '2026-07-01T00:00:00.000Z', messageHash: 'h0', occurrence: 0, entryId: '01ARZ3NDEKTSV4RRFFQ69G5FAV', importedAt: null });
+const withExtra = (extra: Record<string, unknown>) => ({ ...wrap([goodEntry()]), ...extra });
+const without = <T extends object>(o: T, key: string): Partial<T> => { const { [key]: _drop, ...rest } = o as Record<string, unknown>; return rest as Partial<T>; };
+
+test.each([
+  ['an extra bundle key', { ...wrap([goodEntry()]), extra: 1 }],
+  ['an extra entry key', wrap([{ ...goodEntry(), extra: 'x' }])],
+  ['an extra ref key', wrap([{ ...goodEntry(), refs: [{ type: 'pr', value: '1', extra: true }] }])],
+  ['an extra activity key', withExtra({ activity: [{ ...goodAct(), extra: 1 }] })],
+  ['an extra legacyMap key', withExtra({ legacyMap: [{ ...goodRow(), extra: 1 }] })],
+  ['an activity row without capturedBy', withExtra({ activity: [without(goodAct(), 'capturedBy')] })],
+  ["capturedBy 'gitlab'", withExtra({ activity: [{ ...goodAct(), capturedBy: 'gitlab' }] })],
+  ['an activity pr of 2 ** 53 + 2', withExtra({ activity: [{ ...goodAct(), pr: 2 ** 53 + 2 }] })],
+  ['a legacyIndex of 2 ** 53 + 2', withExtra({ legacyMap: [{ ...goodRow(), legacyIndex: 2 ** 53 + 2 }] })],
+  ['a six-digit year in createdAt', wrap([{ ...goodEntry(), createdAt: '+020000-01-01T00:00:00.000Z' }])],
+  ["status 'open' on a done entry", wrap([{ ...goodEntry(), status: 'open' }])],
+  ['a legacyMap row without importedAt', withExtra({ legacyMap: [without(goodRow(), 'importedAt')] })],
+  ['a legacyMap row with a null importedAt', withExtra({ legacyMap: [goodRow()] })],
+])('accepts %s', (_name, bundle) => {
+  expect(importBundle(db, bundle).inserted).toBe(1);
+  expect(repo.find({ includeDeleted: true })).toHaveLength(1);
+});
+
+test('an accepted extra key is never written to the database', () => {
+  importBundle(db, withExtra({ entries: [{ ...goodEntry(), extra: 'x', refs: [{ type: 'pr', value: '1', extra: true }] }] }));
+  const got = repo.find({ includeDeleted: true })[0];
+  expect(got).not.toHaveProperty('extra');
+  expect(got.refs).toEqual([{ type: 'pr', value: '1' }]);
+});
+
+test('an activity row without capturedBy is stored as github', () => {
+  importBundle(db, withExtra({ activity: [without(goodAct(), 'capturedBy'), { ...goodAct(), id: '01ARZ3NDEKTSV4RRFFQ69G5FB1', externalId: '6', capturedBy: 'gitlab' }] }));
+  const a = createActivityRepository(db, config, null).find();
+  expect(a.map((x) => x.capturedBy)).toEqual(['github', 'github']);
+});
+
+test.each([
+  ['entry', []], ['entry', 'x'], ['entry', 5],
+  ['refs', { refs: [{ type: 'pr', value: 'v', repo: null }] }], ['refs', { refs: [[]] }], ['refs', { refs: [null] }],
+  ['resolvedByEntryId', { resolvedByEntryId: 1 }],
+  ['createdAt', { createdAt: '2020-01-01T00:00:00Z' }], ['createdAt', { createdAt: '2020-01-01T00:00:00.000+00:00' }],
+  ['id', { id: '01arz3ndektsv4rrffq69g5fav' }], ['id', { id: 'short', kind: 'oops' }],
+])('rejects invalid entry %s (pinned)', (field, patch) => {
+  const entry = Array.isArray(patch) || typeof patch !== 'object' ? patch : { ...goodEntry(), ...patch };
+  expect(() => importBundle(db, wrap([entry]))).toThrow(`Bundle entry 0 is invalid: ${field}`);
+  expect(repo.find({ includeDeleted: true })).toEqual([]);
+});
+
+test('rejects an entry with no details key', () => {
+  expect(() => importBundle(db, wrap([without(goodEntry(), 'details')]))).toThrow('Bundle entry 0 is invalid: details');
+});
+
+test.each([
+  ['pr', { pr: 1.5 }], ['pr', { pr: '1' }], ['payload', { payload: [] }], ['payload', { payload: null }],
+  ['repo', { repo: null }], ['title', { title: 1 }], ['activity', []],
+])('rejects invalid activity %s (pinned)', (field, patch) => {
+  const row = Array.isArray(patch) ? patch : { ...goodAct(), ...patch };
+  expect(() => importBundle(db, withExtra({ activity: [row] }))).toThrow(`Bundle activity 0 is invalid: ${field}`);
+  expect(repo.find({ includeDeleted: true })).toEqual([]);
+});
+
+test.each([
+  ['a negative legacyIndex', { ...goodRow(), legacyIndex: -1 }], ['a fractional legacyIndex', { ...goodRow(), legacyIndex: 0.5 }],
+  ['a negative occurrence', { ...goodRow(), occurrence: -1 }], ['a fractional occurrence', { ...goodRow(), occurrence: 0.5 }],
+  ["importedAt 'x'", { ...goodRow(), importedAt: 'x' }], ['a null row', null], ['an array row', []],
+])('rejects a legacyMap row with %s (pinned)', (_name, row) => {
+  expect(() => importBundle(db, withExtra({ legacyMap: [row] }))).toThrow('Bundle legacyMap row 0 is invalid');
+  expect(repo.find({ includeDeleted: true })).toEqual([]);
+});
+
 describe('legacy map in bundles', () => {
   const addLegacy = (d: DatabaseSync, r: EntryRepository, n: number, hash = 'h') => {
     const e = r.add({ summary: `legacy ${n}`, ...base, source: 'migration' });
