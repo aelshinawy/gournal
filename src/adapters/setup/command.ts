@@ -49,6 +49,20 @@ export function displayQuote(word: string, platform: NodeJS.Platform = process.p
 /** The last path part. It splits on both `/` and `\\`, so a Windows path works on any platform. */
 export const baseName = (p: string): string => p.split(/[\\/]/).pop() ?? '';
 
+/**
+ * True when `node <script>` starts gournal: the command is Node, and the script is named `gournal`
+ * or is a `cli.js` that sits under a directory named `gournal` (any case, either separator).
+ * A `cli.js` elsewhere belongs to another tool.
+ */
+export function isGournalNodeLaunch(nodeCommand: string, script: string): boolean {
+  const node = baseName(nodeCommand).toLowerCase();
+  if (node !== 'node' && node !== 'node.exe') return false;
+  const parts = script.split(/[\\/]/);
+  const name = parts.pop();
+  if (name === 'gournal') return true;
+  return name === 'cli.js' && parts.some((d) => d.toLowerCase() === 'gournal');
+}
+
 /** How a registered command relates to the one setup writes now. */
 export type RegistrationKind = 'current' | 'gournal' | 'foreign';
 
@@ -63,8 +77,7 @@ export function classifyRegistration(reg: GournalCommand, current: GournalComman
   if (cmd === 'gournal') return args.length === 1 && args[0] === 'mcp' ? 'gournal' : 'foreign';
   const lower = cmd.toLowerCase();
   if (lower === 'node' || lower === 'node.exe') {
-    const script = args.length === 2 ? baseName(args[0]!) : '';
-    return (script === 'cli.js' || script === 'gournal') && args[1] === 'mcp' ? 'gournal' : 'foreign';
+    return args.length === 2 && args[1] === 'mcp' && isGournalNodeLaunch(reg.command, args[0]!) ? 'gournal' : 'foreign';
   }
   if (lower === 'cmd.exe') {
     const ok = args.length === 4 && args[0] === '/d' && args[1] === '/c' && baseName(args[2]!).toLowerCase() === 'gournal.cmd' && args[3] === 'mcp';

@@ -37,3 +37,23 @@ test('classifyRegistration handles Windows node shapes and rejects lookalikes', 
   expect(classifyRegistration({ command: '/x/gournal-notes', args: ['mcp'] }, cur)).toBe('foreign');
   expect(classifyRegistration({ command: 'node', args: ['cli.js', 'mcp', 'x'] }, cur)).toBe('foreign');
 });
+
+test('a foreign cli.js is not gournal in any form', () => {
+  const cur = { command: '/h/bin/gournal', args: ['mcp'] };
+  expect(classifyRegistration({ command: 'node', args: ['/opt/other-tool/dist/cli.js', 'mcp'] }, cur)).toBe('foreign');
+  expect(isGournalHook('node /opt/other-tool/dist/cli.js hook stop')).toBe(false);
+  const exec = { hooks: { Stop: [{ hooks: [{ type: 'command', command: 'node', args: ['/opt/other-tool/dist/cli.js', 'hook', 'stop'] }] }] } };
+  expect(removeStopHook(exec).changed).toBe(false);
+  expect(isGournalHook('gournal hook stop && other')).toBe(false);
+  const extra = { hooks: { Stop: [{ hooks: [{ type: 'command', command: 'cmd.exe', args: ['/d', '/c', 'C:\\h\\bin\\gournal.cmd', 'hook', 'stop', 'x'] }] }] } };
+  expect(removeStopHook(extra).changed).toBe(false);
+});
+
+test('a cli.js under a gournal directory is gournal, with a Windows path too', () => {
+  const cur = { command: '/h/bin/gournal', args: ['mcp'] };
+  const win = 'C:\\Users\\A B\\AppData\\Roaming\\npm\\node_modules\\gournal\\dist\\cli.js';
+  expect(classifyRegistration({ command: 'C:\\Program Files\\nodejs\\node.exe', args: [win, 'mcp'] }, cur)).toBe('gournal');
+  expect(isGournalHook('node /src/Gournal/dist/cli.js hook stop')).toBe(true);
+  const exec = { hooks: { Stop: [{ hooks: [{ type: 'command', command: 'node.exe', args: [win, 'hook', 'stop'] }] }] } };
+  expect(removeStopHook(exec).changed).toBe(true);
+});

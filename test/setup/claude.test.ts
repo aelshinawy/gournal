@@ -425,12 +425,12 @@ const foreignSettings = () => ({
 test('isGournalHook recognizes only the shapes that setup writes', () => {
   expect(isGournalHook('gournal hook stop')).toBe(true);
   expect(isGournalHook('/usr/local/bin/node /usr/lib/gournal/dist/cli.js hook stop')).toBe(true);
-  expect(isGournalHook('node /x/cli.js hook stop')).toBe(true);
+  expect(isGournalHook('node /x/gournal/cli.js hook stop')).toBe(true);
   expect(isGournalHook('C:\\nodejs\\node.exe C:\\app\\cli.js hook stop')).toBe(false);
-  expect(isGournalHook(`'C:\\Program Files\\nodejs\\node.exe' 'C:\\app\\cli.js' hook stop`)).toBe(true);
+  expect(isGournalHook(`'C:\\Program Files\\nodejs\\node.exe' 'C:\\gournal\\cli.js' hook stop`)).toBe(true);
   expect(isGournalHook(`/opt/node/bin/node '/my lib/it's here/cli.js' hook stop`)).toBe(false);
-  expect(isGournalHook(`/opt/node/bin/node '/my lib/it'\\''s here/cli.js' hook stop`)).toBe(true);
-  expect(isGournalHook(`'/my node/node' '/my lib/cli.js' hook stop`)).toBe(true);
+  expect(isGournalHook(`/opt/node/bin/node '/my lib/gournal/it'\\''s here/cli.js' hook stop`)).toBe(true);
+  expect(isGournalHook(`'/my node/node' '/my lib/gournal/cli.js' hook stop`)).toBe(true);
   // Foreign commands
   expect(isGournalHook(FOREIGN)).toBe(false);
   expect(isGournalHook('/opt/gournal/bin/run hook stop')).toBe(false);
@@ -484,7 +484,7 @@ test('duplicate gournal hooks collapse to one and foreign hooks stay', async () 
       Stop: [
         { hooks: [{ type: 'command', command: 'gournal hook stop' }, { type: 'command', command: 'afplay done.wav' }] },
         { hooks: [{ type: 'command', command: FOREIGN }] },
-        { hooks: [{ type: 'command', command: '/old/node /old/cli.js hook stop' }] },
+        { hooks: [{ type: 'command', command: '/old/node /old/gournal/cli.js hook stop' }] },
         { hooks: [{ type: 'command', command: 'gournal hook stop' }] },
       ],
     },
@@ -820,7 +820,7 @@ describe('setup on Windows', () => {
   });
 
   test('a POSIX string hook from an earlier run becomes the exec form, never a second hook', async () => {
-    for (const old of ['gournal hook stop', `'C:\\old dir\\node.exe' 'C:\\old dir\\cli.js' hook stop`, 'node /x/node_modules/.bin/gournal hook stop']) {
+    for (const old of ['gournal hook stop', `'C:\\old dir\\node.exe' 'C:\\old dir\\gournal\\cli.js' hook stop`, 'node /x/node_modules/.bin/gournal hook stop']) {
       writeSettings({ hooks: { Stop: [{ hooks: [{ type: 'command', command: old }, { type: 'command', command: 'afplay done.wav' }] }] } });
       out.length = 0;
       expect(await run({ hook: true }, winIo())).toBe(0);
@@ -842,7 +842,7 @@ describe('setup on Windows', () => {
     writeSettings({
       hooks: { Stop: [
         { hooks: [{ type: 'command', command: 'gournal hook stop' }, foreign] },
-        { hooks: [{ type: 'command', command: 'C:\\old\\node.exe', args: ['C:\\old\\cli.js', 'hook', 'stop'] }] },
+        { hooks: [{ type: 'command', command: 'C:\\old\\node.exe', args: ['C:\\old\\gournal\\cli.js', 'hook', 'stop'] }] },
       ] },
     });
     expect(await run({ uninstall: true }, winIo())).toBe(0);
@@ -893,14 +893,14 @@ describe('isGournalHook exec form', () => {
   const recognized = (command: string, args: unknown) => exec(command, args).action === 'updated';
 
   test('accepts node or node.exe with a cli.js or gournal script', () => {
-    expect(recognized('C:\\Program Files\\nodejs\\node.exe', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(true);
+    expect(recognized('C:\\Program Files\\nodejs\\node.exe', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(true);
     expect(recognized('node', ['C:\\app\\node_modules\\.bin\\gournal', 'hook', 'stop'])).toBe(true);
-    expect(recognized('/usr/bin/node', ['/x/cli.js', 'hook', 'stop'])).toBe(true);
+    expect(recognized('/usr/bin/node', ['/x/gournal/cli.js', 'hook', 'stop'])).toBe(true);
   });
 
   test('compares the program name without regard to case', () => {
-    expect(recognized('C:\\Program Files\\nodejs\\Node.exe', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(true);
-    expect(recognized('NODE', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(true);
+    expect(recognized('C:\\Program Files\\nodejs\\Node.exe', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(true);
+    expect(recognized('NODE', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(true);
     expect(recognized('Nodejs.exe', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(false);
   });
 

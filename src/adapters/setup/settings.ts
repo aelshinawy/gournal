@@ -1,4 +1,4 @@
-import { baseName } from './command';
+import { baseName, isGournalNodeLaunch } from './command';
 
 type Json = Record<string, unknown>;
 
@@ -47,11 +47,7 @@ export function isGournalHook(command: string, current?: string): boolean {
   if (t === null) return false;
   if (t.length === 3) return baseName(t[0]!) === 'gournal' && t[1] === 'hook' && t[2] === 'stop';
   if (t.length !== 4) return false;
-  const node = baseName(t[0]!);
-  const script = baseName(t[1]!);
-  const isNode = node === 'node' || node === 'node.exe';
-  const isScript = script === 'cli.js' || script === 'gournal';
-  return isNode && isScript && t[2] === 'hook' && t[3] === 'stop';
+  return isGournalNodeLaunch(t[0]!, t[1]!) && t[2] === 'hook' && t[3] === 'stop';
 }
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -87,10 +83,7 @@ function isGournalExecHook(command: string, args: unknown): boolean {
     return args.length === 5 && args[0] === '/d' && args[1] === '/c' && baseName(args[2]!).toLowerCase() === 'gournal.cmd' && args[3] === 'hook' && args[4] === 'stop';
   }
   if (args.length !== 3) return false;
-  const script = baseName(args[0]!);
-  const isNode = node === 'node' || node === 'node.exe';
-  const isScript = script === 'cli.js' || script === 'gournal';
-  return isNode && isScript && args[1] === 'hook' && args[2] === 'stop';
+  return isGournalNodeLaunch(command, args[0]!) && args[1] === 'hook' && args[2] === 'stop';
 }
 
 /** True when `h` is a gournal hook entry in the shell form or in the exec form. */
