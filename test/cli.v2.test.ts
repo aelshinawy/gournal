@@ -43,6 +43,19 @@ describe('gournal CLI on the SQLite journal', () => {
     expect(rows(home).map((x) => x.status)).toEqual(['resolved', null]);
   });
 
+  test('a commander usage error goes through io.err with status 1 and exits no process', async () => {
+    const exit = jest.spyOn(process, 'exit').mockImplementation(((code?: number) => { throw new Error(`process.exit(${code})`); }) as typeof process.exit);
+    try {
+      for (const args of [['add', 'x', '--bogus'], ['setup', 'claude', '--bogus']]) {
+        const r = await run(...args);
+        expect(r.status).toBe(1);
+        expect(r.stderr).toContain("unknown option '--bogus'");
+        expect(r.stdout).toBe('');
+      }
+      expect(exit).not.toHaveBeenCalled();
+    } finally { exit.mockRestore(); }
+  });
+
   test('add rejects an unknown kind', async () => {
     const r = await run('add', 'x', '-k', 'wat');
     expect(r.status).toBe(1);
