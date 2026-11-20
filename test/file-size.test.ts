@@ -13,8 +13,6 @@ const ALLOWED: Record<string, { max: number; phase: string }> = {
   'src/adapters/cli/program.ts': { max: 496, phase: 'Phase 6 (adapters)' },
   'src/adapters/mcp/server.ts': { max: 393, phase: 'Phase 6 (adapters)' },
   'src/adapters/setup/claude.ts': { max: 359, phase: 'Phase 6 (adapters)' },
-  'src/storage/activity-repository.ts': { max: 274, phase: 'Phase 5 (storage)' },
-  'src/storage/sqlite-repository.ts': { max: 258, phase: 'Phase 5 (storage)' },
 };
 
 const files = tsFiles('src');

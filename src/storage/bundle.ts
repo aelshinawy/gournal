@@ -5,7 +5,8 @@ import { newId } from '../core';
 import type { Activity, Entry } from '../core';
 import type { Config } from '../core';
 import { createWriter } from './writer';
-import { createActivityRepository, payloadText, rowToActivity } from './activity-repository';
+import { createActivityRepository } from './activity-repository';
+import { payloadText, rowToActivity } from './activity-rows';
 import { hydrateRows, replaceRefs, replaceTags } from './entry-rows';
 import type { Row } from './entry-rows';
 

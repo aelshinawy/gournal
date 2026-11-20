@@ -1,59 +1,15 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { BRANCH_WINDOW_MS, matchLinks, newId } from '../core';
-import type { Activity, ActivityQuery, ActivityRepository, ActivityType, Config, Entry, LinkCandidate, NewActivityInput } from '../core';
+import type { Activity, ActivityQuery, ActivityRepository, Config, Entry, LinkCandidate, NewActivityInput } from '../core';
 import { BUMP_UPDATED_AT, createWriter } from './writer';
 import type { Writer } from './writer';
-import { hydrateRows, iso } from './entry-rows';
+import { chunks, hydrateRows, marks } from './entry-rows';
 import type { Row } from './entry-rows';
+import { payloadText, rowToActivity } from './activity-rows';
+import type { ActivityRow } from './activity-rows';
 
-interface ActivityRow {
-  id: string; created_at: number; updated_at: number; deleted_at: number | null; device_id: string;
-  type: string; occurred_at: number; repo: string; branch: string | null; external_id: string;
-  title: string | null; url: string | null; captured_by: string | null; payload: string | null;
-}
-
-const CHUNK = 500;
 const MIN_SHA = 7;
 const HEX = /^[0-9a-f]+$/;
-
-/** Build an Activity from a row. `pr` comes from the payload. A bad payload reads as an empty one. */
-export function rowToActivity(r: ActivityRow): Activity {
-  let payload: Record<string, unknown> = {};
-  try {
-    const parsed: unknown = r.payload ? JSON.parse(r.payload) : {};
-    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) payload = parsed as Record<string, unknown>;
-  } catch { /* keep the empty payload */ }
-  return {
-    id: r.id,
-    createdAt: iso(r.created_at)!,
-    updatedAt: iso(r.updated_at)!,
-    deletedAt: iso(r.deleted_at),
-    deviceId: r.device_id,
-    type: r.type as ActivityType,
-    occurredAt: iso(r.occurred_at)!,
-    repo: r.repo,
-    branch: r.branch,
-    externalId: r.external_id,
-    title: r.title,
-    url: r.url,
-    capturedBy: 'github',
-    pr: typeof payload.pr === 'number' && Number.isInteger(payload.pr) ? payload.pr : null,
-    payload,
-  };
-}
-
-/** The payload text that is stored: the caller's fields plus `pr`, so linking can read it with json_extract. */
-export function payloadText(payload: Record<string, unknown>, pr: number | null): string {
-  return JSON.stringify({ ...payload, pr });
-}
-
-function chunks<T>(list: T[]): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < list.length; i += CHUNK) out.push(list.slice(i, i + CHUNK));
-  return out;
-}
-
-const marks = (n: number): string => Array.from({ length: n }, () => '?').join(', ');
 
 /** Pass the writer that the entry repository uses, so both share one transaction state per connection. */
 export function createActivityRepository(db: DatabaseSync, config: Config, dbPath: string | null, writer: Writer = createWriter(db, dbPath)): ActivityRepository {

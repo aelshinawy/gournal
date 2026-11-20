@@ -1,5 +1,5 @@
 export {
-  KINDS, STATUSES, NOT_RESOLVABLE, EXPORT_FORMATS, parseKind, parseStatus, canResolve, noEntryMessage,
+  KINDS, STATUSES, NOT_RESOLVABLE, EXPORT_FORMATS, parseKind, parseStatus, canResolve, isActionable, noEntryMessage,
   type Kind, type Source, type Entry, type NewEntryInput, type EntryPatch,
 } from './entries/entry';
 export { OPTION_TEXT } from './option-text';
