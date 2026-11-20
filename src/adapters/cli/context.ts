@@ -1,3 +1,4 @@
+import type { Command } from 'commander';
 import type { GhRunner } from '../../sources';
 import type { CommandRunner } from '../setup';
 import { createEntryWriter, type EntryWriter } from '../entry-writer';
@@ -27,6 +28,9 @@ export interface CliContext {
   backupWithWarning(journal: Journal): void;
   writerFor(journal: Journal): EntryWriter;
 }
+
+/** Each register<Command> function has this shape. */
+export type RegisterCommand = (program: Command, ctx: CliContext) => void;
 
 export function createCliContext(io: CliIo): CliContext {
   return {

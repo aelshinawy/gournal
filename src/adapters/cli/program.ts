@@ -1,128 +1,26 @@
-import { Command, CommanderError, Option } from 'commander';
-import { execGh, resolveIdentity, type GhRunner } from '../../sources';
-import { maybeAutoSync, parseSince, runSync, syncSummaryLine } from '../sync';
-import { startMcpServer } from '../mcp';
-import { writeNoteText } from '../write-note-text';
-import { standupModel, workLogModel } from '../reports';
-import { EXPORT_FORMATS, buildStats, kindList, parseKind, parseStatus, resolveQuery, shortId, stripControl, type Query } from '../../core';
-import { OPTION_TEXT } from '../shared/option-text';
-import {
-  bold, entryLinesText, exportCsv, exportMarkdown, green, projectCountsText, red, standupText, statsText, tagCountsText, workLogText, yellow,
-} from '../../render';
 import fs from 'fs';
 import path from 'path';
+import { Command, CommanderError } from 'commander';
+import { execGh } from '../../sources';
+import { maybeAutoSync, parseSince, runSync, syncSummaryLine } from '../sync';
+import { startMcpServer } from '../mcp';
+import { standupModel, workLogModel } from '../reports';
+import { EXPORT_FORMATS, buildStats } from '../../core';
+import { OPTION_TEXT } from '../shared/option-text';
+import { exportCsv, exportMarkdown, green, red, standupText, statsText, workLogText } from '../../render';
 import { VERSION } from '../version';
-import { confirm, confirmOrNo } from './confirm';
-import { createCliContext, type CliIo } from './context';
-import { buildQuery, splitList, type FindCliOptions, type PeriodCliOptions } from './options';
-import { execFileRunner, setupClaude, stopHook, type CommandRunner } from '../setup';
-import { openJournal, exportBundle, importBundle, gournalHome, userHomePath, hasFts5, rebuildSearchIndex, importLegacy, applyPlan, renderPlanDiff, writePrivateFile, writeExportFile, assertExportTarget, assertTargetDir } from '../../storage';
-import type { Journal, MigrationPlan } from '../../storage';
-
-const CLEAR_QUESTION = 'Are you sure you want to clear all gournal entries?';
+import { confirmOrNo } from './confirm';
+import { execFileRunner, setupClaude, stopHook } from '../setup';
+import { openJournal, exportBundle, importBundle, gournalHome, userHomePath, hasFts5, rebuildSearchIndex, importLegacy, applyPlan, renderPlanDiff, writePrivateFile, writeExportFile, assertExportTarget, assertTargetDir, type MigrationPlan } from '../../storage';
+import { createCliContext, type CliIo, type CliContext, type RegisterCommand } from './context';
+import { buildQuery, splitList, type PeriodCliOptions } from './options';
+import { registerAdd, registerClear, registerUndo, registerRestore, registerResolve, registerTags, registerProjects, registerFind } from './entries';
 
 const NO_FTS5_MESSAGE = 'This Node build has no FTS5; the search index cannot be rebuilt.';
 
 const stripNewline = (text: string): string => text.replace(/\n$/, '');
 
-export function buildProgram(io: CliIo): Command {
-  const program = new Command();
-
-  const ctx = createCliContext(io);
-
-  program
-    .exitOverride()
-    .configureOutput({
-      writeOut: (text) => io.out(stripNewline(text)),
-      writeErr: (text) => io.err(stripNewline(text)),
-    })
-    .name('gournal')
-    .description('CLI development journal with Git integration')
-    .version(VERSION);
-
-  program
-    .command('add')
-    .argument('<summary>', 'One line that says what happened.')
-    .description('Add a journal entry. Gournal records the project, repo, and branch of the current directory. A summary over 120 characters, or with a line break, is cut at the first sentence. The full text goes to details, and a note prints.')
-    .option('-t, --tags <tags>', 'Tag the entry. Separate tags with commas.', '')
-    .option('-d, --details <text>', 'Save longer text with the entry. The summary stays one line.')
-    .addOption(new Option('-k, --kind <kind>', `Set the entry kind: ${kindList({ defaultKind: 'done' })}.`).default(undefined, 'done'))
-    .option('--resolves <ids>', 'Close the open blocker or next entries with these ids. Separate ids with commas. Gournal drops an id that it cannot resolve, adds the entry, and prints a note.')
-    .action(async (summary: string, options: { tags: string; details?: string; kind?: string; resolves?: string }) => {
-      const kind = options.kind === undefined ? undefined : parseKind(options.kind);
-      await ctx.withJournal((journal) => {
-        const identity = resolveIdentity(ctx.io.cwd, journal.config.projectAliases);
-        const { entry, notes } = ctx.writerFor(journal).add({
-          summary,
-          details: options.details,
-          kind,
-          identity,
-          source: 'cli',
-          tags: splitList(options.tags),
-          resolves: splitList(options.resolves),
-        });
-        ctx.io.out(green(`✓ Entry added! (${shortId(entry.id)})`));
-        if (notes.some((n) => n.type === 'split')) {
-          ctx.io.out(yellow('Note: summary was long, the rest went to details.'));
-        }
-        for (const note of notes) if (note.type !== 'split') ctx.io.err(writeNoteText(note));
-      });
-    });
-
-  program
-    .command('clear')
-    .description('Remove all journal entries after you confirm. This command needs a terminal.')
-    .action(async () => {
-      if (!ctx.io.isTTY) throw new Error('Not a terminal; nothing cleared.');
-      let confirmed: boolean;
-      try {
-        confirmed = await (ctx.io.confirm ?? confirm)(red(CLEAR_QUESTION), false);
-      } catch {
-        throw new Error('Not a terminal; nothing cleared.');
-      }
-      if (!confirmed) return;
-      await ctx.withJournal((journal) => {
-        const count = ctx.writerFor(journal).clear();
-        ctx.io.out(green(`✓ Cleared ${count} entries (restore any with gournal restore <id>).`));
-      });
-    });
-
-  program
-    .command('undo')
-    .description('Remove the last entry that you added on this device. Restore it later by id.')
-    .action(async () => {
-      await ctx.withJournal((journal) => {
-        const removed = ctx.writerFor(journal).undo();
-        if (!removed) {
-          ctx.io.out(yellow('No entries to undo.'));
-          return;
-        }
-        ctx.io.out(green(`✓ Removed: ${stripControl(removed.summary)} (restore with gournal restore ${shortId(removed.id)})`));
-      });
-    });
-
-  program
-    .command('restore')
-    .argument('<id>', 'The full id or the last 8 characters of the removed entry.')
-    .description('Bring back a removed entry.')
-    .action(async (id: string) => {
-      await ctx.withJournal((journal) => {
-        const entry = ctx.writerFor(journal).restore(id);
-        ctx.io.out(green(`✓ Restored: ${stripControl(entry.summary)}`));
-      });
-    });
-
-  program
-    .command('resolve')
-    .argument('<id>', 'The full id or the last 8 characters of the entry.')
-    .description('Mark an open blocker or next entry as resolved.')
-    .action(async (id: string) => {
-      await ctx.withJournal((journal) => {
-        const entry = ctx.writerFor(journal).resolve(id);
-        ctx.io.out(green(`✓ Resolved: ${stripControl(entry.summary)}`));
-      });
-    });
-
+function registerStandup(program: Command, ctx: CliContext): void {
   program
     .command('standup')
     .description('Show a standup report for today, or for the period that you choose. The report lists done entries, open blockers, open next items, and a Stale line. An Also line counts the GitHub activity that no done entry links to. The --from and --to options override --yesterday, --week, and --month.')
@@ -144,7 +42,9 @@ export function buildProgram(io: CliIo): Command {
         ctx.io.out(standupText(model, { expandActivity: options.activity === true }));
       });
     });
+}
 
+function registerLog(program: Command, ctx: CliContext): void {
   program
     .command('log')
     .description('Show your entries in time order, grouped by day. The log covers today unless you choose a period. The --from and --to options override --yesterday, --week, and --month.')
@@ -164,7 +64,9 @@ export function buildProgram(io: CliIo): Command {
         ctx.io.out(workLogText(workLogModel(journal, { ...options, tags: splitList(options.tags) }, new Date())));
       });
     });
+}
 
+function registerStats(program: Command, ctx: CliContext): void {
   program
     .command('stats')
     .description('Show how many entries you have for each project and tag, and your current daily streak.')
@@ -175,25 +77,9 @@ export function buildProgram(io: CliIo): Command {
         ctx.io.out(statsText(buildStats(repo.find(query), new Date())));
       });
     });
+}
 
-  program
-    .command('tags')
-    .description('List every tag that you use, with the number of entries for each tag.')
-    .action(async () => {
-      await ctx.withJournal(({ repo }) => {
-        ctx.io.out(tagCountsText(repo.tagCounts()));
-      });
-    });
-
-  program
-    .command('projects')
-    .description('List every project that you log to, with the number of entries for each project.')
-    .action(async () => {
-      await ctx.withJournal(({ repo }) => {
-        ctx.io.out(projectCountsText(repo.projectCounts()));
-      });
-    });
-
+function registerExport(program: Command, ctx: CliContext): void {
   program
     .command('export')
     .description('Write journal entries as Markdown or CSV, or write a full bundle for backup and import. The project, tag, and date options apply to md and csv only. Output goes to the terminal unless you pass --output.')
@@ -234,7 +120,9 @@ export function buildProgram(io: CliIo): Command {
         }
       });
     });
+}
 
+function registerImport(program: Command, ctx: CliContext): void {
   program
     .command('import')
     .argument('<file>', 'Path of the bundle file.')
@@ -267,28 +155,9 @@ export function buildProgram(io: CliIo): Command {
         }
       }, { legacyImport: false });
     });
+}
 
-  program
-    .command('find')
-    .argument('<text>', 'Words to search for. Every word must match.')
-    .description('Search your entries for words. Every word must match. The oldest entries come first. Matching can differ between Node builds: with FTS5 a word matches the start of whole words, and without FTS5 it matches any part of the text.')
-    .option('-p, --project <project>', OPTION_TEXT.project)
-    .option('-t, --tags <tags>', `${OPTION_TEXT.tags} Separate tags with commas.`)
-    .option('-k, --kind <kinds>', `${OPTION_TEXT.kind} Separate kinds with commas.`)
-    .option('--status <status>', OPTION_TEXT.status)
-    .option('--repo <owner/name>', OPTION_TEXT.repo)
-    .option('--from <date>', OPTION_TEXT.from)
-    .option('--to <date>', OPTION_TEXT.to)
-    .option('-n, --limit <n>', `${OPTION_TEXT.limit} The oldest come first.`)
-    .action(async (text: string, options: FindCliOptions) => {
-      const query = buildQuery(options, text);
-      await ctx.withJournal(({ repo }) => {
-        const results = repo.find(query);
-        ctx.io.out(bold(`Found ${results.length} entries:\n`));
-        if (results.length > 0) ctx.io.out(entryLinesText(results));
-      });
-    });
-
+function registerMigrate(program: Command, ctx: CliContext): void {
   program
     .command('migrate')
     .description('Import the old entries.json file into the database, or apply a reviewed migration plan.')
@@ -329,7 +198,9 @@ export function buildProgram(io: CliIo): Command {
         journal.close();
       }
     });
+}
 
+function registerIndex(program: Command, ctx: CliContext): void {
   const index = program.command('index').description('Maintain the full-text search index.');
   index
     .command('rebuild')
@@ -344,7 +215,9 @@ export function buildProgram(io: CliIo): Command {
         ctx.io.out(green(`Search index rebuilt: ${indexed} entries.`));
       });
     });
+}
 
+function registerSync(program: Command, ctx: CliContext): void {
   program
     .command('sync')
     .description('Fetch your GitHub activity (PRs, commits, reviews) through the gh CLI. Gournal links the activity to your entries.')
@@ -357,7 +230,9 @@ export function buildProgram(io: CliIo): Command {
       const line = syncSummaryLine(report);
       ctx.io.out(report.status === 'partial' && report.warning ? `${line} ${report.warning}` : line);
     });
+}
 
+function registerSetup(program: Command, ctx: CliContext): void {
   const setup = program.command('setup').description('Set gournal up for another tool.');
   setup
     .command('claude')
@@ -374,7 +249,9 @@ export function buildProgram(io: CliIo): Command {
       }, { uninstall: options.uninstall === true, yes: options.yes === true, hook: options.hook === true });
       if (code !== 0) throw new CommanderError(code, 'gournal.setup', 'setup did not finish'); // setup already printed why
     });
+}
 
+function registerHook(program: Command, ctx: CliContext): void {
   const hook = program.command('hook', { hidden: true }).description('Claude Code hook entry points.');
   hook
     .command('stop')
@@ -392,13 +269,54 @@ export function buildProgram(io: CliIo): Command {
       const result = await stopHook(stdin, ctx.io.home, new Date());
       if (result !== null) ctx.io.out(result);
     });
+}
 
+function registerMcp(program: Command, ctx: CliContext): void {
   program
     .command('mcp')
     .description('Start the gournal MCP server on stdio. It offers entries, standup reports, work logs, and export as tools.')
     .action(async () => {
       await startMcpServer();
     });
+}
+
+const COMMANDS: RegisterCommand[] = [
+  registerAdd,
+  registerClear,
+  registerUndo,
+  registerRestore,
+  registerResolve,
+  registerStandup,
+  registerLog,
+  registerStats,
+  registerTags,
+  registerProjects,
+  registerExport,
+  registerImport,
+  registerFind,
+  registerMigrate,
+  registerIndex,
+  registerSync,
+  registerSetup,
+  registerHook,
+  registerMcp,
+];
+
+export function buildProgram(io: CliIo): Command {
+  const program = new Command();
+  const ctx = createCliContext(io);
+
+  program
+    .exitOverride()
+    .configureOutput({
+      writeOut: (text) => io.out(stripNewline(text)),
+      writeErr: (text) => io.err(stripNewline(text)),
+    })
+    .name('gournal')
+    .description('CLI development journal with Git integration')
+    .version(VERSION);
+
+  for (const register of COMMANDS) register(program, ctx);
 
   return program;
 }
