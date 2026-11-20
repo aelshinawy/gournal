@@ -5,8 +5,8 @@ import { startMcpServer } from '../mcp';
 import { createEntryWriter } from '../entry-writer';
 import { writeNoteText } from '../write-note-text';
 import { standupModel, workLogModel } from '../reports';
-import { EXPORT_FORMATS, OPTION_TEXT, buildStats, parseKind, parseStatus, resolveQuery, shortId, stripControl } from '../../core';
-import type { Query } from '../../core';
+import { EXPORT_FORMATS, buildStats, kindList, parseKind, parseStatus, resolveQuery, shortId, stripControl, type Query } from '../../core';
+import { OPTION_TEXT } from '../shared/option-text';
 import {
   bold, entryLinesText, exportCsv, exportMarkdown, green, projectCountsText, red, standupText, statsText, tagCountsText, workLogText, yellow,
 } from '../../render';
@@ -116,7 +116,7 @@ export function buildProgram(io: CliIo): Command {
     .description('Add a journal entry. Gournal records the project, repo, and branch of the current directory. A summary over 120 characters, or with a line break, is cut at the first sentence. The full text goes to details, and a note prints.')
     .option('-t, --tags <tags>', 'Tag the entry. Separate tags with commas.', '')
     .option('-d, --details <text>', 'Save longer text with the entry. The summary stays one line.')
-    .addOption(new Option('-k, --kind <kind>', 'Set the entry kind: done (default), blocker, or next.').default(undefined, 'done'))
+    .addOption(new Option('-k, --kind <kind>', `Set the entry kind: ${kindList({ defaultKind: 'done' })}.`).default(undefined, 'done'))
     .option('--resolves <ids>', 'Close the open blocker or next entries with these ids. Separate ids with commas. Gournal drops an id that it cannot resolve, adds the entry, and prints a note.')
     .action(async (summary: string, options: { tags: string; details?: string; kind?: string; resolves?: string }) => {
       const kind = options.kind === undefined ? undefined : parseKind(options.kind);

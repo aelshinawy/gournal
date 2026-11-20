@@ -8,8 +8,8 @@ import { createEntryWriter, type EntryWriter } from '../entry-writer';
 import { writeNoteText } from '../write-note-text';
 import { resolveCallIdentity } from './identity';
 import { VERSION } from '../version';
-import { KINDS, OPTION_TEXT, STATUSES, shortId } from '../../core';
-import type { ActivityRepository, Config, Entry, EntryRepository, Query, RepoIdentity } from '../../core';
+import { OPTION_TEXT } from '../shared/option-text';
+import { KINDS, REF_TYPES, SOURCES, STATUSES, kindList, shortId, type ActivityRepository, type Config, type Entry, type EntryRepository, type Kind, type Query, type Ref, type RepoIdentity } from '../../core';
 import {
   EntryListSchema, EntryResultSchema, ProjectCountsSchema, StandupSchema, SyncReportSchema, TagCountsSchema, WorkLogSchema,
   entriesMarkdown, entryJson, exportCsv, exportMarkdown, standupJson, standupMarkdown, workLogJson, workLogMarkdown,
@@ -110,7 +110,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
     };
 
   const refSchema = z.object({
-    type: z.enum(['pr', 'jira', 'commit', 'url']).describe('Kind of reference: a PR, a Jira key, a commit, or a URL.'),
+    type: z.enum(REF_TYPES).describe('Kind of reference: a PR, a Jira key, a commit, or a URL.'),
     value: z.string().min(1).max(CAPS.refValue).describe('The PR number, ticket key, commit hash, or URL.'),
     repo: z.string().max(CAPS.short).optional().describe('Repository (owner/name) of the PR or commit.'),
   });
@@ -128,7 +128,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
         summary: z.string().max(CAPS.summary).optional().describe(SUMMARY_TEXT),
         message: z.string().max(CAPS.summary).optional().describe('Deprecated alias for summary. Use summary instead.'),
         details: z.string().max(CAPS.details).optional().describe('Longer text for this entry. Use it when the summary needs more room.'),
-        kind: KIND.default('done').describe('Entry kind: done (default), blocker (something stops you), or next (a planned step).'),
+        kind: KIND.default('done').describe(`Entry kind: ${kindList({ notes: true, defaultKind: 'done' })}.`),
         project: shortText().optional().describe('Project name for this entry. Pass it explicitly. Do not rely on the server working directory.'),
         repo: shortText().optional().describe('Repository name, for example owner/name.'),
         branch: shortText().optional().describe('Git branch name.'),
@@ -140,9 +140,9 @@ export function createServer(deps: ServerDeps = {}): McpServer {
       },
     },
     guarded(async (args: {
-      summary?: string; message?: string; details?: string; kind?: 'done' | 'blocker' | 'next';
+      summary?: string; message?: string; details?: string; kind?: Kind;
       project?: string; repo?: string; branch?: string; cwd?: string; agent?: string; tags?: string[];
-      refs?: { type: 'pr' | 'jira' | 'commit' | 'url'; value: string; repo?: string }[]; resolves?: string[];
+      refs?: Ref[]; resolves?: string[];
     }, journal) => {
       const raw = args.summary ?? args.message;
       if (raw === undefined) return errorResult('summary is required');
@@ -166,15 +166,15 @@ export function createServer(deps: ServerDeps = {}): McpServer {
         id: z.string().min(1).max(CAPS.id).describe('Full id or the last 8 characters of the entry.'),
         summary: z.string().max(CAPS.summary).optional().describe(SUMMARY_TEXT),
         details: z.string().max(CAPS.details).optional().describe('New longer text for the entry.'),
-        kind: KIND.optional().describe('New kind: done, blocker, or next. A change of kind sets the status to open (none for done) and clears the resolution.'),
+        kind: KIND.optional().describe(`New kind: ${kindList()}. A change of kind sets the status to open (none for done) and clears the resolution.`),
         project: shortText().optional().describe('New project name.'),
         tags: entryTags('New tags. They replace the current tags.'),
         refs: entryRefs('New references. They replace the current references. If you also pass `tags`, references that come from ticket-style tags are added to them.'),
       },
     },
     guarded((args: {
-      id: string; summary?: string; details?: string; kind?: 'done' | 'blocker' | 'next'; project?: string;
-      tags?: string[]; refs?: { type: 'pr' | 'jira' | 'commit' | 'url'; value: string; repo?: string }[];
+      id: string; summary?: string; details?: string; kind?: Kind; project?: string;
+      tags?: string[]; refs?: Ref[];
     }, journal) => {
       const { entry, notes } = getWriter(journal).update(args.id, {
         summary: args.summary, details: args.details, kind: args.kind, project: args.project, tags: args.tags, refs: args.refs,
@@ -244,7 +244,7 @@ export function createServer(deps: ServerDeps = {}): McpServer {
         text: z.string().max(CAPS.findText).optional().describe('Search words. Every word must match.'),
         kind: z.array(KIND).optional().describe(OPTION_TEXT.kind),
         status: z.enum(STATUSES).optional().describe(OPTION_TEXT.status),
-        source: z.enum(['cli', 'mcp', 'migration']).optional().describe('Only entries that came from this source.'),
+        source: z.enum(SOURCES).optional().describe('Only entries that came from this source.'),
         from: z.string().optional().describe(OPTION_TEXT.from),
         to: z.string().optional().describe(OPTION_TEXT.to),
         limit: z.number().int().min(1).max(500).default(FIND_DEFAULT_LIMIT).describe(`${OPTION_TEXT.limit} The maximum is 500.`),

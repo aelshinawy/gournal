@@ -1,12 +1,11 @@
 export {
-  KINDS, STATUSES, NOT_RESOLVABLE, EXPORT_FORMATS, parseKind, parseStatus, canResolve, isActionable, noEntryMessage,
+  KINDS, STATUSES, SOURCES, NOT_RESOLVABLE, EXPORT_FORMATS, kindList, parseKind, parseStatus, canResolve, isActionable, noEntryMessage,
   type Kind, type Source, type Entry, type NewEntryInput, type EntryPatch,
 } from './entries/entry';
-export { OPTION_TEXT } from './option-text';
 export { newId, shortId } from './ids';
 export { MAX_SUMMARY, summaryLength, splitSummary, checkSummary, hasLineBreak } from './entries/summary';
 export { stripControl, cleanProject, cleanOpt, cleanDetails, cleanRefs, DEFAULT_PROJECT } from './entries/sanitize';
-export { mergeRefs, extractRefs, type Ref } from './labels/refs';
+export { REF_TYPES, mergeRefs, extractRefs, type Ref } from './labels/refs';
 export { normalizeTags, closeTags } from './labels/tags';
 export { CONFIG_DEFAULTS, normalizeConfig, invalidConfig, isPlainObject, type Config } from './config';
 export { InvalidQueryError, cleanSearchTerms, parseBound, resolveQuery, type Query } from './entries/query';

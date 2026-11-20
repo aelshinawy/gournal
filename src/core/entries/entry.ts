@@ -12,11 +12,13 @@ function orList(words: readonly string[]): string {
 }
 
 const KIND_NOTES: Record<Kind, string | null> = { done: null, blocker: 'something stops you', next: 'a planned step' };
-/** The kinds with a short note for each, for example "done, blocker (something stops you), or next (a planned step)". */
-export const KIND_LIST_NOTED = orList(KINDS.map((k) => (KIND_NOTES[k] === null ? k : `${k} (${KIND_NOTES[k]})`)));
+/** The kinds as "done, blocker, or next". notes adds each note. defaultKind marks one kind "(default)". */
+export function kindList(opts: { notes?: boolean; defaultKind?: Kind } = {}): string {
+  return orList(KINDS.map((k) => `${k}${opts.defaultKind === k ? ' (default)' : ''}${opts.notes && KIND_NOTES[k] !== null ? ` (${KIND_NOTES[k]})` : ''}`));
+}
 
 export function parseKind(value: string): Kind {
-  if (!(KINDS as readonly string[]).includes(value)) throw new Error(`Unknown kind "${value}". Use ${orList(KINDS)}.`);
+  if (!(KINDS as readonly string[]).includes(value)) throw new Error(`Unknown kind "${value}". Use ${kindList()}.`);
   return value as Kind;
 }
 
