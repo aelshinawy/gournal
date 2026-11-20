@@ -123,6 +123,16 @@ describe('POSIX launcher', () => {
     expect(launch({ ...cands, files: [], globs: [] })).toContain(`node=${sys}\n`);
   });
 
+  posixTest('the first absolute PATH node fails the probe and a later one runs and is recorded', () => {
+    const f = fixture('h', none);
+    writeFakeNode(path.join(f.root, 'a', 'node'), false);
+    const good = path.join(f.root, 'b', 'node');
+    writeFakeNode(good, true);
+    const out = run(f, [], { path: `${path.join(f.root, 'a')}:${path.join(f.root, 'b')}` });
+    expect(out.stdout).toContain(`node=${good}\n`);
+    expect(fs.readFileSync(rec(f), 'utf8')).toBe(`${good}\n`);
+  });
+
   posixTest('no node: exit 1 with the exact message; hook: exit 0 and no output', () => {
     const f = fixture('h', none);
     const out = run(f);
@@ -289,9 +299,10 @@ describe('Windows launcher', () => {
     return { root, home, launcher, node };
   }
 
-  function runWin(f: { root: string; launcher: string }, args: string[], appExit = '0') {
+  function runWin(f: { root: string; launcher: string }, args: string[], appExit = '0', o: { cwd?: string; path?: string } = {}) {
     return spawnSync(process.env.ComSpec ?? `${sys}\\System32\\cmd.exe`, ['/d', '/c', f.launcher, ...args], {
-      env: { SystemRoot: sys, USERPROFILE: f.root, PATH: `${sys}\\System32`, APP_EXIT: appExit },
+      env: { SystemRoot: sys, USERPROFILE: f.root, PATH: o.path ?? `${sys}\\System32`, APP_EXIT: appExit },
+      cwd: o.cwd,
       encoding: 'utf8',
     });
   }
@@ -323,6 +334,32 @@ describe('Windows launcher', () => {
     fs.copyFileSync(process.execPath, v);
     const out = spawnSync(process.env.ComSpec ?? `${sys}\\System32\\cmd.exe`, ['/d', '/c', f.launcher], {
       env: { SystemRoot: sys, USERPROFILE: f.root, APPDATA: path.join(f.root, 'AppData', 'Roaming'), PATH: `${sys}\\System32` },
+      encoding: 'utf8',
+    });
+    expect(out.stdout).toBe('[]');
+    expect(fs.readFileSync(path.join(f.home, 'runtime', 'node'), 'utf8').trim()).toBe(v);
+  });
+
+  windowsTest('a node.exe found through a relative PATH entry is never run', () => {
+    const f = winFixture();
+    const cwd = path.join(f.root, 'proj');
+    fs.mkdirSync(path.join(cwd, 'bin'), { recursive: true });
+    fs.copyFileSync(process.execPath, path.join(cwd, 'bin', 'node.exe'));
+    const out = runWin(f, [], '0', { cwd, path: `bin;${sys}\\System32` });
+    expect(out.status).toBe(1);
+    expect(out.stdout).toBe('');
+    expect(out.stderr).toContain('gournal: found no Node.js 22.13 or newer');
+  });
+
+  windowsTest('a node path with an ampersand is recorded whole', () => {
+    const f = winFixture();
+    fs.writeFileSync(path.join(f.home, 'runtime', 'node'), `${path.join(f.root, 'gone', 'node.exe')}\r\n`);
+    const roaming = path.join(f.root, 'R&D', 'Roaming');
+    const v = path.join(roaming, 'nvm', 'v1', 'node.exe');
+    fs.mkdirSync(path.dirname(v), { recursive: true });
+    fs.copyFileSync(process.execPath, v);
+    const out = spawnSync(process.env.ComSpec ?? `${sys}\\System32\\cmd.exe`, ['/d', '/c', f.launcher], {
+      env: { SystemRoot: sys, USERPROFILE: f.root, APPDATA: roaming, PATH: `${sys}\\System32` },
       encoding: 'utf8',
     });
     expect(out.stdout).toBe('[]');
