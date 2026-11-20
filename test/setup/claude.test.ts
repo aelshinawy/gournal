@@ -3,7 +3,7 @@ import os from 'os';
 import path from 'path';
 import { setupClaude, resolveGournalCommand, SKILL_MD, SKILL_MARKER, type SetupIo, type CommandRunner } from '../../src/adapters/setup';
 import { shellQuote } from '../../src/adapters/setup/command';
-import { createExecFileRunner, buildCmdLine, type ExecOnce } from '../../src/adapters/setup/claude';
+import { createExecFileRunner, buildCmdLine, type ExecOnce } from '../../src/adapters/setup/runner';
 import { addStopHook, removeStopHook, isGournalHook } from '../../src/adapters/setup/settings';
 import { runIn } from '../helpers/run-cli';
 import { canSymlink } from '../helpers/symlink';
