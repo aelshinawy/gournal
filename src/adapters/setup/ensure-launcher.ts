@@ -1,0 +1,63 @@
+import { PACKAGE_ROOT } from './package-copy';
+import { installRuntime } from './runtime';
+import { checkLauncherPath } from './launcher';
+import { createLauncherCheck } from './launcher-check';
+import { VERSION } from '../version';
+import type { SetupCtx } from './claude';
+
+export interface LauncherStep {
+  /** Install the launcher once per run. Returns true when it is in place. */
+  ensure(): boolean;
+  /** True when ensure ran and the launcher is in place. */
+  readonly installed: boolean;
+  /** Run the launcher with a minimal environment. Print the result. */
+  check(): Promise<void>;
+}
+
+const LABELS = { installed: 'installed in', updated: 'updated in', unchanged: '' } as const;
+
+export function makeLauncherStep(ctx: SetupCtx): LauncherStep {
+  const { io, paths, platform } = ctx;
+  let state: 'new' | 'ok' | 'failed' = 'new';
+  const fail = (message: string): boolean => {
+    io.err(message);
+    ctx.status = 1;
+    state = 'failed';
+    return false;
+  };
+  return {
+    ensure(): boolean {
+      if (state !== 'new') return state === 'ok';
+      const bad = checkLauncherPath(paths.launcher, platform);
+      if (bad !== null) return fail(bad);
+      try {
+        const { action } = installRuntime({
+          gournalHome: io.gournalHome,
+          packageRoot: io.packageRoot ?? PACKAGE_ROOT,
+          nodePath: ctx.env.execPath,
+          platform,
+          bakeHome: ctx.bakeHome,
+        });
+        io.out(action === 'unchanged' ? 'Launcher: already set up.' : `Launcher: ${LABELS[action]} ${paths.runtimeDir}.`);
+        state = 'ok';
+        return true;
+      } catch (error) {
+        return fail(`Launcher: could not install in ${paths.runtimeDir}: ${(error as Error).message}`);
+      }
+    },
+    get installed(): boolean {
+      return state === 'ok';
+    },
+    async check(): Promise<void> {
+      const run = io.check ?? createLauncherCheck(platform, io.home);
+      const r = await run(ctx.prefix.command, [...ctx.prefix.args, '--version']);
+      if (r.code === 0 && r.stdout.trim() === VERSION) {
+        io.out('Check: Claude Code can start gournal without your shell PATH.');
+        return;
+      }
+      const why = (r.stderr.trim() || r.stdout.trim()).split('\n')[0] ?? '';
+      io.err(`Check: the launcher did not start gournal (exit ${r.code}). ${why}`);
+      ctx.status = 1;
+    },
+  };
+}

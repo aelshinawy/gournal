@@ -59,7 +59,7 @@ export const INSTALL_FAMILIES: Record<'nvm' | 'fnm' | 'volta' | 'asdf' | 'mise' 
 };
 
 /** Characters that cmd.exe reads as syntax even inside the launcher path. */
-export const LAUNCH_UNSAFE = /[%^&|<>!"()@\r\n]/;
+const LAUNCH_UNSAFE = /[%^&|<>!"()@\r\n]/;
 
 /**
  * The Node probe as JavaScript. It loads node:sqlite, so a Node build without that module fails it.

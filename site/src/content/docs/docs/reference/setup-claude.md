@@ -20,8 +20,8 @@ gournal setup claude [options]
 | Option | Description |
 |--------|-------------|
 | `--uninstall` | Remove the MCP server, the skill, and the hook that setup added. |
-| `-y, --yes` | Answer yes to the install and removal prompts. On a terminal, the prompt to replace an existing MCP registration still asks. Without a terminal and without this option, setup prints its plan and exits with code 1. |
-| `--hook` | Also add the Stop hook. The hook reminds Claude to log its work. With --yes, the hook is added only when you pass this option. Before it changes an existing settings.json, setup saves a copy as settings.json.gournal-backup if that file does not exist yet. |
+| `-y, --yes` | Answer yes to the install and removal prompts. On a terminal, the prompt to replace an MCP registration that gournal did not write still asks. Without a terminal and without this option, setup prints its plan and exits with code 1. |
+| `--hook` | Also add the Stop hook. The hook reminds Claude to log its work. With --yes, a new hook is added only when you pass this option; an existing gournal hook is always updated. Before it changes an existing settings.json, setup saves a copy as settings.json.gournal-backup if that file does not exist yet. |
 
 ## Examples
 
