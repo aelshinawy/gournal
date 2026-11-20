@@ -3,7 +3,7 @@ import type { Command, Option } from 'commander';
 import { buildProgram } from '../src/adapters/cli';
 import { createServer } from '../src/adapters/mcp';
 import { EXPORT_FORMATS, KINDS, STATUSES } from '../src/core';
-import { OPTION_TEXT } from '../src/core/option-text';
+import { OPTION_TEXT } from '../src/adapters/shared/option-text';
 
 interface Schema { type?: string; description?: string; enum?: string[]; default?: unknown; items?: Schema; properties?: Record<string, Schema> }
 interface Tool { name: string; description?: string; inputSchema: Schema }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { REF_TYPES } from '../labels/refs';
-import { KINDS, KIND_LIST_NOTED, SOURCES, STATUSES } from './entry';
+import { KINDS, SOURCES, kindList, STATUSES } from './entry';
 
 export const EntrySchema = z.object({
   id: z.string().describe('Unique id of the entry. The last 8 characters work as a short id.'),
@@ -10,7 +10,7 @@ export const EntrySchema = z.object({
   deviceId: z.string().describe('Id of the device that created the entry.'),
   summary: z.string().describe('One line that says what happened.'),
   details: z.string().nullable().describe('Longer text for the entry, or null.'),
-  kind: z.enum(KINDS).describe(`${KIND_LIST_NOTED}.`),
+  kind: z.enum(KINDS).describe(`${kindList({ notes: true })}.`),
   status: z.enum(STATUSES).nullable().describe('open or resolved for a blocker or next entry. Null for a done entry.'),
   resolvedAt: z.string().nullable().describe('When the entry was resolved, or null.'),
   resolvedByEntryId: z.string().nullable().describe('Id of the entry that resolved this one, or null.'),

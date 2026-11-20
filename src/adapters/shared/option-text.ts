@@ -1,3 +1,5 @@
+import { kindList } from '../../core';
+
 /** Wording that the CLI and the MCP tools share. Each key names one concept. */
 export const OPTION_TEXT = Object.freeze({
   project: 'Only entries of this project.',
@@ -8,7 +10,7 @@ export const OPTION_TEXT = Object.freeze({
   yesterday: 'Cover yesterday and today.',
   week: 'Cover the current week.',
   month: 'Cover the current month.',
-  kind: 'Only entries of these kinds: done, blocker, or next.',
+  kind: `Only entries of these kinds: ${kindList()}.`,
   status: 'Only open or only resolved entries.',
   format: 'Output format: md (Markdown) or csv.',
   limit: 'Most entries to return.',

@@ -1,3 +1,4 @@
+import { DEFAULT_PROJECT } from '../../src/core';
 import { msysToWindowsPath, resolveCallIdentity } from '../../src/adapters/mcp/identity';
 
 describe('msysToWindowsPath', () => {
@@ -49,4 +50,13 @@ describe('resolveCallIdentity on Windows', () => {
     await resolveCallIdentity({ cwd: '/c/Users/x/repo' }, deps);
     expect(deps.identity).toHaveBeenCalledWith('/c/Users/x/repo');
   });
+});
+
+test('with no project and no usable folder the project is the default', async () => {
+  const result = await resolveCallIdentity({}, {
+    identity: () => { throw new Error('no git'); },
+    roots: async () => [],
+    processCwd: () => '/p',
+  });
+  expect(result).toEqual({ project: DEFAULT_PROJECT, repo: null, branch: null });
 });

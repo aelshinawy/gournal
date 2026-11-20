@@ -1,4 +1,4 @@
-import { KINDS, STATUSES, NOT_RESOLVABLE, canResolve, noEntryMessage, parseKind, parseStatus } from '../../src/core';
+import { KINDS, STATUSES, NOT_RESOLVABLE, canResolve, kindList, noEntryMessage, parseKind, parseStatus } from '../../src/core';
 
 test('parseKind returns each known kind', () => {
   for (const k of KINDS) expect(parseKind(k)).toBe(k);
@@ -25,4 +25,12 @@ test('canResolve is true only for an open blocker or next', () => {
 test('the resolve error strings keep their wording', () => {
   expect(NOT_RESOLVABLE).toBe('only an open blocker or next can be resolved');
   expect(noEntryMessage('ZZZZZZZZ')).toBe('No entry with id "ZZZZZZZZ"');
+});
+
+test('kindList gives the kinds wording', () => {
+  // The exact note text stays pinned by test/contract.test.ts and single-sourced in entry.ts.
+  expect(kindList()).toBe('done, blocker, or next');
+  expect(kindList({ defaultKind: 'done' })).toBe('done (default), blocker, or next');
+  expect(kindList({ notes: true })).toMatch(/^done, blocker \(something stops you\), or next \(a [a-z ]+\)$/);
+  expect(kindList({ notes: true, defaultKind: 'done' })).toMatch(/^done \(default\), blocker \(something stops you\), or next \(a [a-z ]+\)$/);
 });

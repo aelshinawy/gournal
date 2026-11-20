@@ -3,7 +3,7 @@ import os from 'os';
 import path from 'path';
 import { setupClaude, resolveGournalCommand, SKILL_MD, SKILL_MARKER, type SetupIo, type CommandRunner } from '../../src/adapters/setup';
 import { shellQuote } from '../../src/adapters/setup/command';
-import { createExecFileRunner, buildCmdLine, type ExecOnce } from '../../src/adapters/setup/claude';
+import { createExecFileRunner, buildCmdLine, type ExecOnce } from '../../src/adapters/setup/runner';
 import { addStopHook, removeStopHook, isGournalHook } from '../../src/adapters/setup/settings';
 import { runIn } from '../helpers/run-cli';
 import { canSymlink } from '../helpers/symlink';
@@ -385,6 +385,29 @@ posixTest('a new settings.json gets the default file mode', async () => {
     await run({ hook: true });
     expect(fs.statSync(settingsFile()).mode & 0o777).toBe(0o644);
   } finally {
+    process.umask(old);
+  }
+});
+
+posixTest('the temp file for an existing settings.json is never readable by others', async () => {
+  const old = process.umask(0o022);
+  const realWrite = fs.writeFileSync;
+  const modes: number[] = [];
+  const spy = jest.spyOn(fs, 'writeFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, ...rest: unknown[]) => {
+    const result = (realWrite as (...a: unknown[]) => void)(file, ...rest);
+    if (typeof file === 'string' && file.endsWith('.tmp') && path.dirname(file) === path.dirname(settingsFile())) {
+      modes.push(fs.statSync(file).mode & 0o777);
+    }
+    return result;
+  }) as typeof fs.writeFileSync);
+  try {
+    writeSettings({});
+    fs.chmodSync(settingsFile(), 0o600);
+    await run({ hook: true });
+    expect(modes).toEqual([0o600]);
+    expect(fs.statSync(settingsFile()).mode & 0o777).toBe(0o600);
+  } finally {
+    spy.mockRestore();
     process.umask(old);
   }
 });

@@ -1,5 +1,5 @@
 import path from 'path';
-import type { RepoIdentity } from '../../core';
+import { DEFAULT_PROJECT, type RepoIdentity } from '../../core';
 
 export interface IdentityDeps {
   identity: (cwd: string) => RepoIdentity;
@@ -47,7 +47,7 @@ export async function resolveCallIdentity(
     }
   }
   return {
-    project: args.project ?? base?.project ?? 'uncategorized',
+    project: args.project ?? base?.project ?? DEFAULT_PROJECT,
     repo: args.repo ?? base?.repo ?? null,
     branch: args.branch ?? base?.branch ?? null,
   };
