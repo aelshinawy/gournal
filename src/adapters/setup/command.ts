@@ -45,3 +45,30 @@ export function displayQuote(word: string, platform: NodeJS.Platform = process.p
   if (platform !== 'win32') return shellQuote(word);
   return /^[\w@%+=:,./-]+$/.test(word) ? word : `"${word}"`;
 }
+
+/** The last path part. It splits on both `/` and `\\`, so a Windows path works on any platform. */
+export const baseName = (p: string): string => p.split(/[\\/]/).pop() ?? '';
+
+/** How a registered command relates to the one setup writes now. */
+export type RegistrationKind = 'current' | 'gournal' | 'foreign';
+
+/**
+ * Classify a registered MCP command. `gournal` means a form that gournal wrote in the past, or
+ * a launcher at another path. Anything else is `foreign`, so setup never replaces a command it did not write.
+ */
+export function classifyRegistration(reg: GournalCommand, current: GournalCommand): RegistrationKind {
+  if (reg.command === current.command && JSON.stringify(reg.args) === JSON.stringify(current.args)) return 'current';
+  const { args } = reg;
+  const cmd = baseName(reg.command);
+  if (cmd === 'gournal') return args.length === 1 && args[0] === 'mcp' ? 'gournal' : 'foreign';
+  const lower = cmd.toLowerCase();
+  if (lower === 'node' || lower === 'node.exe') {
+    const script = args.length === 2 ? baseName(args[0]!) : '';
+    return (script === 'cli.js' || script === 'gournal') && args[1] === 'mcp' ? 'gournal' : 'foreign';
+  }
+  if (lower === 'cmd.exe') {
+    const ok = args.length === 4 && args[0] === '/d' && args[1] === '/c' && baseName(args[2]!).toLowerCase() === 'gournal.cmd' && args[3] === 'mcp';
+    return ok ? 'gournal' : 'foreign';
+  }
+  return 'foreign';
+}

@@ -1,3 +1,5 @@
+import { baseName } from './command';
+
 type Json = Record<string, unknown>;
 
 /** Characters that `shellQuote` leaves bare. */
@@ -31,11 +33,9 @@ function tokenize(command: string): string[] | null {
   return words;
 }
 
-const baseName = (p: string): string => p.split(/[\\/]/).pop() ?? '';
-
 /**
  * A hook is gournal's only when its command has a shape that setup writes:
- *   gournal hook stop
+ *   gournal hook stop   (`gournal` may be a path: the launcher, quoted when needed)
  *   <node> <cli.js|gournal> hook stop   (each part quoted by shellQuote when needed)
  * The script is `cli.js`, or `gournal` when setup ran through a bin symlink such as node_modules/.bin/gournal.
  * `current` is the command setup resolves now. It always counts, whatever the script is named.
@@ -45,7 +45,7 @@ export function isGournalHook(command: string, current?: string): boolean {
   if (current !== undefined && command === current) return true;
   const t = tokenize(command);
   if (t === null) return false;
-  if (t.length === 3) return t[0] === 'gournal' && t[1] === 'hook' && t[2] === 'stop';
+  if (t.length === 3) return baseName(t[0]!) === 'gournal' && t[1] === 'hook' && t[2] === 'stop';
   if (t.length !== 4) return false;
   const node = baseName(t[0]!);
   const script = baseName(t[1]!);
@@ -76,12 +76,17 @@ function sameHook(h: Json, hook: StopHook): boolean {
 }
 
 /**
- * The exec form that setup writes on Windows: `<node|node.exe>` with the args
- * `[<cli.js|gournal>, 'hook', 'stop']`. The script path is one arg, so it needs no quoting.
+ * The exec forms that setup writes on Windows: `<node|node.exe>` with the args
+ * `[<cli.js|gournal>, 'hook', 'stop']`, and `cmd.exe` with `['/d', '/c', <gournal.cmd>, 'hook', 'stop']`.
+ * Each path is one arg, so it needs no quoting.
  */
 function isGournalExecHook(command: string, args: unknown): boolean {
-  if (!isStrings(args) || args.length !== 3) return false;
+  if (!isStrings(args)) return false;
   const node = baseName(command).toLowerCase();
+  if (node === 'cmd.exe') {
+    return args.length === 5 && args[0] === '/d' && args[1] === '/c' && baseName(args[2]!).toLowerCase() === 'gournal.cmd' && args[3] === 'hook' && args[4] === 'stop';
+  }
+  if (args.length !== 3) return false;
   const script = baseName(args[0]!);
   const isNode = node === 'node' || node === 'node.exe';
   const isScript = script === 'cli.js' || script === 'gournal';
