@@ -1,12 +1,11 @@
-import fs from 'fs';
-import path from 'path';
-import { ROOT, lineCount, tsFiles } from './helpers/source-files';
+import { lineCount, tsFiles } from './helpers/source-files';
 
 const MAX_LINES = 250;
 
 /**
- * Files that are over the limit today. Each row names the phase of the slim-and-DRY plan that
- * brings the file under the limit. A row must go when its file is at or under the limit.
+ * The allowlist is empty. A file over the limit needs a new row here with a phase name and a max.
+ * The phase names the part of the slim-and-DRY plan that brings the file under the limit.
+ * A row must go when its file is at or under the limit.
  * max is the line count on the day the row was added. A file on the list must not grow.
  */
 const ALLOWED: Record<string, { max: number; phase: string }> = {};

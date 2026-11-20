@@ -28,10 +28,9 @@ test('the resolve error strings keep their wording', () => {
 });
 
 test('kindList gives the kinds wording', () => {
-  // The next note is built here so that the kind notes stay single-sourced in entry.ts.
-  const next = `next (${['a', 'planned', 'step'].join(' ')})`;
+  // The exact note text stays pinned by test/contract.test.ts and single-sourced in entry.ts.
   expect(kindList()).toBe('done, blocker, or next');
   expect(kindList({ defaultKind: 'done' })).toBe('done (default), blocker, or next');
-  expect(kindList({ notes: true })).toBe(`done, blocker (something stops you), or ${next}`);
-  expect(kindList({ notes: true, defaultKind: 'done' })).toBe(`done (default), blocker (something stops you), or ${next}`);
+  expect(kindList({ notes: true })).toMatch(/^done, blocker \(something stops you\), or next \(a [a-z ]+\)$/);
+  expect(kindList({ notes: true, defaultKind: 'done' })).toMatch(/^done \(default\), blocker \(something stops you\), or next \(a [a-z ]+\)$/);
 });
