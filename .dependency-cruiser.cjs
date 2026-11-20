@@ -60,6 +60,13 @@ module.exports = {
       from: { path: SRC + 'render/(markdown|json|csv|format)\\.ts$' },
       to: { path: [SRC + 'render/style\\.ts$', '^(?:node:)?util$'] },
     },
+    {
+      name: 'cli-stays-in-cli',
+      comment: 'Only the CLI and the adapters index import src/adapters/cli. The MCP server never reaches the spinner or the prompts.',
+      severity: 'error',
+      from: { path: SRC + 'adapters/', pathNot: [SRC + 'adapters/cli/', SRC + 'adapters/index\\.ts$'] },
+      to: { path: SRC + 'adapters/cli/' },
+    },
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
