@@ -196,6 +196,16 @@ test.each([
   expect(repo.find({ includeDeleted: true })).toHaveLength(1);
 });
 
+test('the big-integer activity pr row is stored', () => {
+  importBundle(db, withExtra({ activity: [{ ...goodAct(), pr: 2 ** 53 + 2 }] }));
+  expect(db.prepare('SELECT COUNT(*) AS n FROM activity').get()).toEqual({ n: 1 });
+});
+
+test('the big-integer legacyIndex row is stored', () => {
+  importBundle(db, withExtra({ legacyMap: [{ ...goodRow(), legacyIndex: 2 ** 53 + 2 }] }));
+  expect(db.prepare('SELECT COUNT(*) AS n FROM legacy_map').get()).toEqual({ n: 1 });
+});
+
 test('an accepted extra key is never written to the database', () => {
   importBundle(db, withExtra({ entries: [{ ...goodEntry(), extra: 'x', refs: [{ type: 'pr', value: '1', extra: true }] }] }));
   const got = repo.find({ includeDeleted: true })[0];

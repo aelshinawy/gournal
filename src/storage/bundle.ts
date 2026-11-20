@@ -134,10 +134,10 @@ export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config)
   const entries = parseItems(b.entries, BundleEntrySchema, (i, f) => new Error(`Bundle entry ${i} is invalid: ${f}`), 'entry').map((e, i) => cleanEntry(e, i));
 
   if (b.legacyMap !== undefined && !Array.isArray(b.legacyMap)) throw new Error('Bundle legacyMap is invalid');
-  const map = parseItems((b.legacyMap ?? []) as unknown[], LegacyMapRowSchema, (i) => new Error(`Bundle legacyMap row ${i} is invalid`), 'legacyMap');
+  const map = parseItems(b.legacyMap ?? [],LegacyMapRowSchema, (i) => new Error(`Bundle legacyMap row ${i} is invalid`), 'legacyMap');
 
   if (b.activity !== undefined && !Array.isArray(b.activity)) throw new Error('Bundle activity is invalid');
-  const acts = parseItems((b.activity ?? []) as unknown[], BundleActivitySchema, (i, f) => new Error(`Bundle activity ${i} is invalid: ${f}`), 'activity');
+  const acts = parseItems(b.activity ?? [],BundleActivitySchema, (i, f) => new Error(`Bundle activity ${i} is invalid: ${f}`), 'activity');
 
   const result: ImportResult = { inserted: 0, updated: 0, skipped: 0, deduplicated: 0 };
   const changedEntries: string[] = [];
