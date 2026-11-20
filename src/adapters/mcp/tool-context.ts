@@ -29,3 +29,5 @@ export interface ToolContext {
   /** deps.gh ?? execGh(), read on each call as today. */
   gh(): GhRunner;
 }
+
+export type RegisterTool = (ctx: ToolContext) => void;
