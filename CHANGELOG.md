@@ -8,6 +8,25 @@ The last version on npm before this release is 0.5.0.
 Versions 0.6.0 to 0.8.0 were internal steps and were not published to npm.
 Their changes are in this file so that you can see how 0.9.0 grew from 0.5.0.
 
+## [0.10.0](https://github.com/aelshinawy/gournal/compare/v0.9.0...v0.10.0) (2026-11-20)
+
+
+### Features
+
+* **cli:** show a spinner on stderr for background commands ([#34](https://github.com/aelshinawy/gournal/issues/34)) ([66674e4](https://github.com/aelshinawy/gournal/commit/66674e47703d69ca1cb6d98d478208cbe62dab03))
+* keep the entry when gournal add gets a bad --resolves id, and print similar-tag notes ([#23](https://github.com/aelshinawy/gournal/issues/23)) ([cfbf198](https://github.com/aelshinawy/gournal/commit/cfbf198344fcfc8838df233905bf784ef351cc4c))
+* let update_entry split a retried long summary and return its notes ([#25](https://github.com/aelshinawy/gournal/issues/25)) ([c6b314d](https://github.com/aelshinawy/gournal/commit/c6b314d61607ec7fa45a3e6cd2f417c65db2846c))
+
+
+### Bug Fixes
+
+* link a restored entry to GitHub activity ([#26](https://github.com/aelshinawy/gournal/issues/26)) ([245edbf](https://github.com/aelshinawy/gournal/commit/245edbf9ebcad4d252952b522b637332146c93c0))
+
+
+### Dependencies
+
+* replace @modelcontextprotocol/sdk 1.x with @modelcontextprotocol/server 2.x ([#28](https://github.com/aelshinawy/gournal/issues/28)) ([427665f](https://github.com/aelshinawy/gournal/commit/427665f036bbc8f71dc0b8c7ee99935843b47c57))
+
 ## 0.9.0 (unreleased)
 
 ### Upgrading from 0.5.0
