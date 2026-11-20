@@ -21,6 +21,8 @@ export interface CliIo {
   exec?: CommandRunner;
   /** Test seam for the spinner. The default is process.stderr. */
   spinnerStream?: SpinnerStream;
+  /** Test seam for the runtime refresh after an upgrade. The default copies the installed package into the gournal home when it is newer. */
+  runtimeRefresh?: (gournalHome: string) => void;
 }
 
 export interface CliContext {

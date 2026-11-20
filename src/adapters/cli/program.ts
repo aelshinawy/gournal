@@ -2,6 +2,7 @@ import { Command, CommanderError } from 'commander';
 import { red } from '../../render';
 import { VERSION } from '../version';
 import { gournalHome } from '../../storage';
+import { refreshRuntime, shouldRefresh } from '../setup';
 import { createCliContext, type CliIo, type RegisterCommand } from './context';
 import { registerAdd, registerClear, registerUndo, registerRestore, registerResolve, registerTags, registerProjects, registerFind } from './entries';
 import { registerStandup, registerLog, registerStats, registerExport } from './reports';
@@ -52,6 +53,8 @@ export function buildProgram(io: CliIo): Command {
   return program;
 }
 
+const defaultRefresh = (home: string): void => { refreshRuntime(home); };
+
 export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<number> {
   const full: CliIo = {
     out: io.out ?? ((text) => { process.stdout.write(`${text}\n`); }),
@@ -62,6 +65,13 @@ export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<n
     gh: io.gh,
     spinnerStream: io.spinnerStream,
   };
+  if (shouldRefresh(argv)) {
+    try {
+      (io.runtimeRefresh ?? defaultRefresh)(full.home);
+    } catch {
+      // Setup reports runtime problems. A refresh never fails the command.
+    }
+  }
   try {
     await buildProgram(full).parseAsync(argv);
     return 0;

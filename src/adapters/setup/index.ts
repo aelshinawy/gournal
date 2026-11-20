@@ -5,3 +5,4 @@ export type { CommandRunner } from './runner';
 export { resolveGournalCommand } from './command';
 export { SKILL_MD, SKILL_MARKER } from './skill';
 export { stopHook } from './hook';
+export { shouldRefresh, refreshRuntime } from './runtime';
