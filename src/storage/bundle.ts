@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { summaryLength, MAX_SUMMARY, stripControl, cleanDetails, cleanOpt, cleanProject, cleanRefs } from '../core';
+import { z } from 'zod';
+import { summaryLength, MAX_SUMMARY, stripControl, cleanDetails, cleanOpt, cleanProject, cleanRefs, EntrySchema, ActivitySchema } from '../core';
 import { newId } from '../core';
 import type { Activity, Entry } from '../core';
 import type { Config } from '../core';
@@ -18,16 +19,6 @@ export interface Bundle {
   legacyMap?: LegacyMapRow[];
   /** GitHub activity, live and deleted. Optional on import, so bundles from before Phase 3 still load. Links are not exported. */
   activity?: Activity[];
-}
-
-interface LegacyMapRow {
-  legacyIndex: number;
-  timestamp: string;
-  messageHash: string;
-  occurrence: number;
-  entryId: string;
-  /** When the legacy import made the entry (ISO), or null when unknown. Optional on import. */
-  importedAt?: string | null;
 }
 
 export interface ImportResult {
@@ -60,80 +51,53 @@ export function exportBundle(db: DatabaseSync, config: Config): Bundle {
 }
 
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
-// The bundle validator stays frozen to the on-disk bundle format. A core change must not alter what it accepts.
-const KINDS = ['done', 'blocker', 'next'];
-const STATUSES = ['open', 'resolved'];
-const SOURCES = ['cli', 'mcp', 'migration'];
-const REF_TYPES = ['pr', 'jira', 'commit', 'url'];
+// Strict: only canonical UTC ISO strings, as toISOString writes them.
+const Iso = z.string().refine((v) => { const t = Date.parse(v); return !Number.isNaN(t) && new Date(t).toISOString() === v; });
+// Number.isInteger, not .int(): .int() also rejects unsafe integers, which the format accepts.
+const Int = z.number().refine(Number.isInteger);
+const Count = Int.refine((n) => n >= 0);
 
-const isStr = (v: unknown): v is string => typeof v === 'string';
-// Strict: only canonical UTC ISO strings (as toISOString writes them) are valid.
-const isIso = (v: unknown): v is string => {
-  if (!isStr(v)) return false;
-  const t = Date.parse(v);
-  return !Number.isNaN(t) && new Date(t).toISOString() === v;
-};
-const isNullOr = (v: unknown, ok: (x: unknown) => boolean): boolean => v === null || ok(v);
+// The bundle schemas extend the core schemas. test/fixtures/bundles pins what import accepts.
+const BundleEntrySchema = EntrySchema.extend({
+  id: z.string().regex(ULID),
+  createdAt: Iso,
+  updatedAt: Iso,
+  deletedAt: Iso.nullable(),
+  summary: z.string().refine((s) => s.length > 0 && summaryLength(s) <= MAX_SUMMARY),
+  resolvedAt: Iso.nullable(),
+  tags: z.array(z.string()).refine((t) => new Set(t).size === t.length),
+});
 
-/** Return the name of the first invalid field, or null when the entry is valid. */
-function invalidField(e: unknown): string | null {
-  if (typeof e !== 'object' || e === null || Array.isArray(e)) return 'entry';
-  const o = e as Record<string, unknown>;
-  if (!isStr(o.id) || !ULID.test(o.id)) return 'id';
-  if (!isIso(o.createdAt)) return 'createdAt';
-  if (!isIso(o.updatedAt)) return 'updatedAt';
-  if (!isNullOr(o.deletedAt, isIso)) return 'deletedAt';
-  if (!isStr(o.deviceId)) return 'deviceId';
-  if (!isStr(o.summary) || o.summary.length === 0 || summaryLength(o.summary) > MAX_SUMMARY) return 'summary';
-  if (!isNullOr(o.details, isStr)) return 'details';
-  if (!isStr(o.kind) || !KINDS.includes(o.kind)) return 'kind';
-  if (!isNullOr(o.status, (v) => isStr(v) && STATUSES.includes(v))) return 'status';
-  if (!isNullOr(o.resolvedAt, isIso)) return 'resolvedAt';
-  if (!isNullOr(o.resolvedByEntryId, isStr)) return 'resolvedByEntryId';
-  if (!isStr(o.project)) return 'project';
-  if (!isNullOr(o.repo, isStr)) return 'repo';
-  if (!isNullOr(o.branch, isStr)) return 'branch';
-  if (!isStr(o.source) || !SOURCES.includes(o.source)) return 'source';
-  if (!isNullOr(o.agent, isStr)) return 'agent';
-  if (!Array.isArray(o.tags) || !o.tags.every(isStr) || new Set(o.tags).size !== o.tags.length) return 'tags';
-  if (!Array.isArray(o.refs) || !o.refs.every((r) => {
-    if (typeof r !== 'object' || r === null) return false;
-    const x = r as Record<string, unknown>;
-    return isStr(x.type) && REF_TYPES.includes(x.type) && isStr(x.value) && (x.repo === undefined || isStr(x.repo));
-  })) return 'refs';
-  return null;
+// A bundle never carries capturedBy. Import writes the literal 'github'.
+const BundleActivitySchema = ActivitySchema.omit({ capturedBy: true }).extend({
+  id: z.string().regex(ULID),
+  createdAt: Iso,
+  updatedAt: Iso,
+  deletedAt: Iso.nullable(),
+  occurredAt: Iso,
+  pr: Int.nullable(),
+});
+type BundleActivity = z.infer<typeof BundleActivitySchema>;
+
+const LegacyMapRowSchema = z.object({
+  legacyIndex: Count,
+  timestamp: z.string(),
+  messageHash: z.string(),
+  occurrence: Count,
+  entryId: z.string(),
+  /** When the legacy import made the entry (ISO), or null when unknown. Optional on import. */
+  importedAt: Iso.nullable().optional(),
+});
+type LegacyMapRow = z.infer<typeof LegacyMapRowSchema>;
+
+/** Parse each item. A failure names the first bad field, or `top` when the item is not an object. */
+function parseItems<T>(items: unknown[], schema: z.ZodType<T>, fail: (i: number, field: string) => Error, top: string): T[] {
+  return items.map((item, i) => {
+    const parsed = schema.safeParse(item);
+    if (!parsed.success) throw fail(i, String(parsed.error.issues[0].path[0] ?? top));
+    return parsed.data;
+  });
 }
-
-const ACTIVITY_TYPES = ['commit', 'pr_opened', 'pr_merged', 'review'];
-
-/** Return the name of the first invalid field, or null when the activity row is valid. */
-function invalidActivityField(a: unknown): string | null {
-  if (typeof a !== 'object' || a === null || Array.isArray(a)) return 'activity';
-  const o = a as Record<string, unknown>;
-  if (!isStr(o.id) || !ULID.test(o.id)) return 'id';
-  if (!isIso(o.createdAt)) return 'createdAt';
-  if (!isIso(o.updatedAt)) return 'updatedAt';
-  if (!isNullOr(o.deletedAt, isIso)) return 'deletedAt';
-  if (!isStr(o.deviceId)) return 'deviceId';
-  if (!isStr(o.type) || !ACTIVITY_TYPES.includes(o.type)) return 'type';
-  if (!isIso(o.occurredAt)) return 'occurredAt';
-  if (!isStr(o.repo)) return 'repo';
-  if (!isNullOr(o.branch, isStr)) return 'branch';
-  if (!isStr(o.externalId)) return 'externalId';
-  if (!isNullOr(o.title, isStr)) return 'title';
-  if (!isNullOr(o.url, isStr)) return 'url';
-  if (!isNullOr(o.pr, (v) => Number.isInteger(v))) return 'pr';
-  if (typeof o.payload !== 'object' || o.payload === null || Array.isArray(o.payload)) return 'payload';
-  return null;
-}
-
-const invalidMapRow = (r: unknown): boolean => {
-  if (typeof r !== 'object' || r === null || Array.isArray(r)) return true;
-  const o = r as Record<string, unknown>;
-  return !(Number.isInteger(o.legacyIndex) && (o.legacyIndex as number) >= 0 && isStr(o.timestamp) && isStr(o.messageHash)
-    && Number.isInteger(o.occurrence) && (o.occurrence as number) >= 0 && isStr(o.entryId)
-    && (o.importedAt === undefined || isNullOr(o.importedAt, isIso)));
-};
 
 /** Strip control characters from an entry's text fields. Only an empty summary fails, as it does in the repository. */
 function cleanEntry(e: Entry, i: number): Entry {
@@ -165,26 +129,14 @@ export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config)
   if (typeof b !== 'object' || b === null || b.format !== 'gournal-bundle' || b.schemaVersion !== 1 || !Array.isArray(b.entries)) {
     throw new Error('Not a gournal bundle');
   }
-  const rawEntries = b.entries as unknown[];
-  rawEntries.forEach((e, i) => {
-    const bad = invalidField(e);
-    if (bad) throw new Error(`Bundle entry ${i} is invalid: ${bad}`);
-  });
   // Strip control characters on write, the same as the repository does. A stripped field is never rejected.
-  const entries = (rawEntries as Entry[]).map((e, i) => cleanEntry(e, i));
+  const entries = parseItems(b.entries, BundleEntrySchema, (i, f) => new Error(`Bundle entry ${i} is invalid: ${f}`), 'entry').map((e, i) => cleanEntry(e, i));
 
   if (b.legacyMap !== undefined && !Array.isArray(b.legacyMap)) throw new Error('Bundle legacyMap is invalid');
-  const map = (b.legacyMap ?? []) as unknown[];
-  map.forEach((r, i) => {
-    if (invalidMapRow(r)) throw new Error(`Bundle legacyMap row ${i} is invalid`);
-  });
+  const map = parseItems((b.legacyMap ?? []) as unknown[], LegacyMapRowSchema, (i) => new Error(`Bundle legacyMap row ${i} is invalid`), 'legacyMap');
 
   if (b.activity !== undefined && !Array.isArray(b.activity)) throw new Error('Bundle activity is invalid');
-  const acts = (b.activity ?? []) as unknown[];
-  acts.forEach((a, i) => {
-    const bad = invalidActivityField(a);
-    if (bad) throw new Error(`Bundle activity ${i} is invalid: ${bad}`);
-  });
+  const acts = parseItems((b.activity ?? []) as unknown[], BundleActivitySchema, (i, f) => new Error(`Bundle activity ${i} is invalid: ${f}`), 'activity');
 
   const result: ImportResult = { inserted: 0, updated: 0, skipped: 0, deduplicated: 0 };
   const changedEntries: string[] = [];
@@ -207,8 +159,8 @@ export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config)
       replaceTags(db, e.id, e.tags);
       replaceRefs(db, e.id, e.refs);
     }
-    mergeLegacyMap(db, map as LegacyMapRow[], result);
-    if (acts.length > 0) result.activity = mergeActivity(db, acts as Activity[], changedActivity);
+    mergeLegacyMap(db, map, result);
+    if (acts.length > 0) result.activity = mergeActivity(db, acts, changedActivity);
     db.exec('COMMIT');
   } catch (err) {
     try { db.exec('ROLLBACK'); } catch { /* ignore */ }
@@ -232,7 +184,7 @@ export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config)
  * Upsert activity by (type, repo, externalId). A match keeps the local id, and the later updatedAt wins.
  * Runs inside the import transaction. Returns the counts and collects the local ids that changed.
  */
-function mergeActivity(db: DatabaseSync, list: Activity[], changed: string[]): { inserted: number; updated: number; skipped: number } {
+function mergeActivity(db: DatabaseSync, list: BundleActivity[], changed: string[]): { inserted: number; updated: number; skipped: number } {
   const counts = { inserted: 0, updated: 0, skipped: 0 };
   const find = db.prepare('SELECT id, updated_at FROM activity WHERE type = ? AND repo = ? AND external_id = ?');
   const idTaken = db.prepare('SELECT 1 AS x FROM activity WHERE id = ?');

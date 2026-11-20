@@ -13,6 +13,9 @@ const FACTS: { fact: string; pattern: RegExp; owner: string }[] = [
   { fact: 'the config error text', pattern: /new Error\(`Config \$\{file\} is not valid JSON object/, owner: 'src/core/config.ts' },
   { fact: 'the control character set', pattern: /\\u0000-\\u001f/, owner: 'src/core/entries/sanitize.ts' },
   { fact: 'the ANSI styler', pattern: /\bstyleText\b/, owner: 'src/render/style.ts' },
+  { fact: 'the kinds list', pattern: /'done', 'blocker', 'next'/, owner: 'src/core/entries/entry.ts' },
+  { fact: 'the statuses list', pattern: /'open', 'resolved'/, owner: 'src/core/entries/entry.ts' },
+  { fact: 'the activity types list', pattern: /'commit', 'pr_opened', 'pr_merged', 'review'/, owner: 'src/core/activity/activity.ts' },
 ];
 
 const self = path.relative(ROOT, __filename).split(path.sep).join('/');
