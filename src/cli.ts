@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import './adapters/suppress-warnings';
+import './adapters/check-node';
 import { runCli } from './adapters';
 
 // A reader that closes the pipe early (`gournal export | head -1`) is not an error.
