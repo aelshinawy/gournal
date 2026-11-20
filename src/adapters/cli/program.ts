@@ -10,11 +10,10 @@ import { OPTION_TEXT } from '../shared/option-text';
 import {
   bold, entryLinesText, exportCsv, exportMarkdown, green, projectCountsText, red, standupText, statsText, tagCountsText, workLogText, yellow,
 } from '../../render';
-import inquirer from 'inquirer';
 import fs from 'fs';
 import path from 'path';
 import { VERSION } from '../version';
-import { clearConfirmQuestion } from './prompts';
+import { confirm, confirmOrNo } from './confirm';
 import { execFileRunner, setupClaude, stopHook, type CommandRunner } from '../setup';
 import { openJournal, exportBundle, importBundle, gournalHome, userHomePath, hasFts5, rebuildSearchIndex, importLegacy, applyPlan, renderPlanDiff, writePrivateFile, writeExportFile, assertExportTarget, assertTargetDir } from '../../storage';
 import type { Journal, MigrationPlan } from '../../storage';
@@ -29,20 +28,13 @@ export interface CliIo {
   gh?: GhRunner;
   /** The user's home, for `setup claude`. `home` above is the gournal home. Default: the profile folder at call time (os.homedir(), or USERPROFILE on Windows). */
   userHome?: string;
-  /** Test seam for `setup claude`. The default asks with inquirer. */
+  /** Test seam for the clear and setup claude prompts. The default asks on the terminal with readline. */
   confirm?: (message: string, def: boolean) => Promise<boolean>;
   /** Test seam for `setup claude`. The default runs the claude CLI with execFile, no shell. */
   exec?: CommandRunner;
 }
 
-async function inquirerConfirm(message: string, def: boolean): Promise<boolean> {
-  try {
-    const { confirm } = await inquirer.prompt([{ type: 'confirm', name: 'confirm', message, default: def }]);
-    return confirm as boolean;
-  } catch {
-    return false; // no terminal to ask: the answer is no
-  }
-}
+const CLEAR_QUESTION = 'Are you sure you want to clear all gournal entries?';
 
 const splitList = (v?: string): string[] => (v ? v.split(',').map(x => x.trim()).filter(Boolean) : []);
 const NO_FTS5_MESSAGE = 'This Node build has no FTS5; the search index cannot be rebuilt.';
@@ -146,9 +138,7 @@ export function buildProgram(io: CliIo): Command {
       if (!io.isTTY) throw new Error('Not a terminal; nothing cleared.');
       let confirmed: boolean;
       try {
-        ({ confirm: confirmed } = await inquirer.prompt([
-          { ...clearConfirmQuestion, message: red(clearConfirmQuestion.message) },
-        ]));
+        confirmed = await (io.confirm ?? confirm)(red(CLEAR_QUESTION), false);
       } catch {
         throw new Error('Not a terminal; nothing cleared.');
       }
@@ -441,7 +431,7 @@ export function buildProgram(io: CliIo): Command {
       const code = await setupClaude({
         out: io.out, err: io.err, isTTY: io.isTTY,
         home: io.userHome ?? userHomePath(),
-        confirm: io.confirm ?? inquirerConfirm,
+        confirm: io.confirm ?? confirmOrNo,
         exec: io.exec ?? execFileRunner,
       }, { uninstall: options.uninstall === true, yes: options.yes === true, hook: options.hook === true });
       if (code !== 0) throw new CommanderError(code, 'gournal.setup', 'setup did not finish'); // setup already printed why
