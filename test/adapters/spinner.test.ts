@@ -69,9 +69,12 @@ test('the timer does not keep the process alive', () => {
   jest.useRealTimers();
   const spy = jest.spyOn(global, 'setInterval');
   const spinner = startSpinner('Working', fake(true), TTY_ENV);
-  expect((spy.mock.results[0]?.value as NodeJS.Timeout).hasRef()).toBe(false);
-  spinner.stop();
-  spy.mockRestore();
+  try {
+    expect((spy.mock.results[0]?.value as NodeJS.Timeout).hasRef()).toBe(false);
+  } finally {
+    spinner.stop();
+    spy.mockRestore();
+  }
 });
 
 test('withSpinner clears the line before a rejection reaches the caller', async () => {
