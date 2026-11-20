@@ -5,3 +5,4 @@ export {
   StandupSchema, WorkLogSchema, EntryListSchema, TagCountsSchema, ProjectCountsSchema,
   EntryResultSchema, SyncReportSchema, entryJson, standupJson, workLogJson,
 } from './json';
+export { bold, green, red, yellow } from './style';

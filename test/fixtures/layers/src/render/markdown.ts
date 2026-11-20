@@ -1,2 +1,3 @@
-import chalk from 'chalk';
-export const md = chalk;
+import { styleText } from 'node:util';
+import { red } from './style';
+export const md = [styleText, red];

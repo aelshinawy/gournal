@@ -1,7 +1,7 @@
 import { execFileSync } from 'child_process';
 import path from 'path';
 import { resolveBin } from '../bin';
-import { parseRemoteUrl, projectFor, type RepoIdentity } from '../../core';
+import { DEFAULT_PROJECT, parseRemoteUrl, projectFor, type RepoIdentity } from '../../core';
 
 const BUDGET_MS = 2000;
 
@@ -46,6 +46,6 @@ export function resolveIdentity(cwd: string, aliases: Record<string, string>): R
     }
     return { project: projectFor({ repo, folder }, aliases), repo, branch };
   } catch {
-    return { project: 'uncategorized', repo: null, branch: null };
+    return { project: DEFAULT_PROJECT, repo: null, branch: null };
   }
 }

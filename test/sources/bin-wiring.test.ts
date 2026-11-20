@@ -14,6 +14,10 @@ beforeEach(() => {
 });
 
 describe('git identity', () => {
+  afterEach(() => {
+    execFileSyncMock.mockReset();
+  });
+
   test('every git call uses the resolved binary and a hidden window', () => {
     execFileSyncMock.mockReturnValue('');
     resolveIdentity('/some/dir', {});
@@ -23,6 +27,17 @@ describe('git identity', () => {
       expect(call[0]).toBe('RESOLVED-git');
       expect(call[2]).toMatchObject({ windowsHide: true });
     }
+  });
+
+  test('an error inside the lookup falls back to the default project', () => {
+    execFileSyncMock.mockImplementation((_b: string, args: string[]) => {
+      if (args.includes('rev-parse')) return '/top\n/top/.git';
+      if (args.includes('symbolic-ref')) return 'main';
+      return '';
+    });
+    const boom = () => { throw new Error('boom'); };
+    const aliases = new Proxy({}, { has: boom, get: boom, getOwnPropertyDescriptor: boom, ownKeys: boom });
+    expect(resolveIdentity('/x', aliases as Record<string, string>)).toEqual({ project: 'uncategorized', repo: null, branch: null });
   });
 });
 

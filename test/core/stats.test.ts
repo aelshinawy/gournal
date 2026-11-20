@@ -1,4 +1,4 @@
-import { subDays } from 'date-fns';
+import { subDays } from '../../src/core/dates';
 import { buildStats, shortId } from '../../src/core';
 import { makeEntry } from './factory';
 

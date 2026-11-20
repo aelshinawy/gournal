@@ -5,11 +5,14 @@ export {
 export { OPTION_TEXT } from './option-text';
 export { newId, shortId } from './ids';
 export { MAX_SUMMARY, summaryLength, splitSummary, checkSummary, hasLineBreak } from './entries/summary';
-export { stripControl, cleanProject, cleanOpt, cleanDetails, cleanRefs } from './entries/sanitize';
+export { stripControl, cleanProject, cleanOpt, cleanDetails, cleanRefs, DEFAULT_PROJECT } from './entries/sanitize';
 export { mergeRefs, extractRefs, type Ref } from './labels/refs';
 export { normalizeTags, closeTags } from './labels/tags';
 export { CONFIG_DEFAULTS, normalizeConfig, invalidConfig, isPlainObject, type Config } from './config';
 export { InvalidQueryError, cleanSearchTerms, parseBound, resolveQuery, type Query } from './entries/query';
+export {
+  formatMonthDay, formatWeekdayMonthDay, formatTime, formatWeekdayDayTime, formatWeekdayDayDashTime, formatDayTime, formatMonthWeekdayDayDashTime, parseIso,
+} from './dates';
 export { resolvePeriod } from './reports/periods';
 export { groupBy } from './reports/group';
 export { parseRemoteUrl, projectFor, resolveProjectAlias, type RepoIdentity } from './labels/project';

@@ -1,6 +1,6 @@
-import chalk from 'chalk';
-import { subDays } from 'date-fns';
+import { subDays } from '../../src/core/dates';
 import { buildStandup, buildStats, buildWorkLog, resolvePeriod } from '../../src/core';
+import { forceColor } from '../../src/render/style';
 import {
   entryLinesText, projectCountsText, standupText, statsText, tagCountsText, workLogText,
 } from '../../src/render';
@@ -14,9 +14,8 @@ const standup = (done: ReturnType<typeof makeEntry>[], open: ReturnType<typeof m
   buildStandup({ period: resolvePeriod(opts, now, 1), done, open, now, staleAfterDays: 14 });
 
 describe('terminal renderers', () => {
-  let level: typeof chalk.level;
-  beforeEach(() => { level = chalk.level; chalk.level = 0; });
-  afterEach(() => { chalk.level = level; });
+  beforeEach(() => { forceColor(false); });
+  afterEach(() => { forceColor(undefined); });
 
   const doneEntries = [
     makeEntry({ createdAt: at(15, 9, 5), summary: 'Fixed auth middleware', project: 'api', tags: ['bug'] }),
@@ -39,8 +38,8 @@ describe('terminal renderers', () => {
   });
 
   test('empty standup', () => {
-    chalk.level = 3;
-    expect(standupText(standup([]))).toBe(chalk.yellow('\nNo entries found\n'));
+    forceColor(true);
+    expect(standupText(standup([]))).toBe('\u001b[33m\nNo entries found\n\u001b[39m');
   });
 
   test('stale line uses the singular day word for 1 day', () => {
@@ -117,16 +116,15 @@ describe('terminal renderers', () => {
   });
 
   test('terminal output carries ANSI codes when color is on', () => {
-    chalk.level = 3;
+    forceColor(true);
     expect(standupText(standup(doneEntries))).toContain('\x1b');
     expect(statsText(buildStats(doneEntries, now))).toContain('\x1b');
   });
 });
 
 describe('terminal renderers with activity', () => {
-  let level: typeof chalk.level;
-  beforeEach(() => { level = chalk.level; chalk.level = 0; });
-  afterEach(() => { chalk.level = level; });
+  beforeEach(() => { forceColor(false); });
+  afterEach(() => { forceColor(undefined); });
 
   const entry = makeEntry({ createdAt: at(15, 10, 41), summary: 'Merged gournal PR #4 and installed 0.8.0', project: 'gournal' });
   const mergedPr4 = makeActivity({ type: 'pr_merged', repo: 'acme/gournal', pr: 4, title: 'Phase 2 layers', occurredAt: at(15, 10, 40).toISOString() });
@@ -226,8 +224,8 @@ describe('terminal renderers with activity', () => {
   });
 
   test('Also lines are gray when color is on', () => {
-    chalk.level = 3;
-    expect(standupText(model([merged327]))).toContain(chalk.gray('  Also: 1 PR merged in 1 repo (--activity to expand)'));
+    forceColor(true);
+    expect(standupText(model([merged327]))).toContain('\u001b[90m  Also: 1 PR merged in 1 repo (--activity to expand)\u001b[39m');
   });
 
   test('work log folds linked activity under its entry', () => {
@@ -242,9 +240,8 @@ describe('terminal renderers with activity', () => {
 });
 
 describe('terminal renderers strip control characters', () => {
-  let level: typeof chalk.level;
-  beforeEach(() => { level = chalk.level; chalk.level = 0; });
-  afterEach(() => { chalk.level = level; });
+  beforeEach(() => { forceColor(false); });
+  afterEach(() => { forceColor(undefined); });
 
   const HOSTILE = 'esc \x1b]0;PWNED\x07 \x1b[2J\x1b[31mred \x9b31m \x85 \x7f end';
   // Tab and newline are legal in output as layout. Every other C0 control, DEL, and every C1 control are not.
@@ -276,8 +273,8 @@ describe('terminal renderers strip control characters', () => {
     noControl(projectCountsText([{ project: `p${HOSTILE}`, count: 1 }]));
   });
 
-  test('chalk escape codes survive when color is on, and user escapes do not', () => {
-    chalk.level = 1;
+  test('color escape codes survive when color is on, and user escapes do not', () => {
+    forceColor(true);
     const out = entryLinesText([bad]);
     expect(out).toContain('\x1b[34m');
     expect(out).not.toContain('\x1b]0;PWNED');

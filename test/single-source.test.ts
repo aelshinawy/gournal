@@ -12,6 +12,7 @@ const FACTS: { fact: string; pattern: RegExp; owner: string }[] = [
   { fact: 'the activity schema', pattern: /\bActivitySchema = z\.object\(/, owner: 'src/core/activity/activity-schema.ts' },
   { fact: 'the config error text', pattern: /new Error\(`Config \$\{file\} is not valid JSON object/, owner: 'src/core/config.ts' },
   { fact: 'the control character set', pattern: /\\u0000-\\u001f/, owner: 'src/core/entries/sanitize.ts' },
+  { fact: 'the ANSI styler', pattern: /\bstyleText\b/, owner: 'src/render/style.ts' },
 ];
 
 const self = path.relative(ROOT, __filename).split(path.sep).join('/');

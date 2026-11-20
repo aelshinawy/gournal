@@ -1,6 +1,6 @@
 import { execFileSync } from 'child_process';
-import chalk from 'chalk';
-import { format } from 'date-fns';
+import { forceColor } from '../src/render/style';
+import { formatDay } from '../src/core/dates';
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -428,7 +428,7 @@ test('get_standup returns sections in JSON and markdown', async () => {
 test('get_standup carries an older open blocker forward even with from', async () => {
   seed('Old blocker', { kind: 'blocker', createdAt: daysAgo(3) });
   seed('Did a thing');
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const today = formatDay(new Date());
   const r = await call('get_standup', { from: today });
   expect(r.structuredContent.blockers.map((e: any) => e.summary)).toEqual(['Old blocker']);
   expect(r.structuredContent.done[0].entries.map((e: any) => e.summary)).toEqual(['Did a thing']);
@@ -497,10 +497,10 @@ test('export_entries has no notice below the limit and accepts tags, from, to, a
 });
 
 describe('ANSI', () => {
-  const level = chalk.level;
-  afterEach(() => { chalk.level = level; });
+  let prev: boolean | undefined;
+  afterEach(() => { forceColor(prev); });
   test('no tool output contains ANSI with colour forced on', async () => {
-    chalk.level = 3;
+    prev = forceColor(true);
     seed('Old blocker', { kind: 'blocker', createdAt: daysAgo(30), tags: ['t'] });
     seed('Done thing', { tags: ['t'] });
     const calls: [string, Record<string, unknown>][] = [

@@ -1,4 +1,4 @@
-import { endOfDay, startOfDay } from 'date-fns';
+import { endOfDay, startOfDay } from '../../src/core/dates';
 import { InvalidQueryError, cleanSearchTerms, parseBound, resolveProjectAlias, resolveQuery } from '../../src/core';
 
 test('date-only to is the end of that local day', () =>
