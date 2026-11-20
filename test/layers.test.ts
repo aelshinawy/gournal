@@ -21,7 +21,7 @@ test('src follows the layer rules', () => {
 test('the rules catch each violation', () => {
   const r = depcruise('test/fixtures/layers/src');
   expect(r.status).not.toBe(0);
-  for (const rule of ['core-allowlist', 'layer-order', 'storage-sources-apart', 'index-only', 'no-style-in-plain-renderers']) {
+  for (const rule of ['core-allowlist', 'layer-order', 'storage-sources-apart', 'index-only', 'no-style-in-plain-renderers', 'cli-stays-in-cli']) {
     expect(r.stdout + r.stderr).toContain(rule);
   }
 });
@@ -36,6 +36,7 @@ test('each fixture line hits the expected rule', () => {
   expect(out).toContain(`error no-style-in-plain-renderers: ${F}/render/markdown.ts → util`);
   expect(out).toContain(`error no-style-in-plain-renderers: ${F}/render/markdown.ts → ${F}/render/style.ts`);
   expect(out).toContain(`error no-style-in-plain-renderers: ${F}/render/json.ts → util`);
+  expect(out).toContain(`error cli-stays-in-cli: ${F}/adapters/mcp/bad.ts → ${F}/adapters/cli/spinner.ts`);
   expect(out).not.toContain(`→ ${F}/core/group.ts`);
 });
 

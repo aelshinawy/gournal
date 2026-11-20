@@ -3,6 +3,7 @@ import type { GhRunner } from '../../sources';
 import type { CommandRunner } from '../setup';
 import { createEntryWriter, type EntryWriter } from '../entry-writer';
 import { openJournal, type Journal } from '../../storage';
+import type { SpinnerStream } from './spinner';
 
 export interface CliIo {
   out(text: string): void;
@@ -18,6 +19,8 @@ export interface CliIo {
   confirm?: (message: string, def: boolean) => Promise<boolean>;
   /** Test seam for `setup claude`. The default runs the claude CLI with execFile, no shell. */
   exec?: CommandRunner;
+  /** Test seam for the spinner. The default is process.stderr. */
+  spinnerStream?: SpinnerStream;
 }
 
 export interface CliContext {

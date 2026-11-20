@@ -2,6 +2,7 @@ import type { Command } from 'commander';
 import { execGh } from '../../sources';
 import { parseSince, runSync, syncSummaryLine } from '../sync';
 import type { CliContext } from './context';
+import { withSpinner, SYNC_SPINNER_TEXT } from './spinner';
 
 export function registerSync(program: Command, ctx: CliContext): void {
   program
@@ -11,7 +12,7 @@ export function registerSync(program: Command, ctx: CliContext): void {
     .action(async (options: { since?: string }) => {
       const since = options.since === undefined ? undefined : parseSince(options.since); // fail before the journal opens
       const report = await ctx.withJournal((journal) =>
-        runSync(journal, ctx.io.gh ?? execGh(), { since, auto: false, now: new Date() }));
+        withSpinner(SYNC_SPINNER_TEXT, () => runSync(journal, ctx.io.gh ?? execGh(), { since, auto: false, now: new Date() }), ctx.io.spinnerStream));
       if (report.status === 'failed') throw new Error(report.warning ?? 'GitHub sync failed');
       const line = syncSummaryLine(report);
       ctx.io.out(report.status === 'partial' && report.warning ? `${line} ${report.warning}` : line);

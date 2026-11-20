@@ -60,6 +60,7 @@ export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<n
     home: io.home ?? gournalHome(),
     isTTY: io.isTTY ?? process.stdin.isTTY === true,
     gh: io.gh,
+    spinnerStream: io.spinnerStream,
   };
   try {
     await buildProgram(full).parseAsync(argv);
