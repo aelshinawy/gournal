@@ -14,7 +14,11 @@ function orList(words: readonly string[]): string {
 const KIND_NOTES: Record<Kind, string | null> = { done: null, blocker: 'something stops you', next: 'a planned step' };
 /** The kinds as "done, blocker, or next". notes adds each note. defaultKind marks one kind "(default)". */
 export function kindList(opts: { notes?: boolean; defaultKind?: Kind } = {}): string {
-  return orList(KINDS.map((k) => `${k}${opts.defaultKind === k ? ' (default)' : ''}${opts.notes && KIND_NOTES[k] !== null ? ` (${KIND_NOTES[k]})` : ''}`));
+  return orList(KINDS.map((k) => {
+    const mark = opts.defaultKind === k ? ' (default)' : '';
+    const note = opts.notes && KIND_NOTES[k] !== null ? ` (${KIND_NOTES[k]})` : '';
+    return `${k}${mark}${note}`;
+  }));
 }
 
 export function parseKind(value: string): Kind {

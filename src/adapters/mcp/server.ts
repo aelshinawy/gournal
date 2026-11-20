@@ -91,7 +91,6 @@ export function createServer(deps: ServerDeps = {}): McpServer {
   };
   for (const register of TOOLS) register(ctx);
 
-
   return server;
 }
 

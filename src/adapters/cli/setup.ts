@@ -44,7 +44,7 @@ export function registerHook(program: Command, ctx: CliContext): void {
     });
 }
 
-export function registerMcp(program: Command, ctx: CliContext): void {
+export function registerMcp(program: Command, _ctx: CliContext): void {
   program
     .command('mcp')
     .description('Start the gournal MCP server on stdio. It offers entries, standup reports, work logs, and export as tools.')

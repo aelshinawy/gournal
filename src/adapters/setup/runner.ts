@@ -53,7 +53,7 @@ export function buildCmdLine(program: string, args: string[]): string {
   return [`"${program}"`, ...quoted].join(' ');
 }
 
-export interface RunnerDeps {
+interface RunnerDeps {
   platform?: NodeJS.Platform;
   env?: NodeJS.ProcessEnv;
   once?: ExecOnce;

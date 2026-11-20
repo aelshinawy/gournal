@@ -13,13 +13,14 @@ export const SERVER = 'gournal';
 export function writeAtomic(file: string, content: string, platform: NodeJS.Platform): void {
   const real = fs.existsSync(file) ? fs.realpathSync(file) : file;
   fs.mkdirSync(path.dirname(real), { recursive: true });
+  const existed = fs.existsSync(real);
   writeViaTemp(
     real,
     (tmp) => {
       fs.writeFileSync(tmp, content, 'utf8');
-      if (platform !== 'win32' && fs.existsSync(real)) fs.chmodSync(tmp, fs.statSync(real).mode & 0o7777);
+      if (platform !== 'win32' && existed) fs.chmodSync(tmp, fs.statSync(real).mode & 0o7777);
     },
-    { mode: fs.existsSync(real) ? 0o600 : 0o666, rename: { platform } },
+    { mode: existed ? 0o600 : 0o666, rename: { platform } },
   );
 }
 
