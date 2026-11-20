@@ -147,19 +147,42 @@ test('refreshRuntime does nothing without a runtime and creates no files', () =>
   expect(fs.existsSync(home)).toBe(false);
 });
 
+const installed = (name: string, version: string): string =>
+  makeFakePackage(path.join(tmp(), 'node_modules', name === 'gournal' ? 'gournal' : name), version);
+
 test('refreshRuntime switches only to a newer version', () => {
   const home = path.join(tmp(), 'h');
-  const old = makeFakePackage(path.join(tmp(), 'old'), '0.9.0');
+  const old = installed('gournal', '0.9.0');
   install(home, old);
-  const same = makeFakePackage(path.join(tmp(), 'same'), '0.9.0');
-  expect(refreshRuntime(home, { packageRoot: same })).toBe(false);
-  const newer = makeFakePackage(path.join(tmp(), 'new'), '0.10.0');
+  expect(refreshRuntime(home, { packageRoot: installed('gournal', '0.9.0') })).toBe(false);
+  const newer = installed('gournal', '0.10.0');
   expect(refreshRuntime(home, { packageRoot: newer })).toBe(true);
   const current = fs.readFileSync(runtimePaths(home, process.platform).currentFile, 'utf8');
   expect(current).toMatch(/^app-0\.10\.0-/);
   expect(fs.readFileSync(runtimePaths(home, process.platform).nodeFile, 'utf8')).toBe('/n/node\n');
   expect(refreshRuntime(home, { packageRoot: old })).toBe(false);
   expect(refreshRuntime(home, { packageRoot: newer })).toBe(false);
+});
+
+test('refreshRuntime ignores a newer checkout outside node_modules', () => {
+  const home = path.join(tmp(), 'h');
+  install(home, installed('gournal', '0.9.0'));
+  const before = fs.readFileSync(runtimePaths(home, process.platform).currentFile, 'utf8');
+  const checkout = makeFakePackage(path.join(tmp(), 'checkout'), '0.10.0');
+  expect(refreshRuntime(home, { packageRoot: checkout })).toBe(false);
+  expect(fs.readFileSync(runtimePaths(home, process.platform).currentFile, 'utf8')).toBe(before);
+});
+
+posixTest('refreshRuntime ignores a node_modules symlink that points at a checkout', () => {
+  const home = path.join(tmp(), 'h');
+  install(home, installed('gournal', '0.9.0'));
+  const before = fs.readFileSync(runtimePaths(home, process.platform).currentFile, 'utf8');
+  const checkout = makeFakePackage(path.join(tmp(), 'checkout'), '0.10.0');
+  const link = path.join(tmp(), 'node_modules', 'gournal');
+  fs.mkdirSync(path.dirname(link));
+  fs.symlinkSync(checkout, link);
+  expect(refreshRuntime(home, { packageRoot: link })).toBe(false);
+  expect(fs.readFileSync(runtimePaths(home, process.platform).currentFile, 'utf8')).toBe(before);
 });
 
 test('shouldRefresh skips mcp and hook', () => {

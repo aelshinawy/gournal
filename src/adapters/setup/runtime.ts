@@ -124,13 +124,15 @@ function newer(a: string, b: string): boolean {
   return false;
 }
 
-/** Copy the installed package into the runtime when it is newer than the current app. Does nothing without a runtime. */
+/** Copy the installed package into the runtime when it is newer than the current app. Does nothing without a runtime or from a checkout. */
 export function refreshRuntime(gournalHome: string, o: { packageRoot?: string; platform?: NodeJS.Platform } = {}): boolean {
   const platform = o.platform ?? process.platform;
   const packageRoot = o.packageRoot ?? PACKAGE_ROOT;
   const paths = runtimePaths(gournalHome, platform);
   const current = readText(paths.currentFile)?.trim();
   if (!current) return false;
+  // Only an installed package refreshes the runtime. A checkout (also one linked by npm link) never does.
+  if (!fs.realpathSync(packageRoot).split(path.sep).includes('node_modules')) return false;
   const have = (JSON.parse(fs.readFileSync(path.join(paths.runtimeDir, current, 'package.json'), 'utf8')) as { version: string }).version;
   const source = (JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8')) as { version: string }).version;
   if (!newer(source, have)) return false;
