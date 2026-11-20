@@ -11,6 +11,7 @@ const answerOf = (answer: string, def: boolean): boolean => (/^(y|yes)/i.test(an
  */
 export async function confirm(message: string, def: boolean, streams: ConfirmStreams = { input: process.stdin, output: process.stdout }): Promise<boolean> {
   if (streams.input.isTTY !== true) throw new Error('no terminal to ask');
+  if ((streams.input as { readableEnded?: boolean }).readableEnded === true) throw new Error('no answer');
   const rl = createInterface({ input: streams.input, output: streams.output });
   const ac = new AbortController();
   const abort = (): void => ac.abort();

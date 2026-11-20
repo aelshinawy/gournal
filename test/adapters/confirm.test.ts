@@ -47,18 +47,39 @@ describe('confirm', () => {
 
   test('an input that ends before an answer rejects', async () => {
     const { result } = ask(false, (input) => input.end());
-    await expect(result).rejects.toThrow();
+    await expect(result).rejects.toThrow('no answer');
   });
 
   test('a close after the prompt rejects', async () => {
     const { result } = ask(false, (input) => { setTimeout(() => input.end(), 20); });
-    await expect(result).rejects.toThrow();
+    await expect(result).rejects.toThrow('no answer');
   });
 
   test('no terminal rejects and writes nothing', async () => {
     const { result, text } = ask(false, () => undefined, false);
-    await expect(result).rejects.toThrow();
+    await expect(result).rejects.toThrow('no terminal to ask');
     expect(text()).toBe('');
+  });
+
+  test('a second prompt on an input that already ended rejects', async () => {
+    const s = streams(true);
+    const io = { input: s.input, output: s.output };
+    const first = confirm('Q?', false, io);
+    s.input.write('y\n');
+    await expect(first).resolves.toBe(true);
+    s.input.end();
+    await new Promise((resolve) => s.input.once('end', resolve).resume());
+    await expect(confirm('Q?', false, io)).rejects.toThrow('no answer');
+    await expect(confirmOrNo('Q?', true, io)).resolves.toBe(false);
+  });
+
+  test('Ctrl+C rejects', async () => {
+    const s = streams(true);
+    (s.output as PassThrough & { isTTY?: boolean }).isTTY = true;
+    (s.input as Fake & { setRawMode?: () => void }).setRawMode = () => undefined;
+    const result = confirm('Q?', false, { input: s.input, output: s.output });
+    s.input.write('\x03');
+    await expect(result).rejects.toThrow('no answer');
   });
 
   test('confirmOrNo turns no answer into false', async () => {
