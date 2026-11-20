@@ -418,6 +418,15 @@ describe('gournal CLI reads on Query and renderers', () => {
     expect(r.stdout).toContain('Search index rebuilt: 1 entries.');
   });
 
+  ftsTest('index rebuild takes the daily backup first', async () => {
+    seed([{ summary: 'one', createdAt: daysAgo(1) }]);
+    rmTmp(path.join(home, 'backups')); // the seed write took the day's backup
+    const r = await run('index', 'rebuild');
+    expect(r.status).toBe(0);
+    const daily = fs.readdirSync(path.join(home, 'backups')).filter((n) => /^gournal-\d{4}-\d{2}-\d{2}\.db$/.test(n));
+    expect(daily).toHaveLength(1);
+  });
+
   test('index rebuild without FTS5 refuses and keeps the daily backup slot', async () => {
     seed([{ summary: 'one', createdAt: daysAgo(1) }]);
     rmTmp(path.join(home, 'backups')); // the seed write took the day's backup

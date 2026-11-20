@@ -2,7 +2,6 @@ import { Command, CommanderError, Option } from 'commander';
 import { execGh, resolveIdentity, type GhRunner } from '../../sources';
 import { maybeAutoSync, parseSince, runSync, syncSummaryLine } from '../sync';
 import { startMcpServer } from '../mcp';
-import { createEntryWriter } from '../entry-writer';
 import { writeNoteText } from '../write-note-text';
 import { standupModel, workLogModel } from '../reports';
 import { EXPORT_FORMATS, buildStats, kindList, parseKind, parseStatus, resolveQuery, shortId, stripControl, type Query } from '../../core';
@@ -14,83 +13,22 @@ import fs from 'fs';
 import path from 'path';
 import { VERSION } from '../version';
 import { confirm, confirmOrNo } from './confirm';
+import { createCliContext, type CliIo } from './context';
+import { buildQuery, splitList, type FindCliOptions, type PeriodCliOptions } from './options';
 import { execFileRunner, setupClaude, stopHook, type CommandRunner } from '../setup';
 import { openJournal, exportBundle, importBundle, gournalHome, userHomePath, hasFts5, rebuildSearchIndex, importLegacy, applyPlan, renderPlanDiff, writePrivateFile, writeExportFile, assertExportTarget, assertTargetDir } from '../../storage';
 import type { Journal, MigrationPlan } from '../../storage';
 
-export interface CliIo {
-  out(text: string): void;
-  err(text: string): void;
-  cwd: string;
-  home: string;
-  isTTY: boolean;
-  /** Test seam. The default runs the real gh. */
-  gh?: GhRunner;
-  /** The user's home, for `setup claude`. `home` above is the gournal home. Default: the profile folder at call time (os.homedir(), or USERPROFILE on Windows). */
-  userHome?: string;
-  /** Test seam for the clear and setup claude prompts. The default asks on the terminal with readline. */
-  confirm?: (message: string, def: boolean) => Promise<boolean>;
-  /** Test seam for `setup claude`. The default runs the claude CLI with execFile, no shell. */
-  exec?: CommandRunner;
-}
-
 const CLEAR_QUESTION = 'Are you sure you want to clear all gournal entries?';
 
-const splitList = (v?: string): string[] => (v ? v.split(',').map(x => x.trim()).filter(Boolean) : []);
 const NO_FTS5_MESSAGE = 'This Node build has no FTS5; the search index cannot be rebuilt.';
-
-interface PeriodCliOptions {
-  yesterday?: boolean; week?: boolean; month?: boolean;
-  from?: string; to?: string; project?: string; repo?: string; tags?: string;
-}
-interface FindCliOptions {
-  project?: string; tags?: string; kind?: string; status?: string; repo?: string; from?: string; to?: string; limit?: string;
-}
-
-/** Build one Query from CLI options. Validate every value here, so a bad option fails before the journal opens. */
-function buildQuery(options: Partial<FindCliOptions>, text?: string): Query {
-  const kind = splitList(options.kind).map(parseKind);
-  const status = options.status === undefined ? undefined : parseStatus(options.status);
-  const query: Query = {
-    project: options.project,
-    repo: options.repo,
-    tags: splitList(options.tags),
-    text,
-    kind: kind.length > 0 ? kind : undefined,
-    status,
-    from: options.from,
-    to: options.to,
-    limit: options.limit === undefined ? undefined : Number(options.limit),
-  };
-  resolveQuery(query, {}); // throws on a bad date or limit
-  return query;
-}
 
 const stripNewline = (text: string): string => text.replace(/\n$/, '');
 
 export function buildProgram(io: CliIo): Command {
   const program = new Command();
 
-  /** Open the journal once for a command and close it when the command ends. */
-  const withJournal = async <T>(fn: (journal: Journal) => T | Promise<T>, opts: { legacyImport?: boolean } = {}): Promise<T> => {
-    const journal = openJournal(io.home, opts);
-    try {
-      return await fn(journal);
-    } finally {
-      journal.close();
-    }
-  };
-
-  /** A failed daily backup warns and never stops the command. */
-  const backupWithWarning = (journal: Journal): void => {
-    try {
-      journal.backupIfNeeded();
-    } catch (err) {
-      io.err(`gournal: daily backup failed: ${(err as Error).message}`);
-    }
-  };
-
-  const writerFor = (journal: Journal) => createEntryWriter(journal, { retryMemory: false, clock: Date.now });
+  const ctx = createCliContext(io);
 
   program
     .exitOverride()
@@ -112,9 +50,9 @@ export function buildProgram(io: CliIo): Command {
     .option('--resolves <ids>', 'Close the open blocker or next entries with these ids. Separate ids with commas. Gournal drops an id that it cannot resolve, adds the entry, and prints a note.')
     .action(async (summary: string, options: { tags: string; details?: string; kind?: string; resolves?: string }) => {
       const kind = options.kind === undefined ? undefined : parseKind(options.kind);
-      await withJournal((journal) => {
-        const identity = resolveIdentity(io.cwd, journal.config.projectAliases);
-        const { entry, notes } = writerFor(journal).add({
+      await ctx.withJournal((journal) => {
+        const identity = resolveIdentity(ctx.io.cwd, journal.config.projectAliases);
+        const { entry, notes } = ctx.writerFor(journal).add({
           summary,
           details: options.details,
           kind,
@@ -123,11 +61,11 @@ export function buildProgram(io: CliIo): Command {
           tags: splitList(options.tags),
           resolves: splitList(options.resolves),
         });
-        io.out(green(`✓ Entry added! (${shortId(entry.id)})`));
+        ctx.io.out(green(`✓ Entry added! (${shortId(entry.id)})`));
         if (notes.some((n) => n.type === 'split')) {
-          io.out(yellow('Note: summary was long, the rest went to details.'));
+          ctx.io.out(yellow('Note: summary was long, the rest went to details.'));
         }
-        for (const note of notes) if (note.type !== 'split') io.err(writeNoteText(note));
+        for (const note of notes) if (note.type !== 'split') ctx.io.err(writeNoteText(note));
       });
     });
 
@@ -135,17 +73,17 @@ export function buildProgram(io: CliIo): Command {
     .command('clear')
     .description('Remove all journal entries after you confirm. This command needs a terminal.')
     .action(async () => {
-      if (!io.isTTY) throw new Error('Not a terminal; nothing cleared.');
+      if (!ctx.io.isTTY) throw new Error('Not a terminal; nothing cleared.');
       let confirmed: boolean;
       try {
-        confirmed = await (io.confirm ?? confirm)(red(CLEAR_QUESTION), false);
+        confirmed = await (ctx.io.confirm ?? confirm)(red(CLEAR_QUESTION), false);
       } catch {
         throw new Error('Not a terminal; nothing cleared.');
       }
       if (!confirmed) return;
-      await withJournal((journal) => {
-        const count = writerFor(journal).clear();
-        io.out(green(`✓ Cleared ${count} entries (restore any with gournal restore <id>).`));
+      await ctx.withJournal((journal) => {
+        const count = ctx.writerFor(journal).clear();
+        ctx.io.out(green(`✓ Cleared ${count} entries (restore any with gournal restore <id>).`));
       });
     });
 
@@ -153,13 +91,13 @@ export function buildProgram(io: CliIo): Command {
     .command('undo')
     .description('Remove the last entry that you added on this device. Restore it later by id.')
     .action(async () => {
-      await withJournal((journal) => {
-        const removed = writerFor(journal).undo();
+      await ctx.withJournal((journal) => {
+        const removed = ctx.writerFor(journal).undo();
         if (!removed) {
-          io.out(yellow('No entries to undo.'));
+          ctx.io.out(yellow('No entries to undo.'));
           return;
         }
-        io.out(green(`✓ Removed: ${stripControl(removed.summary)} (restore with gournal restore ${shortId(removed.id)})`));
+        ctx.io.out(green(`✓ Removed: ${stripControl(removed.summary)} (restore with gournal restore ${shortId(removed.id)})`));
       });
     });
 
@@ -168,9 +106,9 @@ export function buildProgram(io: CliIo): Command {
     .argument('<id>', 'The full id or the last 8 characters of the removed entry.')
     .description('Bring back a removed entry.')
     .action(async (id: string) => {
-      await withJournal((journal) => {
-        const entry = writerFor(journal).restore(id);
-        io.out(green(`✓ Restored: ${stripControl(entry.summary)}`));
+      await ctx.withJournal((journal) => {
+        const entry = ctx.writerFor(journal).restore(id);
+        ctx.io.out(green(`✓ Restored: ${stripControl(entry.summary)}`));
       });
     });
 
@@ -179,9 +117,9 @@ export function buildProgram(io: CliIo): Command {
     .argument('<id>', 'The full id or the last 8 characters of the entry.')
     .description('Mark an open blocker or next entry as resolved.')
     .action(async (id: string) => {
-      await withJournal((journal) => {
-        const entry = writerFor(journal).resolve(id);
-        io.out(green(`✓ Resolved: ${stripControl(entry.summary)}`));
+      await ctx.withJournal((journal) => {
+        const entry = ctx.writerFor(journal).resolve(id);
+        ctx.io.out(green(`✓ Resolved: ${stripControl(entry.summary)}`));
       });
     });
 
@@ -199,11 +137,11 @@ export function buildProgram(io: CliIo): Command {
     .option('--activity', 'List every GitHub activity item that is not linked to a done entry in this report. Without this option, the report shows counts and one line for each merged or reviewed PR.')
     .action(async (options: PeriodCliOptions & { activity?: boolean }) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
-      await withJournal(async (journal) => {
-        const warning = await maybeAutoSync(journal, io.gh ?? execGh(), new Date());
-        if (warning) io.err(warning);
+      await ctx.withJournal(async (journal) => {
+        const warning = await maybeAutoSync(journal, ctx.io.gh ?? execGh(), new Date());
+        if (warning) ctx.io.err(warning);
         const model = standupModel(journal, { ...options, tags: splitList(options.tags) }, new Date());
-        io.out(standupText(model, { expandActivity: options.activity === true }));
+        ctx.io.out(standupText(model, { expandActivity: options.activity === true }));
       });
     });
 
@@ -220,10 +158,10 @@ export function buildProgram(io: CliIo): Command {
     .option('-t, --tags <tags>', `${OPTION_TEXT.tags} Separate tags with commas.`)
     .action(async (options: PeriodCliOptions) => {
       buildQuery(options); // fail on a bad --from or --to before the journal opens
-      await withJournal(async (journal) => {
-        const warning = await maybeAutoSync(journal, io.gh ?? execGh(), new Date());
-        if (warning) io.err(warning);
-        io.out(workLogText(workLogModel(journal, { ...options, tags: splitList(options.tags) }, new Date())));
+      await ctx.withJournal(async (journal) => {
+        const warning = await maybeAutoSync(journal, ctx.io.gh ?? execGh(), new Date());
+        if (warning) ctx.io.err(warning);
+        ctx.io.out(workLogText(workLogModel(journal, { ...options, tags: splitList(options.tags) }, new Date())));
       });
     });
 
@@ -233,8 +171,8 @@ export function buildProgram(io: CliIo): Command {
     .option('-p, --project <project>', OPTION_TEXT.project)
     .action(async (options: { project?: string }) => {
       const query = buildQuery({ project: options.project });
-      await withJournal(({ repo }) => {
-        io.out(statsText(buildStats(repo.find(query), new Date())));
+      await ctx.withJournal(({ repo }) => {
+        ctx.io.out(statsText(buildStats(repo.find(query), new Date())));
       });
     });
 
@@ -242,8 +180,8 @@ export function buildProgram(io: CliIo): Command {
     .command('tags')
     .description('List every tag that you use, with the number of entries for each tag.')
     .action(async () => {
-      await withJournal(({ repo }) => {
-        io.out(tagCountsText(repo.tagCounts()));
+      await ctx.withJournal(({ repo }) => {
+        ctx.io.out(tagCountsText(repo.tagCounts()));
       });
     });
 
@@ -251,8 +189,8 @@ export function buildProgram(io: CliIo): Command {
     .command('projects')
     .description('List every project that you log to, with the number of entries for each project.')
     .action(async () => {
-      await withJournal(({ repo }) => {
-        io.out(projectCountsText(repo.projectCounts()));
+      await ctx.withJournal(({ repo }) => {
+        ctx.io.out(projectCountsText(repo.projectCounts()));
       });
     });
 
@@ -275,7 +213,7 @@ export function buildProgram(io: CliIo): Command {
       // Check the target before any work, so a refusal costs nothing.
       if (options.output) assertExportTarget(options.output, options.force === true);
 
-      await withJournal(async ({ repo, db, config }) => {
+      await ctx.withJournal(async ({ repo, db, config }) => {
         let output: string;
         let count: number;
         if (exportFormat === 'bundle') {
@@ -290,9 +228,9 @@ export function buildProgram(io: CliIo): Command {
 
         if (options.output) {
           writeExportFile(options.output, output, options.force === true);
-          io.out(green(`✓ Exported ${count} entries to ${options.output}`));
+          ctx.io.out(green(`✓ Exported ${count} entries to ${options.output}`));
         } else {
-          io.out(output);
+          ctx.io.out(output);
         }
       });
     });
@@ -309,22 +247,22 @@ export function buildProgram(io: CliIo): Command {
         if (err instanceof SyntaxError) throw new Error(`Bundle file ${file} is not valid JSON: ${err.message}`);
         throw err;
       }
-      await withJournal((journal) => {
+      await ctx.withJournal((journal) => {
         const { db, repo, config } = journal;
         // An empty database has nothing to protect. It must not take the day's backup slot.
         const hasEntries = (db.prepare('SELECT 1 AS x FROM entries LIMIT 1').get() as { x: number } | undefined) !== undefined;
         if (hasEntries) {
-          backupWithWarning(journal);
+          ctx.backupWithWarning(journal);
         }
         const r = importBundle(db, bundle, config);
-        io.out(green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged, ${r.deduplicated} duplicates merged.`));
+        ctx.io.out(green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged, ${r.deduplicated} duplicates merged.`));
         // The bundle's legacy keys are in place now. The legacy import adds only lines the bundle did not know.
-        const jsonPath = path.join(io.home, 'entries.json');
+        const jsonPath = path.join(ctx.io.home, 'entries.json');
         if (fs.existsSync(jsonPath)) {
           try {
             importLegacy(db, repo, config, jsonPath);
           } catch (err) {
-            io.err(`gournal: legacy import failed; will retry (${(err as Error).message})`);
+            ctx.io.err(`gournal: legacy import failed; will retry (${(err as Error).message})`);
           }
         }
       }, { legacyImport: false });
@@ -344,10 +282,10 @@ export function buildProgram(io: CliIo): Command {
     .option('-n, --limit <n>', `${OPTION_TEXT.limit} The oldest come first.`)
     .action(async (text: string, options: FindCliOptions) => {
       const query = buildQuery(options, text);
-      await withJournal(({ repo }) => {
+      await ctx.withJournal(({ repo }) => {
         const results = repo.find(query);
-        io.out(bold(`Found ${results.length} entries:\n`));
-        if (results.length > 0) io.out(entryLinesText(results));
+        ctx.io.out(bold(`Found ${results.length} entries:\n`));
+        if (results.length > 0) ctx.io.out(entryLinesText(results));
       });
     });
 
@@ -363,12 +301,12 @@ export function buildProgram(io: CliIo): Command {
       if (options.dryRun && !options.diff) throw new Error('--dry-run needs --diff <file>');
       // Check the diff folder before any work, so a missing folder gives a clear message.
       if (options.dryRun && options.diff) assertTargetDir(options.diff);
-      const jsonPath = path.join(io.home, 'entries.json');
-      const journal = openJournal(io.home);
+      const jsonPath = path.join(ctx.io.home, 'entries.json');
+      const journal = openJournal(ctx.io.home);
       try {
         if (!options.plan) {
           const r = importLegacy(journal.db, journal.repo, journal.config, jsonPath);
-          io.out(`Imported ${r.imported} entries (${r.alreadyPresent} already present).`);
+          ctx.io.out(`Imported ${r.imported} entries (${r.alreadyPresent} already present).`);
           return;
         }
         let plan: MigrationPlan;
@@ -382,10 +320,10 @@ export function buildProgram(io: CliIo): Command {
         if (options.dryRun) {
           const target = options.diff as string;
           writePrivateFile(target, renderPlanDiff(changes));
-          io.out(`Dry run: ${changes.length} entries would change. Diff written to ${target}.`);
+          ctx.io.out(`Dry run: ${changes.length} entries would change. Diff written to ${target}.`);
         } else {
-          if (snapshot) io.out(`Snapshot: ${snapshot}`);
-          io.out(`Updated ${changes.length} entries.`);
+          if (snapshot) ctx.io.out(`Snapshot: ${snapshot}`);
+          ctx.io.out(`Updated ${changes.length} entries.`);
         }
       } finally {
         journal.close();
@@ -397,13 +335,13 @@ export function buildProgram(io: CliIo): Command {
     .command('rebuild')
     .description('Drop and recreate the full-text search index. It takes today\'s backup first, if none exists yet. Run it only when every gournal process uses a Node build with FTS5.')
     .action(async () => {
-      await withJournal((journal) => {
+      await ctx.withJournal((journal) => {
         const { db } = journal;
         // Check FTS5 first, so a refusal does not use up the daily backup slot.
         if (!hasFts5(db)) throw new Error(NO_FTS5_MESSAGE);
-        backupWithWarning(journal);
+        ctx.backupWithWarning(journal);
         const { indexed } = rebuildSearchIndex(db);
-        io.out(green(`Search index rebuilt: ${indexed} entries.`));
+        ctx.io.out(green(`Search index rebuilt: ${indexed} entries.`));
       });
     });
 
@@ -413,11 +351,11 @@ export function buildProgram(io: CliIo): Command {
     .option('--since <date>', 'Fetch activity from this date. Use a local day or an ISO timestamp. Without this option, gournal starts at the stored sync cursor. With no cursor, it starts github.initialSyncDays days before now.')
     .action(async (options: { since?: string }) => {
       const since = options.since === undefined ? undefined : parseSince(options.since); // fail before the journal opens
-      const report = await withJournal((journal) =>
-        runSync(journal, io.gh ?? execGh(), { since, auto: false, now: new Date() }));
+      const report = await ctx.withJournal((journal) =>
+        runSync(journal, ctx.io.gh ?? execGh(), { since, auto: false, now: new Date() }));
       if (report.status === 'failed') throw new Error(report.warning ?? 'GitHub sync failed');
       const line = syncSummaryLine(report);
-      io.out(report.status === 'partial' && report.warning ? `${line} ${report.warning}` : line);
+      ctx.io.out(report.status === 'partial' && report.warning ? `${line} ${report.warning}` : line);
     });
 
   const setup = program.command('setup').description('Set gournal up for another tool.');
@@ -429,10 +367,10 @@ export function buildProgram(io: CliIo): Command {
     .option('--hook', 'Also add the Stop hook. The hook reminds Claude to log its work. With --yes, the hook is added only when you pass this option. Before it changes an existing settings.json, setup saves a copy as settings.json.gournal-backup if that file does not exist yet.')
     .action(async (options: { uninstall?: boolean; yes?: boolean; hook?: boolean }) => {
       const code = await setupClaude({
-        out: io.out, err: io.err, isTTY: io.isTTY,
-        home: io.userHome ?? userHomePath(),
-        confirm: io.confirm ?? confirmOrNo,
-        exec: io.exec ?? execFileRunner,
+        out: ctx.io.out, err: ctx.io.err, isTTY: ctx.io.isTTY,
+        home: ctx.io.userHome ?? userHomePath(),
+        confirm: ctx.io.confirm ?? confirmOrNo,
+        exec: ctx.io.exec ?? execFileRunner,
       }, { uninstall: options.uninstall === true, yes: options.yes === true, hook: options.hook === true });
       if (code !== 0) throw new CommanderError(code, 'gournal.setup', 'setup did not finish'); // setup already printed why
     });
@@ -451,8 +389,8 @@ export function buildProgram(io: CliIo): Command {
       } catch {
         return;
       }
-      const result = await stopHook(stdin, io.home, new Date());
-      if (result !== null) io.out(result);
+      const result = await stopHook(stdin, ctx.io.home, new Date());
+      if (result !== null) ctx.io.out(result);
     });
 
   program
