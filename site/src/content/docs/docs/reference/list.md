@@ -9,7 +9,7 @@ Browse recent entries when you have no search word. An agent can use it to see w
 
 ## MCP tool: list_entries
 
-List journal entries, newest first. The text result is JSON. Pass a low `limit` so that the result does not flood your context.
+Deprecated: use find_entries (same filters and more). This tool will be removed in the next minor release. List journal entries, newest first. The text result is JSON. Pass a low `limit` so that the result does not flood your context.
 
 ### Input
 

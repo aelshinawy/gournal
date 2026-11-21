@@ -19,7 +19,7 @@ export function registerAddEntry({ server, guarded, getWriter, identity, roots, 
       outputSchema: EntryResultSchema,
       inputSchema: {
         summary: z.string().max(CAPS.summary).optional().describe(SUMMARY_TEXT),
-        message: z.string().max(CAPS.summary).optional().describe('Deprecated alias for summary. Use summary instead.'),
+        message: z.string().max(CAPS.summary).optional().describe('Deprecated alias for summary. Use summary instead. It will be removed in the next minor release.'),
         details: z.string().max(CAPS.details).optional().describe('Longer text for this entry. Use it when the summary needs more room.'),
         kind: KIND.default('done').describe(`Entry kind: ${kindList({ notes: true, defaultKind: 'done' })}.`),
         project: shortText().optional().describe('Project name for this entry. Pass it explicitly. Do not rely on the server working directory.'),
@@ -149,7 +149,7 @@ export function registerListEntries({ server, guarded }: ToolContext): void {
     {
       title: 'List journal entries',
       annotations: { readOnlyHint: true },
-      description: 'List journal entries, newest first. The text result is JSON. Pass a low `limit` so that the result does not flood your context.',
+      description: 'Deprecated: use find_entries (same filters and more). This tool will be removed in the next minor release. List journal entries, newest first. The text result is JSON. Pass a low `limit` so that the result does not flood your context.',
       outputSchema: EntryListSchema,
       inputSchema: {
         project: z.string().optional().describe(OPTION_TEXT.project),
