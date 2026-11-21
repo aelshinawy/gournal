@@ -22,11 +22,11 @@ export function registerImport(program: Command, ctx: CliContext): void {
       await ctx.withJournal((journal) => {
         const { db, config } = journal;
         // An empty database has nothing to protect. It must not take the day's backup slot.
-        const hasEntries = (db.prepare('SELECT 1 AS x FROM entries LIMIT 1').get() as { x: number } | undefined) !== undefined;
-        if (hasEntries) {
+        if (journal.repo.find({ includeDeleted: true, limit: 1 }).length > 0) {
           ctx.backupWithWarning(journal);
         }
         const r = importBundle(db, bundle, config);
+        if (r.warning) ctx.io.err(`gournal: ${r.warning}`);
         ctx.io.out(green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged.`));
       });
     });

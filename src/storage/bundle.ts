@@ -25,6 +25,8 @@ export interface ImportResult {
   inserted: number; updated: number; skipped: number;
   /** Present only when the bundle carries at least one activity row. */
   activity?: { inserted: number; updated: number; skipped: number };
+  /** Set when relinking activity after the import failed. The import itself succeeded. */
+  warning?: string;
 }
 
 export function exportBundle(db: DatabaseSync, config: Config): Bundle {
@@ -147,7 +149,7 @@ export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config)
       activity.relinkEntries(changedEntries);
       activity.relinkActivity(changedActivity);
     } catch (err) {
-      process.stderr.write(`gournal: relink after import failed (${(err as Error).message})\n`);
+      result.warning = `relink after import failed (${(err as Error).message})`;
     }
   }
   return result;
