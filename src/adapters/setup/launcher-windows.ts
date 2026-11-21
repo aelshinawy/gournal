@@ -56,7 +56,7 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     'if not "%CDP:~-1%"=="\\" set "CDP=%CDP%\\"',
     `for /f "delims=" %%N in ('where node 2^>nul') do call :trywhere "%%N"`,
     ...c.files.map((f) => `call :try ${f}`),
-    ...c.globs.map((g) => `if not defined PICK for /d %%D in (${g}) do call :tryall "%%D\\${globLeaf(g)}"`),
+    ...c.globs.map((g) => `if not defined PICK if not defined GPICK for /d %%D in (${g}) do call :tryall "%%D\\${globLeaf(g)}"`),
     'if not defined PICK if defined GPICK set "PICK=%GPICK%"',
     ...c.system.map((f) => `call :try ${f}`),
     'if not defined PICK goto :quit',

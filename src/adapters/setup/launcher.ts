@@ -4,7 +4,8 @@ import { shellQuote } from './command';
 /**
  * Where a launcher looks for Node. Each string is a script fragment in the syntax of its platform.
  * `files` and `system` are tried in order. The first one that passes wins.
- * `globs` are all probed. The last one that passes wins, because the newest version name sorts last.
+ * `globs` are tried in order. The first glob that has a passing node wins. Inside that glob, the last
+ * passing node wins, because the newest version name sorts last.
  */
 export interface NodeCandidates { files: string[]; globs: string[]; system: string[] }
 
@@ -100,7 +101,7 @@ export function renderPosixLauncher(o: { home: string; bakeHome: boolean; candid
     // such as "." into an absolute path in command -v, which would run a file from the project folder.
     '[ -n "$pick" ] || { oldifs=$IFS; IFS=:; set -f; for d in $PATH; do case $d in /*) [ -z "$pick" ] && ok "$d/node" && pick=$d/node ;; esac; done; set +f; IFS=$oldifs; }',
     ...loop(c.files, '[ -z "$pick" ] && ok "$n" && pick=$n'),
-    ...(c.globs.length === 0 ? [] : [`if [ -z "$pick" ]; then for n in ${c.globs.join(' ')}; do ok "$n" && pick=$n; done; fi`]),
+    ...c.globs.map((g) => `if [ -z "$pick" ]; then for n in ${g}; do ok "$n" && pick=$n; done; fi`),
     ...loop(c.system, '[ -z "$pick" ] && ok "$n" && pick=$n'),
     `[ -n "$pick" ] || quit "${NO_NODE_MESSAGE.replace(/"/g, '\\"')}"`,
     'if [ "$pick" != "$rec" ]; then printf \'%s\\n\' "$pick" > "$home/runtime/node.$$" 2>/dev/null && ' +

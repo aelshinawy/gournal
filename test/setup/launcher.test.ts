@@ -96,7 +96,7 @@ describe('POSIX launcher', () => {
     expect(out.stdout).toBe('');
   });
 
-  posixTest('files come before globs, the last passing glob wins, system comes last', () => {
+  posixTest('files come before globs, the last passing node of a glob wins, system comes last', () => {
     const f = fixture('h', none);
     const mk = (...p: string[]): string => {
       const file = path.join(f.root, ...p, 'node');
@@ -121,6 +121,22 @@ describe('POSIX launcher', () => {
     expect(launch(cands)).toContain(`node=${fileNode}\n`);
     expect(launch({ ...cands, files: [] })).toContain(`node=${newest}\n`);
     expect(launch({ ...cands, files: [], globs: [] })).toContain(`node=${sys}\n`);
+  });
+
+  posixTest('the first glob that yields a passing node wins over later globs', () => {
+    const f = fixture('h', none);
+    const first = path.join(f.root, 'g1', 'v1', 'node');
+    const firstNewest = path.join(f.root, 'g1', 'v2', 'node');
+    writeFakeNode(first, true);
+    writeFakeNode(firstNewest, true);
+    writeFakeNode(path.join(f.root, 'g2', 'v9', 'node'), true);
+    const cands: NodeCandidates = {
+      files: [],
+      globs: ['g1', 'g2'].map((g) => `${shellQuote(path.join(f.root, g))}/v*/node`),
+      system: [],
+    };
+    fs.writeFileSync(f.launcher, renderPosixLauncher({ home: f.home, bakeHome: false, candidates: cands }));
+    expect(run(f).stdout).toContain(`node=${firstNewest}\n`);
   });
 
   posixTest('the first absolute PATH node fails the probe and a later one runs and is recorded', () => {
@@ -317,7 +333,8 @@ describe('Windows launcher', () => {
   windowsTest('the exit code of the app passes through cmd.exe', () => {
     const f = winFixture();
     fs.writeFileSync(path.join(f.home, 'runtime', 'node'), `${f.node}\r\n`);
-    expect(runWin(f, [], '3').status).toBe(3);
+    const out = runWin(f, [], '3');
+    expect({ status: out.status, stdout: out.stdout, stderr: out.stderr }).toMatchObject({ status: 3 });
   });
 
   windowsTest('a home with a space works', () => {
@@ -346,9 +363,9 @@ describe('Windows launcher', () => {
     fs.mkdirSync(path.join(cwd, 'bin'), { recursive: true });
     fs.copyFileSync(process.execPath, path.join(cwd, 'bin', 'node.exe'));
     const out = runWin(f, [], '0', { cwd, path: `bin;${sys}\\System32` });
-    expect(out.status).toBe(1);
-    expect(out.stdout).toBe('');
-    expect(out.stderr).toContain('gournal: found no Node.js 22.13 or newer');
+    const seen = { status: out.status, stdout: out.stdout, stderr: out.stderr };
+    expect(seen).toMatchObject({ status: 1, stdout: '' });
+    expect(seen.stderr).toContain('gournal: found no Node.js 22.13 or newer');
   });
 
   windowsTest('a node path with an ampersand is recorded whole', () => {
@@ -364,5 +381,28 @@ describe('Windows launcher', () => {
     });
     expect(out.stdout).toBe('[]');
     expect(fs.readFileSync(path.join(f.home, 'runtime', 'node'), 'utf8').trim()).toBe(v);
+  });
+
+  windowsTest('the first glob that yields a passing node wins over later globs', () => {
+    const f = winFixture();
+    fs.writeFileSync(path.join(f.home, 'runtime', 'node'), `${path.join(f.root, 'gone', 'node.exe')}\r\n`);
+    const local = path.join(f.root, 'Local', 'nvm', 'v1', 'node.exe');
+    const roaming = path.join(f.root, 'Roaming', 'nvm', 'v9', 'node.exe');
+    for (const n of [local, roaming]) {
+      fs.mkdirSync(path.dirname(n), { recursive: true });
+      fs.copyFileSync(process.execPath, n);
+    }
+    const out = spawnSync(process.env.ComSpec ?? `${sys}\\System32\\cmd.exe`, ['/d', '/c', f.launcher], {
+      env: {
+        SystemRoot: sys,
+        USERPROFILE: f.root,
+        LOCALAPPDATA: path.join(f.root, 'Local'),
+        APPDATA: path.join(f.root, 'Roaming'),
+        PATH: `${sys}\\System32`,
+      },
+      encoding: 'utf8',
+    });
+    expect({ status: out.status, stderr: out.stderr }).toMatchObject({ status: 0 });
+    expect(fs.readFileSync(path.join(f.home, 'runtime', 'node'), 'utf8').trim()).toBe(local);
   });
 });

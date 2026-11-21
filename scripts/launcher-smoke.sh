@@ -165,7 +165,7 @@ const [mode, childPath, input, ...rest] = process.argv.slice(2);
 const [home, calls, settings, outFile, errFile] = process.env.LS_FILES.split('|');
 const win = process.platform === 'win32';
 const words = () => {
-  const line = fs.readFileSync(calls, 'utf8').split(/\r?\n/).find((l) => l.includes('mcp add'));
+  const line = fs.readFileSync(calls, 'utf8').replace(/"/g, '').split(/\r?\n/).find((l) => l.includes('mcp add'));
   return line.slice(line.indexOf(' -- ') + 4).replace(/"/g, '').trim().split(' ');
 };
 const env = win

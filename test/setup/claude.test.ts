@@ -159,7 +159,7 @@ test('setup updates an old managed skill', async () => {
 test('non-TTY without --yes prints the plan and exits 1', async () => {
   const io = makeIo({ isTTY: false });
   expect(await setupClaude(io, { uninstall: false, yes: false, hook: false })).toBe(1);
-  expect(out.join('\n')).toContain(`claude mcp add --scope user gournal -- ${LAUNCHER()} mcp`);
+  expect(out.join('\n')).toContain(`claude mcp add --scope user gournal -- ${shellQuote(LAUNCHER())} mcp`);
   expect(calls).toEqual([]);
   expect(fs.existsSync(path.join(home, '.claude'))).toBe(false);
   expect(err.join('\n')).toContain('--yes');
@@ -185,7 +185,7 @@ test('--yes without --hook does not touch settings', async () => {
 
 test('claude CLI missing prints the manual command, still installs the skill, and exits 1', async () => {
   expect(await run({}, makeIo({ exec: fakeExec(127) }))).toBe(1);
-  expect(out.join('\n')).toContain(`claude mcp add --scope user gournal -- ${LAUNCHER()} mcp`);
+  expect(out.join('\n')).toContain(`claude mcp add --scope user gournal -- ${shellQuote(LAUNCHER())} mcp`);
   expect(fs.readFileSync(skillFile(), 'utf8')).toBe(SKILL_MD);
 });
 
@@ -993,7 +993,7 @@ describe('the launcher registration', () => {
     expect(await setupClaude(io, { uninstall: false, yes: false, hook: false })).toBe(1);
     const text = out.join('\n');
     expect(text).toContain(`  1. Install the launcher ${LAUNCHER()} and a copy of gournal in ${path.join(h.gh, 'runtime')}`);
-    expect(text).toContain(`  2. Register the MCP server: claude mcp add --scope user gournal -- ${LAUNCHER()} mcp`);
+    expect(text).toContain(`  2. Register the MCP server: claude mcp add --scope user gournal -- ${shellQuote(LAUNCHER())} mcp`);
     expect(text).toContain(`  4. Optional, with --hook: add a Stop hook to ${settingsFile()}: ${HOOK()}`);
     out.length = 0;
     await setupClaude(io, { uninstall: true, yes: false, hook: false });
