@@ -5,6 +5,8 @@ class Gournal < Formula
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license "MIT"
 
+  include Language::Node::Shebang
+
   depends_on "node"
 
   def install
