@@ -1,10 +1,23 @@
 // The one place for adapter-level entry changes. Bulk import writes through storage.
 // The repository keeps `cleanSummary` as a guard, so a bad summary never reaches the database.
 // Write notes are facts about a write that did not stop it. write-note-text.ts holds their shared wording.
-import { canResolve, checkSummary, closeTags, noEntryMessage, normalizeTags, NOT_RESOLVABLE } from '../core';
+import { canResolve, checkSummary, closeTags, firstLine, noEntryMessage, normalizeTags, NOT_RESOLVABLE } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref, RepoIdentity, Source } from '../core';
 import type { Journal } from '../storage';
-import { relinkAfterWrite } from './sync';
+
+let relinkWarned = false;
+
+/** Call after the entry write has committed. Never throws. On failure it writes one stderr warning per process. */
+export function relinkAfterWrite(journal: Pick<Journal, 'activity'>, entryIds: string[]): void {
+  if (entryIds.length === 0) return;
+  try {
+    journal.activity.relinkEntries(entryIds);
+  } catch (err) {
+    if (relinkWarned) return;
+    relinkWarned = true;
+    try { process.stderr.write(`gournal: relink after write failed (${firstLine(err instanceof Error ? err.message : String(err))})\n`); } catch { /* ignore */ }
+  }
+}
 
 export const RETRY_WINDOW_MS = 10 * 60 * 1000;
 const RETRY_PREFIX = 60;

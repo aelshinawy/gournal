@@ -1,6 +1,6 @@
 import { openJournal, type Journal } from '../../src/storage/journal';
 import {
-  RETRY_WINDOW_MS, createEntryWriter, type AddInput, type EntryWriter, type EntryWriterOptions,
+  RETRY_WINDOW_MS, createEntryWriter, relinkAfterWrite, type AddInput, type EntryWriter, type EntryWriterOptions,
 } from '../../src/adapters/entry-writer';
 import { NOT_RESOLVABLE, type NewEntryInput } from '../../src/core';
 import { makeTmp, rmTmp } from '../helpers/tmp';
@@ -263,5 +263,16 @@ describe('undo', () => {
     expect(w.undo()?.summary).toBe('second');
     expect(w.undo()?.summary).toBe('first');
     expect(w.undo()).toBeNull();
+  });
+});
+
+describe('relinkAfterWrite', () => {
+  test('it never throws and warns once per process', () => {
+    const write = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const broken = { activity: { relinkEntries: () => { throw new Error('boom'); } } } as unknown as Journal;
+    expect(() => relinkAfterWrite(broken, ['a'])).not.toThrow();
+    expect(() => relinkAfterWrite(broken, ['b'])).not.toThrow();
+    const warnings = write.mock.calls.filter((c) => String(c[0]).includes('relink'));
+    expect(warnings.length).toBeLessThanOrEqual(1);
   });
 });
