@@ -7,7 +7,7 @@
 # Usage: GOURNAL_ALLOW_BREW=1 sh scripts/homebrew-smoke.sh
 #
 # The script installs a formula into the brew of this machine. It refuses to run unless
-# CI=true or GOURNAL_ALLOW_BREW=1. It sets HOME to a temporary folder, refuses the real
+# GITHUB_ACTIONS=true or GOURNAL_ALLOW_BREW=1. It sets HOME to a temporary folder, refuses the real
 # home and the real ~/.gournal, and removes the formula, the tap, and the folder on exit.
 # It does not set GOURNAL_HOME, so the default home is used inside the temporary folder.
 
@@ -100,8 +100,8 @@ sed -e "s|^  url \".*\"|  url \"file://$tmp/pack/$tarball\"|" \
 grep -q -F "file://$tmp/pack/$tarball" "$formula_dir/gournal.rb" || fail "the formula url was not replaced"
 
 echo "homebrew-smoke: brew install"
-brew install --formula "$tap/gournal"
 installed=1
+brew install --formula "$tap/gournal"
 echo "homebrew-smoke: brew test"
 brew test "$tap/gournal"
 
@@ -337,8 +337,8 @@ formula_for() {
       packaging/homebrew/gournal.rb >"$formula_dir/gournal.rb"
 }
 formula_for 0.0.1
-brew install --formula "$tap/gournal"
 installed=1
+brew install --formula "$tap/gournal"
 extra_path="$prefix/bin"
 status=0
 run_setup "$brew_bin" --yes --hook || status=$?
