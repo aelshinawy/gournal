@@ -83,12 +83,12 @@ Claude Code starts a server with the `PATH` of the app that started it. A deskto
 3. Claude Code starts the launcher. It does not start the `gournal` command on your `PATH`.
 4. The launcher looks for Node.js 22.13 or newer each time it runs. On macOS and Linux, it uses only absolute folders of the `PATH`. On Windows, it runs `where node` and skips every result under the current folder.
 
-The launcher tries these places in order on macOS and Linux. Steps 1, 2, 3, and 5 use the first Node.js that works. Step 4 is different.
+The launcher tries these places in order on macOS and Linux. Each step uses the first Node.js that works. In step 4, the first folder with a Node.js that works wins, and the last name in that folder wins.
 
 1. The Node.js that worked last. Setup records the Node.js that ran it, and the launcher updates the record when it picks another one.
 2. `node` on the `PATH` of Claude Code.
 3. The `aliases/default` folder of fnm, then the `bin` folder of Volta.
-4. The folders of versions, in this order: nvm, fnm, Volta, asdf, mise, nodenv, n, and the Homebrew `node@NN` formulas. The launcher tests all of them. The last one that works wins. Inside one folder, the last name in text sort order wins, so `v24.9.0` wins over `v24.10.0`.
+4. The folders of versions, in this order: nvm, fnm, Volta, asdf, mise, nodenv, n, and the Homebrew `node@NN` formulas. The launcher goes through them in this order. The first folder that holds a Node.js that works wins. Inside that folder, the last name in text sort order wins, so `v24.9.0` wins over `v24.10.0`.
 5. The Homebrew `opt/node` and `bin` folders of `/opt/homebrew`, `/usr/local`, and `/home/linuxbrew/.linuxbrew`, then `/usr/bin`, then `/snap/bin`.
 
 On Windows, the launcher uses this order:
@@ -96,7 +96,7 @@ On Windows, the launcher uses this order:
 1. The Node.js that worked last.
 2. `node` from `where node`.
 3. `%NVM_SYMLINK%`, then `%ProgramFiles%\nodejs`, then the default alias of fnm, then Volta, then Scoop. The first one that works wins.
-4. The folders of versions: nvm-windows, fnm, Volta. The last one that works wins. Inside one folder, the last name in text sort order wins.
+4. The folders of versions: nvm-windows, fnm, Volta. The first folder that holds a Node.js that works wins. Inside that folder, the last name in text sort order wins.
 
 These changes do not break the launcher:
 
