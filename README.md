@@ -42,6 +42,8 @@ npm install -g gournal
 gournal --version
 ```
 
+With Homebrew (macOS and Linux), run `brew install aelshinawy/tap/gournal`. Do not use npm and Homebrew together.
+
 Gournal prints its version number. Gournal supports macOS, Linux, and Windows (x64). Keep your journal on a local disk. See [Install](https://gournal.aelshinawy.com/docs/start-here/install/) for the requirements and the limits on each system.
 
 Stuck? If your shell says `command not found`, your global npm folder is not on your `PATH`. Run `npm config get prefix` and add its `bin` folder to your `PATH`. See [Troubleshooting](https://gournal.aelshinawy.com/docs/resources/troubleshooting/) for more.
@@ -141,7 +143,7 @@ Sign in to the GitHub CLI once with `gh auth login`. Then run `gournal sync`. Go
 
 ## Update and uninstall
 
-To update, run `npm install -g gournal` again.
+To update, run `npm install -g gournal` again. With Homebrew, run `brew upgrade gournal`.
 
 To uninstall, run these commands in this order:
 
@@ -149,6 +151,8 @@ To uninstall, run these commands in this order:
 gournal setup claude --uninstall
 npm uninstall -g gournal
 ```
+
+With Homebrew, run `brew uninstall gournal` as the second command.
 
 Both commands keep your journal. It lives in `~/.gournal`. See [Data safety and backups](https://gournal.aelshinawy.com/docs/guides/data-safety-and-backups/) before you delete that folder.
 

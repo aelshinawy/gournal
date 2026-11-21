@@ -107,6 +107,8 @@ These changes do not break the launcher:
 
 After you run `npm install -g gournal` for a newer version, the next `gournal` command updates the copy in `~/.gournal/runtime`. Only a package under `node_modules` updates the copy. The `mcp` and `hook` commands never update it. Run `gournal setup claude` again when you want to check the setup.
 
+A Homebrew install also uses the launcher. The launcher runs gournal from `/opt/homebrew/opt/gournal` with `/opt/homebrew/opt/node/bin/node`. On Intel Macs, the folder is `/usr/local`. On Linux, it is `/home/linuxbrew/.linuxbrew`. These paths follow `brew upgrade` and do not need your `PATH`. When you change from npm to Homebrew, run `gournal setup claude` with the new one. For the Homebrew commands, see [Install](/docs/start-here/install/#with-homebrew).
+
 If you set `GOURNAL_HOME` when you run setup, the gournal home is that folder, and the launcher keeps it. A `GOURNAL_HOME` that Claude Code passes at run time overrides it. Run undo with the same `GOURNAL_HOME` as the install. Undo removes the two launcher files and the `runtime` folder. It removes the `bin` folder only when the folder is empty.
 
 If Claude Code cannot start gournal, see [Claude Code cannot start gournal](/docs/resources/troubleshooting/#claude-code-cannot-start-gournal).
