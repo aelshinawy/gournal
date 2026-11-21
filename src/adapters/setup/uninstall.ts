@@ -7,44 +7,35 @@ import { readSettings, readRegistration, writeSettingsFile } from './claude-file
 import { removeRuntime } from './runtime';
 import type { SetupCtx } from './claude';
 
-/** `pinned`: a registration that starts the launcher is still there. `foreign`: ownedOnly kept a registration of another home or tool. */
-interface McpResult { pinned: boolean; foreign: boolean }
-
-async function mcpStep(ctx: SetupCtx): Promise<McpResult> {
+/** Returns true when a registration that starts the launcher is still there. */
+async function mcpStep(ctx: SetupCtx): Promise<boolean> {
   const { io } = ctx;
-  const none: McpResult = { pinned: false, foreign: false };
   const reg = readRegistration(ctx.claudeJson);
   if (reg === null) {
     io.out('MCP server: not set up.');
-    return none;
+    return false;
   }
   const kind = classifyRegistration(reg, { command: ctx.prefix.command, args: ctx.serverArgs });
-  if (ctx.opts.ownedOnly && kind !== 'current') {
-    io.out(`MCP server: gournal is registered as "${ctx.shown(reg.command, reg.args)}", not as the launcher of this gournal home. Kept.`);
-    return { pinned: false, foreign: true };
-  }
   io.out(`MCP server: remove the gournal registration (claude ${ctx.removeArgs.join(' ')}).`);
   if (!(await ctx.ask('Remove the gournal MCP registration?', true))) {
     io.out('MCP server: kept.');
-    return { pinned: kind === 'current', foreign: false };
+    return kind === 'current';
   }
   const res = await ctx.runClaude(ctx.removeArgs);
   if (res === 'ok') {
     io.out('MCP server: removed.');
-    return none;
+    return false;
   }
   if (res === 'missing') {
     io.out(`MCP server: the claude CLI was not found on PATH. Run this command yourself:\n  claude ${ctx.removeArgs.join(' ')}`);
   }
   ctx.status = 1; // The registration is still there. Do not exit 0.
-  return { pinned: kind === 'current', foreign: false };
+  return kind === 'current';
 }
 
-async function skillStep(ctx: SetupCtx, keepShared: boolean): Promise<void> {
+async function skillStep(ctx: SetupCtx): Promise<void> {
   const { io, skillFile } = ctx;
   if (!fs.existsSync(skillFile)) return void io.out('Skill: not set up.');
-  // One skill file serves every gournal home. Another registration still needs it.
-  if (keepShared) return void io.out(`Skill: ${skillFile} stays, because another gournal registration is still set up.`);
   if (!fs.readFileSync(skillFile, 'utf8').includes(SKILL_MARKER)) {
     return void io.out(`Skill: ${skillFile} was not written by gournal. Left alone.`);
   }
@@ -65,8 +56,7 @@ async function hookStep(ctx: SetupCtx): Promise<'done' | 'kept' | 'invalid'> {
     ctx.status = 1;
     return 'invalid';
   }
-  // ownedOnly removes only the hook entry that equals the hook of this gournal home.
-  const { next, changed } = removeStopHook(read.settings, ctx.hook, ctx.opts.ownedOnly === true);
+  const { next, changed } = removeStopHook(read.settings, ctx.hook);
   if (!changed) {
     io.out('Stop hook: not set up.');
     return 'done';
@@ -98,9 +88,8 @@ async function launcherStep(ctx: SetupCtx, reasons: string[]): Promise<void> {
 
 export async function uninstallFlow(ctx: SetupCtx): Promise<void> {
   const reasons: string[] = [];
-  const mcp = await mcpStep(ctx);
-  if (mcp.pinned) reasons.push('the MCP registration still starts it');
-  await skillStep(ctx, mcp.foreign);
+  if (await mcpStep(ctx)) reasons.push('the MCP registration still starts it');
+  await skillStep(ctx);
   const hook = await hookStep(ctx);
   if (hook === 'kept') reasons.push('the Stop hook still starts it');
   if (hook === 'invalid') reasons.push(`${ctx.settingsFile} is not valid JSON and may hold a hook that starts it`);

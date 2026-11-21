@@ -9,7 +9,7 @@ import { shellQuote } from './command';
  */
 export interface NodeCandidates { files: string[]; globs: string[]; system: string[] }
 
-export const POSIX_CANDIDATES: NodeCandidates = {
+const POSIX_CANDIDATES: NodeCandidates = {
   files: [
     '${FNM_DIR:+"$FNM_DIR/aliases/default/bin/node"}',
     '"${XDG_DATA_HOME:-$HOME/.local/share}/fnm/aliases/default/bin/node"',
@@ -45,18 +45,6 @@ export const POSIX_CANDIDATES: NodeCandidates = {
     '/usr/bin/node',
     '/snap/bin/node',
   ],
-};
-
-/** One folder token per Node install family. A test compares these names with findOtherInstall. */
-export const INSTALL_FAMILIES: Record<'nvm' | 'fnm' | 'volta' | 'asdf' | 'mise' | 'nodenv' | 'n' | 'homebrew', string> = {
-  nvm: '.nvm',
-  fnm: 'fnm',
-  volta: '.volta',
-  asdf: '.asdf',
-  mise: 'mise',
-  nodenv: '.nodenv',
-  n: '/n/versions',
-  homebrew: 'opt/node',
 };
 
 /** Characters that cmd.exe reads as syntax even inside the launcher path. */

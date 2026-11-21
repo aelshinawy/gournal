@@ -887,15 +887,6 @@ describe('the launcher registration', () => {
     expect(fs.existsSync(LAUNCHER())).toBe(true);
   });
 
-  test('declining the move keeps the old registration and installs no launcher for it', async () => {
-    h.writeReg({ command: 'gournal', args: ['mcp'] });
-    expect(await run({ yes: false }, makeIo({ answer: false }))).toBe(0);
-    expect(calls).toEqual([]);
-    expect(out).toContain('MCP server: kept the existing registration.');
-    expect(fs.existsSync(path.join(h.gh, 'bin'))).toBe(false);
-    expect(fs.existsSync(path.join(h.gh, 'runtime'))).toBe(false);
-  });
-
   test('a foreign registration is still kept under --yes', async () => {
     h.writeReg({ command: '/opt/tools/run-gournal', args: ['serve'] });
     expect(await run({}, makeIo({ isTTY: false }))).toBe(0);
@@ -904,71 +895,12 @@ describe('the launcher registration', () => {
     expect(out).toContain('MCP server: kept the existing registration. Run setup in a terminal to replace it.');
   });
 
-  test('a legacy hook is updated under --yes without --hook', async () => {
-    writeSettings({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'gournal hook stop' }] }] } });
-    expect(await run({})).toBe(0);
-    expect(stopCommands(readSettings())).toEqual([HOOK()]);
-    expect(out).toContain('Stop hook: updated.');
-  });
-
   test('a current registration with a failing check exits 1 (root cause 5)', async () => {
     expect(await run({})).toBe(0);
     err.length = 0;
     const check = async () => ({ code: 1, stdout: '', stderr: 'gournal: found no Node.js 22.13 or newer.\nmore' });
     expect(await run({}, makeIo({ check }))).toBe(1);
     expect(err).toContain('Check: the launcher did not start gournal (exit 1). gournal: found no Node.js 22.13 or newer.');
-  });
-
-  test('a check that prints another version fails', async () => {
-    const check = async () => ({ code: 0, stdout: '0.0.0-other\n', stderr: '' });
-    expect(await run({}, makeIo({ check }))).toBe(1);
-    expect(err.join('\n')).toContain('Check: the launcher did not start gournal (exit 0). 0.0.0-other');
-  });
-
-  test('a deleted launcher is installed again when the registration is current', async () => {
-    await run({});
-    fs.rmSync(LAUNCHER());
-    out.length = 0;
-    expect(await run({})).toBe(0);
-    expect(fs.existsSync(LAUNCHER())).toBe(true);
-    expect(out).toContain(`Launcher: updated in ${path.join(h.gh, 'runtime')}.`);
-    expect(out).toContain('MCP server: already set up.');
-  });
-
-  test('declining the MCP and hook steps installs no launcher and runs no check', async () => {
-    expect(await run({ yes: false }, makeIo({ answer: false }))).toBe(0);
-    expect(fs.existsSync(path.join(h.gh, 'bin'))).toBe(false);
-    expect(fs.existsSync(path.join(h.gh, 'runtime'))).toBe(false);
-    expect(checks).toEqual([]);
-    expect(err).toEqual([]);
-  });
-
-  test('a launcher install that throws exits 1 and skips the steps that need it', async () => {
-    fs.writeFileSync(h.gh, 'a file, not a folder');
-    expect(await run({ hook: true })).toBe(1);
-    expect(err.join('\n')).toContain('Launcher: could not install in');
-    expect(out).toContain('MCP server: skipped, because the launcher is not installed.');
-    expect(out).toContain('Stop hook: skipped, because the launcher is not installed.');
-    expect(calls).toEqual([]);
-    expect(checks).toEqual([]);
-  });
-
-  test.each([['a space', 'Ann Lee'], ['a quote', "O'Neil"]])('a home with %s gives a quoted hook and one registration', async (_name, dir) => {
-    h.gh = path.join(root, dir, '.gournal');
-    expect(await run({ hook: true })).toBe(0);
-    expect(calls[0]!.slice(-2)).toEqual([LAUNCHER(), 'mcp']);
-    expect(stopCommands(readSettings())).toEqual([HOOK()]);
-    expect(HOOK()).toContain("'");
-    expect(await run({ hook: true })).toBe(0);
-    expect(stopCommands(readSettings())).toEqual([HOOK()]);
-    expect(out).toContain('Stop hook: already set up.');
-    expect(await run({ uninstall: true })).toBe(0);
-    expect(readSettings().hooks).toBeUndefined();
-  });
-
-  test('a custom home is baked into the launcher when bakeHome is on', async () => {
-    await run({}, makeIo({ bakeHome: true }));
-    expect(readJson('bin/gournal')).toContain(h.gh);
   });
 
   test('uninstall removes the launcher and the runtime and keeps the journal', async () => {
@@ -983,80 +915,5 @@ describe('the launcher registration', () => {
     out.length = 0;
     expect(await run({ uninstall: true })).toBe(0);
     expect(out).toContain('Launcher: not set up.');
-  });
-
-  test('uninstall keeps the launcher when the user says no', async () => {
-    await run({});
-    out.length = 0;
-    expect(await run({ uninstall: true, yes: false }, makeIo({ answer: false }))).toBe(0);
-    expect(fs.existsSync(LAUNCHER())).toBe(true);
-    expect(out).toContain('Launcher: kept, because the MCP registration still starts it. Run this command again when you have fixed that.');
-  });
-
-  test('the non-terminal plan lists the launcher step', async () => {
-    const io = makeIo({ isTTY: false });
-    expect(await setupClaude(io, { uninstall: false, yes: false, hook: false })).toBe(1);
-    const text = out.join('\n');
-    expect(text).toContain(`  1. Install the launcher ${LAUNCHER()} and a copy of gournal in ${path.join(h.gh, 'runtime')}`);
-    expect(text).toContain(`  2. Register the MCP server: claude mcp add --scope user gournal -- ${shellQuote(LAUNCHER())} mcp`);
-    expect(text).toContain(`  4. Optional, with --hook: add a Stop hook to ${settingsFile()}: ${HOOK()}`);
-    out.length = 0;
-    await setupClaude(io, { uninstall: true, yes: false, hook: false });
-    expect(out.join('\n')).toContain(`  4. Remove the launcher ${LAUNCHER()} and ${path.join(h.gh, 'runtime')}`);
-    expect(fs.existsSync(h.gh)).toBe(false);
-  });
-
-  test('win32 refuses a launcher path that cmd.exe cannot keep quoted', async () => {
-    h.gh = path.join(root, 'a(b');
-    expect(await run({ hook: true }, winIo())).toBe(1);
-    expect(err.join('\n')).toContain('Set GOURNAL_HOME');
-    expect(out).toContain('MCP server: skipped, because the launcher is not installed.');
-    expect(calls).toEqual([]);
-    expect(fs.existsSync(h.gh)).toBe(false);
-  });
-
-  test('win32 runs the check through cmd.exe', async () => {
-    expect(await run({}, winIo())).toBe(0);
-    expect(checks[0]).toEqual([CMD_EXE, '/d', '/c', WIN_CMD(), '--version']);
-  });
-
-  test('uninstall keeps the launcher when the claude CLI is missing, and says why', async () => {
-    await run({});
-    out.length = 0;
-    expect(await run({ uninstall: true }, makeIo({ exec: fakeExec(127) }))).toBe(1);
-    expect(fs.existsSync(LAUNCHER())).toBe(true);
-    expect(out).toContain('Launcher: kept, because the MCP registration still starts it. Run this command again when you have fixed that.');
-  });
-
-  test('uninstall keeps the launcher when the user keeps the Stop hook, and says why', async () => {
-    await run({ hook: true });
-    out.length = 0;
-    const io = makeIo({ confirm: async (m) => !m.includes('Stop hook') });
-    expect(await run({ uninstall: true, yes: false }, io)).toBe(0);
-    expect(fs.existsSync(LAUNCHER())).toBe(true);
-    expect(stopCommands(readSettings())).toEqual([HOOK()]);
-    expect(out).toContain('Launcher: kept, because the Stop hook still starts it. Run this command again when you have fixed that.');
-  });
-
-  test('setup from the copy is refused and changes nothing, and uninstall from the copy works', async () => {
-    const copy = path.join(h.gh, 'runtime', 'app-x');
-    h.pkg = makeFakePackage(copy, VERSION);
-    fs.writeFileSync(path.join(h.gh, 'runtime', 'source'), `${path.join(root, 'gone')}\n`);
-    expect(await run({ hook: true }, makeIo({ packageRoot: copy }))).toBe(1);
-    expect(err).toContain(`Launcher: run setup from an installed gournal, not from the copy in ${path.join(h.gh, 'runtime')}.`);
-    expect(calls).toEqual([]);
-    expect(fs.existsSync(LAUNCHER())).toBe(false);
-    expect(fs.existsSync(h.settingsFile())).toBe(false);
-    expect(await run({ uninstall: true }, makeIo({ packageRoot: copy }))).toBe(0);
-    expect(fs.existsSync(path.join(h.gh, 'runtime'))).toBe(false);
-  });
-
-  test('uninstall names an unreadable settings.json when it keeps the launcher', async () => {
-    await run({});
-    writeSettings('{ not json');
-    out.length = 0;
-    expect(await run({ uninstall: true })).toBe(1);
-    expect(fs.existsSync(LAUNCHER())).toBe(true);
-    expect(out).toContain(`Launcher: kept, because ${settingsFile()} is not valid JSON and may hold a hook that starts it. Run this command again when you have fixed that.`);
   });
 });

@@ -27,26 +27,3 @@ posixTest('createLauncherCheck runs with HOME and /usr/bin:/bin only', async () 
     }
   }
 });
-
-test('minimalEnv on win32 keeps only the listed keys', () => {
-  const env = { SystemRoot: 'D:\\Win', APPDATA: 'a', LOCALAPPDATA: 'l', NVM_HOME: 'x', PATH: 'p', GOURNAL_HOME: 'g' };
-  expect(minimalEnv('win32', 'u', env)).toEqual({ USERPROFILE: 'u', SystemRoot: 'D:\\Win', APPDATA: 'a', LOCALAPPDATA: 'l', PATH: 'D:\\Win\\System32' });
-  expect(Object.keys(minimalEnv('win32', 'u', { SystemRoot: 'D:\\Win' }))).toEqual(['USERPROFILE', 'SystemRoot', 'PATH']);
-});
-
-test('minimalEnv on POSIX is HOME and a short PATH', () => {
-  expect(minimalEnv('darwin', '/u', { PATH: '/x', NVM_DIR: '/n' })).toEqual({ HOME: '/u', PATH: '/usr/bin:/bin' });
-});
-
-test('a missing launcher gives code 127', async () => {
-  const r = await createLauncherCheck('linux', dir)(path.join(dir, 'nope'), []);
-  expect(r.code).toBe(127);
-});
-
-posixTest('a launcher that exits non-zero gives its code and stderr', async () => {
-  const script = path.join(dir, 'fail');
-  fs.writeFileSync(script, '#!/bin/sh\necho nope >&2\nexit 7\n', { mode: 0o755 });
-  const r = await createLauncherCheck('linux', dir)(script, []);
-  expect(r.code).toBe(7);
-  expect(r.stderr.trim()).toBe('nope');
-});

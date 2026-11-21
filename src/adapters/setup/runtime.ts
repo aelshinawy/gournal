@@ -1,12 +1,12 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { ensurePrivateDir, isDefaultHome, writeViaTemp } from '../../storage';
+import { ensurePrivateDir, writeViaTemp } from '../../storage';
 import { renderPosixLauncher } from './launcher';
 import { renderWindowsLauncher } from './launcher-windows';
 import { PACKAGE_ROOT, copyPackage, packageFingerprint } from './package-copy';
 import { detectHomebrew } from './homebrew';
-import { sourceRecords, writeRecords, type SourceRecords } from './source';
+import { readText, sourceRecords, writeRecords, type SourceRecords } from './source';
 
 export interface RuntimePaths { home: string; binDir: string; launcher: string; runtimeDir: string; currentFile: string; nodeFile: string }
 export type InstallAction = 'installed' | 'updated' | 'unchanged';
@@ -26,14 +26,6 @@ export function runtimePaths(gournalHome: string, platform: NodeJS.Platform): Ru
     currentFile: path.join(runtimeDir, 'current'),
     nodeFile: path.join(runtimeDir, 'node'),
   };
-}
-
-function readText(file: string): string | null {
-  try {
-    return fs.readFileSync(file, 'utf8');
-  } catch {
-    return null;
-  }
 }
 
 /** Write a file when its content differs. Returns true when it wrote. */
@@ -134,51 +126,16 @@ export function removeRuntime(gournalHome: string, platform: NodeJS.Platform): b
   return removed;
 }
 
-function newer(a: string, b: string): boolean {
-  const x = a.split('.').map((n) => parseInt(n, 10) || 0);
-  const y = b.split('.').map((n) => parseInt(n, 10) || 0);
-  for (let i = 0; i < 3; i++) {
-    if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0);
-  }
-  return false;
-}
-
-/** Copy the installed package into the runtime when it is newer than the current app. Does nothing without a runtime or from a checkout. */
-export function refreshRuntime(gournalHome: string, o: { packageRoot?: string; platform?: NodeJS.Platform } = {}): boolean {
-  const platform = o.platform ?? process.platform;
+/**
+ * When the recorded source is gone and this run is an installed package, record this package as the source.
+ * A reinstall under another Node.js version then counts as installed.
+ */
+export function adoptInstalledPackage(gournalHome: string, o: { packageRoot?: string; platform?: NodeJS.Platform } = {}): void {
   const packageRoot = o.packageRoot ?? PACKAGE_ROOT;
-  const paths = runtimePaths(gournalHome, platform);
-  const current = readText(paths.currentFile)?.trim();
-  if (!current) return false;
-  // Only an installed package refreshes the runtime. A checkout (also one linked by npm link) never does.
-  const real = fs.realpathSync(packageRoot);
-  if (!real.split(path.sep).includes('node_modules')) return false;
-  // A newer gournal of another channel or another Node.js version never changes the copy or the records.
-  // Only "gournal setup claude" changes the channel.
-  const recorded = readText(path.join(paths.runtimeDir, 'source'))?.trim();
-  if (recorded) {
-    try {
-      if (fs.realpathSync(recorded) !== real) return false;
-    } catch {
-      return false;
-    }
-  }
-  // A current app that is missing or corrupt counts as version 0, so the refresh copies the package again.
-  let have = '0.0.0';
-  try {
-    have = (JSON.parse(fs.readFileSync(path.join(paths.runtimeDir, current, 'package.json'), 'utf8')) as { version: string }).version;
-  } catch {
-    // Self-heal below.
-  }
-  const source = (JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8')) as { version: string }).version;
-  if (!newer(source, have)) return false;
-  // Without a node record, the Node.js that runs this command is the best record. It passed the guard.
-  const nodePath = (readText(paths.nodeFile) ?? '').trim() || process.execPath;
-  installRuntime({ gournalHome, packageRoot, nodePath, platform, bakeHome: !isDefaultHome(gournalHome) });
-  return true;
-}
-
-/** The hook and the MCP server start often and must stay fast, so they never refresh. */
-export function shouldRefresh(argv: string[]): boolean {
-  return argv[2] !== 'mcp' && argv[2] !== 'hook';
+  const platform = o.platform ?? process.platform;
+  const { runtimeDir } = runtimePaths(gournalHome, platform);
+  const recorded = readText(path.join(runtimeDir, 'source'))?.trim();
+  if (!recorded || fs.existsSync(path.join(recorded, 'dist', 'cli.js'))) return;
+  if (!fs.realpathSync(packageRoot).split(path.sep).includes('node_modules')) return;
+  writeRecords(runtimeDir, sourceRecords(packageRoot, detectHomebrew(packageRoot, platform)));
 }

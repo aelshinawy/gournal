@@ -1,9 +1,8 @@
-import path from 'path';
 import { Command, CommanderError } from 'commander';
 import { red } from '../../render';
 import { VERSION } from '../version';
-import { gournalHome, userHomePath } from '../../storage';
-import { PACKAGE_ROOT, execFileRunner, homeAsSpelled, installGate, refreshRuntime, selfCleanup, shouldRefresh, type GateResult } from '../setup';
+import { gournalHome } from '../../storage';
+import { PACKAGE_ROOT, adoptInstalledPackage, installGate, type GateResult } from '../setup';
 import { createCliContext, type CliIo, type RegisterCommand } from './context';
 import { registerAdd, registerClear, registerUndo, registerRestore, registerResolve, registerTags, registerProjects, registerFind } from './entries';
 import { registerStandup, registerLog, registerStats, registerExport } from './reports';
@@ -54,8 +53,6 @@ export function buildProgram(io: CliIo): Command {
   return program;
 }
 
-const defaultRefresh = (home: string): void => { refreshRuntime(home); };
-
 export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<number> {
   const full: CliIo = {
     out: io.out ?? ((text) => { process.stdout.write(`${text}\n`); }),
@@ -72,11 +69,8 @@ export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<n
       argv,
       packageRoot: io.packageRoot ?? PACKAGE_ROOT,
       gournalHome: full.home,
-      userHome: io.userHome ?? userHomePath(),
       now: (io.now ?? (() => new Date()))(),
-      env: process.env,
       platform: process.platform,
-      find: io.gateFind,
     });
   } catch {
     // The gate never stops a command by failing. Run it.
@@ -86,19 +80,11 @@ export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<n
     full.err(gate.message);
     return gate.code;
   }
-  if (gate.kind === 'cleanup') {
-    // The gate returns this only in copy mode: <copyHome>/runtime/<app>.
-    const copyHome = homeAsSpelled(path.dirname(path.dirname(io.packageRoot ?? PACKAGE_ROOT)), full.home);
-    await selfCleanup({ copyHome, userHome: io.userHome ?? userHomePath(), platform: process.platform, exec: io.exec ?? execFileRunner });
-    return 0;
-  }
   if (gate.notice) full.err(gate.notice);
-  if (shouldRefresh(argv)) {
-    try {
-      (io.runtimeRefresh ?? defaultRefresh)(full.home);
-    } catch {
-      // Setup reports runtime problems. A refresh never fails the command.
-    }
+  try {
+    adoptInstalledPackage(full.home, { packageRoot: io.packageRoot });
+  } catch {
+    // Adoption is best effort. It never fails a command.
   }
   try {
     await buildProgram(full).parseAsync(argv);

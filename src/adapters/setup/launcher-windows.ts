@@ -1,6 +1,6 @@
 import { FLOOR_TEXT, probeSource, type NodeCandidates } from './launcher';
 
-export const WINDOWS_CANDIDATES: NodeCandidates = {
+const WINDOWS_CANDIDATES: NodeCandidates = {
   files: [
     '"%NVM_SYMLINK%\\node.exe"',
     '"%ProgramFiles%\\nodejs\\node.exe"',
@@ -65,14 +65,6 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     `set "MSG=${noNode}"`,
     'if exist "%GH%\\runtime\\node" set /p REC=<"%GH%\\runtime\\node"',
     'if defined REC call :try "%REC%"',
-    // where.exe searches the current folder first, and it turns a relative PATH entry into an
-    // absolute path. :trywhere skips every result under the current folder.
-    // %CD% and where.exe can spell one folder two ways (8.3 RUNNER~1 against runneradmin). Both sides
-    // go through the short-name form (~fs), so the strings match. When a volume has no 8.3 names, ~fs
-    // returns the long name on both sides, and the compare still holds.
-    'for %%C in (.) do set "CDP=%%~fsC"',
-    'if not "%CDP:~-1%"=="\\" set "CDP=%CDP%\\"',
-    `for /f "delims=" %%N in ('where node 2^>nul') do call :trywhere "%%N"`,
     ...c.files.map((f) => `${guard(f)}call :try ${f}`),
     ...c.globs.map((g) => `if not defined PICK if not defined GPICK ${guard(g)}for /d %%D in (${g}) do call :tryall "%%D\\${globLeaf(g)}"`),
     'if not defined PICK if defined GPICK set "PICK=%GPICK%"',
@@ -85,25 +77,6 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     'if /i "%FIRST%"=="hook" exit /b 0',
     '1>&2 echo gournal: %MSG%',
     'exit /b 1',
-    ':trywhere',
-    // where also lists node.cmd and node.bat. A batch file runs without "call" and ends this script. Only node.exe counts.
-    'if /i not "%~x1"==".exe" exit /b',
-    // Walk from the folder of the result up to the root. Every compare is a quoted string compare, so
-    // a folder name with = ^ % & ! ~ or a space cannot change the syntax.
-    'set "W=%~dps1"',
-    'if /i "%W%"=="%CDP%" exit /b',
-    // At a drive root every path is under the current folder, so only the root folder itself is skipped.
-    'if "%CDP:~3%"=="" goto :trywhere_go',
-    ':trywhere_up',
-    'for %%P in ("%W%..") do set "NW=%%~fsP"',
-    'if not "%NW:~-1%"=="\\" set "NW=%NW%\\"',
-    'if /i "%NW%"=="%W%" goto :trywhere_go',
-    'set "W=%NW%"',
-    'if /i "%W%"=="%CDP%" exit /b',
-    'goto :trywhere_up',
-    ':trywhere_go',
-    'call :try "%~1"',
-    'exit /b',
     ':try',
     'if defined PICK exit /b',
     'if "%~1"=="" exit /b',
