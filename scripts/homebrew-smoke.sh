@@ -282,6 +282,10 @@ silent_hook() {
 removed_at="$HOME/.gournal/runtime/removed-at"
 
 echo "homebrew-smoke: scenario 5, brew uninstall without --uninstall"
+# After brew uninstall autoremoves Homebrew node, a broken image node@NN can be the only node left.
+# The CI node on PATH gives scenarios 5 and 6 a known good node.
+post_path="$ci_node_dir:$min_path"
+gui() { env -i HOME="$HOME" PATH="$post_path" "$@"; }
 extra_path="$prefix/bin"
 status=0
 run_setup "$brew_bin" --yes --hook || status=$?
@@ -293,7 +297,7 @@ hook_cmd=$(node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1
 brew uninstall --formula "$tap/gournal"
 installed=0
 [ ! -e "$brew_cli" ] || fail "scenario 5: brew uninstall left $brew_cli"
-silent_hook "$min_path"
+silent_hook "$post_path"
 [ -f "$removed_at" ] || fail "scenario 5: the first hook after the uninstall did not write removed-at"
 actual=$(gui "$launcher" --version 2>"$tmp/grace.err")
 [ "$actual" = "$expected" ] || fail "scenario 5: version in the grace window is '$actual', expected '$expected'"
@@ -307,11 +311,11 @@ gui "$launcher" mcp </dev/null >"$tmp/gone.out" 2>"$tmp/gone.err" || mcp_status=
 [ ! -s "$tmp/gone.out" ] || fail "scenario 5: mcp wrote to stdout: $(cat "$tmp/gone.out")"
 [ "$(wc -l <"$tmp/gone.err" | tr -d ' ')" -eq 1 ] || fail "scenario 5: stderr after the grace window is not one line: $(cat "$tmp/gone.err")"
 grep -q 'setup claude --uninstall' "$tmp/gone.err" || fail "scenario 5: the no-longer-installed line is wrong: $(cat "$tmp/gone.err")"
-silent_hook "$min_path"
+silent_hook "$post_path"
 [ "$(cksum <"$settings")" = "$settings_before" ] || fail "scenario 5: the hook changed settings.json before the cleanup time"
 [ -d "$HOME/.gournal/runtime" ] || fail "scenario 5: the hook removed the runtime before the cleanup time"
 echo $(( $(date +%s) - 3600 )) >"$removed_at"
-silent_hook "$tmp/fakebin:$min_path"
+silent_hook "$tmp/fakebin:$post_path"
 [ "$(count hook "$settings")" = "0" ] || fail "scenario 5: the cleanup left the gournal hook"
 [ "$(count reg "$HOME/.claude.json")" = "0" ] || fail "scenario 5: the cleanup left the registration"
 grep -q '^mcp remove ' "$calls" || fail "scenario 5: the cleanup did not run claude mcp remove"
@@ -360,7 +364,7 @@ brew upgrade --formula "$tap/gournal" || upgrade_status=$?
 wait "$loop_pid" || true
 [ "$upgrade_status" -eq 0 ] || fail "scenario 6: brew upgrade exited with status $upgrade_status"
 [ ! -s "$p17/loop.log" ] || fail "P17: the rack folder $prefix/Cellar/gournal was gone during brew upgrade: $(wc -l <"$p17/loop.log" | tr -d ' ') samples"
-silent_hook "$min_path"
+silent_hook "$post_path"
 [ ! -e "$removed_at" ] || fail "scenario 6: removed-at exists after brew upgrade"
 actual=$(gui "$launcher" --version 2>"$tmp/upgrade.err")
 [ -z "$(cat "$tmp/upgrade.err")" ] || fail "scenario 6: stderr after brew upgrade: $(cat "$tmp/upgrade.err")"

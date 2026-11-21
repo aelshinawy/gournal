@@ -266,7 +266,7 @@ if [ "$windows" -eq 0 ]; then
   # The launcher walks the PATH before the nvm folders. A dev box whose /usr/bin/node passes the probe records that node.
   path_node=""
   for n in /usr/bin/node /bin/node; do
-    if [ -x "$n" ] && "$n" -e "$probe" </dev/null >/dev/null 2>&1; then path_node="$n"; fi
+    if [ -x "$n" ] && { "$n" -e "$probe" </dev/null >/dev/null 2>&1; } 2>/dev/null; then path_node="$n"; fi
   done
   if [ -z "$path_node" ]; then
     case "$recorded" in
@@ -308,7 +308,7 @@ else
     ' "$root/dist/adapters/setup/launcher.js" | sh)
     good=""
     while IFS= read -r n; do
-      if [ -f "$n" ] && [ -x "$n" ] && "$n" -e "$probe" </dev/null >/dev/null 2>&1; then good="$n"; fi
+      if [ -f "$n" ] && [ -x "$n" ] && { "$n" -e "$probe" </dev/null >/dev/null 2>&1; } 2>/dev/null; then good="$n"; fi
     done <<EOF
 $all
 EOF

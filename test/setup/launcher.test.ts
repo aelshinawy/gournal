@@ -163,6 +163,50 @@ describe('POSIX launcher', () => {
     expect(fs.readFileSync(rec(f), 'utf8')).toBe(`${good}\n`);
   });
 
+  describe.each(['/bin/sh', '/bin/bash'])('a node that dies by SIGABRT in the probe, run under %s', (shell) => {
+    const hasShell = spawnSync(shell, ['-c', 'exit 0']).status === 0;
+    const test_ = hasShell ? posixTest : test.skip;
+    const writeAbortNode = (file: string): void => {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, '#!/bin/sh\nif [ "$1" = -e ]; then kill -ABRT $$; fi\necho "node=$0"\n', { mode: 0o755 });
+      fs.chmodSync(file, 0o755);
+    };
+    const runShell = (f: Fixture, o: { path?: string }) =>
+      spawnSync(shell, shell === '/bin/bash' ? ['--posix', f.launcher, 'hook', 'stop'] : [f.launcher, 'hook', 'stop'], {
+        env: { HOME: path.join(f.root, 'user'), PATH: o.path ?? '' },
+        cwd: f.root,
+        input: '',
+        encoding: 'utf8',
+      });
+
+    test_('a recorded node is skipped and the hook prints nothing', () => {
+      const f = fixture('h', none);
+      const bad = path.join(f.root, 'bad', 'node');
+      const good = path.join(f.root, 'bin', 'node');
+      writeAbortNode(bad);
+      writeFakeNode(good, true);
+      fs.writeFileSync(rec(f), `${bad}\n`);
+      const out = runShell(f, { path: path.join(f.root, 'bin') });
+      expect(out.stderr).toBe('');
+      expect(out.status).toBe(0);
+      expect(out.stdout).toContain(`node=${good}\n`);
+      expect(fs.readFileSync(rec(f), 'utf8')).toBe(`${good}\n`);
+    });
+
+    test_('a glob node is skipped and the next candidate wins', () => {
+      const f = fixture('h', none);
+      writeAbortNode(path.join(f.root, 'g', 'v1', 'node'));
+      const good = path.join(f.root, 'sys', 'node');
+      writeFakeNode(good, true);
+      const cands: NodeCandidates = { files: [], globs: [`${shellQuote(path.join(f.root, 'g'))}/v*/node`], system: [q(good)] };
+      fs.writeFileSync(f.launcher, renderPosixLauncher({ home: f.home, bakeHome: false, candidates: cands }));
+      const out = runShell(f, {});
+      expect(out.stderr).toBe('');
+      expect(out.status).toBe(0);
+      expect(out.stdout).toContain(`node=${good}\n`);
+    });
+  });
+
   posixTest('no node: exit 1 with the exact message; hook: exit 0 and no output', () => {
     const f = fixture('h', none);
     const out = run(f);

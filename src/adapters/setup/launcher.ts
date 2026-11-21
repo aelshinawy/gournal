@@ -98,7 +98,7 @@ export function renderPosixLauncher(o: { home: string; bakeHome: boolean; candid
       'elif [ -n "$app" ] && [ -f "$home/runtime/$app/dist/cli.js" ]; then dir=$home/runtime/$app; fi',
     '[ -n "$dir" ] || quit "the launcher cannot find gournal in ${src:+$src or in }${home}/runtime. ' +
       'Run \\"gournal setup claude\\" in a terminal, or run \\"claude mcp remove --scope user gournal\\" to remove gournal from Claude Code."',
-    `ok() { case $1 in /*) ;; *) return 1 ;; esac; [ -f "$1" ] && [ -x "$1" ] && "$1" -e '${probeSource('"')}' </dev/null >/dev/null 2>&1; }`,
+    `ok() { case $1 in /*) ;; *) return 1 ;; esac; [ -f "$1" ] && [ -x "$1" ] && { "$1" -e '${probeSource('"')}' </dev/null >/dev/null 2>&1; } 2>/dev/null; }`,
     'pick=; rec=; { IFS= read -r rec < "$home/runtime/node"; } 2>/dev/null',
     '[ -n "$rec" ] && ok "$rec" && pick=$rec',
     // Walk PATH by hand. Only an absolute entry counts. Some sh builds turn a relative entry
