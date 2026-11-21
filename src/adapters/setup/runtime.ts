@@ -12,7 +12,7 @@ export interface RuntimePaths { home: string; binDir: string; launcher: string; 
 export type InstallAction = 'installed' | 'updated' | 'unchanged';
 
 const COMPLETE = '.complete';
-/** A temp folder younger than this may belong to a setup or a refresh that runs now. */
+/** A temp folder younger than this may belong to a setup that runs now. */
 const TMP_MAX_AGE_MS = 60 * 60 * 1000;
 
 export function runtimePaths(gournalHome: string, platform: NodeJS.Platform): RuntimePaths {
@@ -124,15 +124,27 @@ export function removeRuntime(gournalHome: string, platform: NodeJS.Platform): b
 }
 
 /**
- * When the recorded source is gone and this run is an installed package, record this package as the source.
- * A reinstall under another Node.js version then counts as installed.
+ * When the recorded source is gone and this run is a global npm or Homebrew install, record this package as the source.
+ * A reinstall under another Node.js version then counts as installed. The install gate clears the removed-at marker.
  */
-export function adoptInstalledPackage(gournalHome: string, o: { packageRoot?: string; platform?: NodeJS.Platform } = {}): void {
+export function adoptInstalledPackage(gournalHome: string, o: { packageRoot?: string; platform?: NodeJS.Platform; execPath?: string } = {}): void {
   const packageRoot = o.packageRoot ?? PACKAGE_ROOT;
   const platform = o.platform ?? process.platform;
   const { runtimeDir } = runtimePaths(gournalHome, platform);
   const recorded = readText(path.join(runtimeDir, 'source'))?.trim();
   if (!recorded || fs.existsSync(path.join(recorded, 'dist', 'cli.js'))) return;
-  if (!fs.realpathSync(packageRoot).split(path.sep).includes('node_modules')) return;
-  writeRecords(runtimeDir, sourceRecords(packageRoot, detectHomebrew(packageRoot, platform)));
+  const brew = detectHomebrew(packageRoot, platform);
+  if (brew === null && !isGlobalNpmLayout(packageRoot, platform, o.execPath ?? process.execPath)) return;
+  writeRecords(runtimeDir, sourceRecords(packageRoot, brew));
+}
+
+/** The npx cache, a project folder, and a custom prefix are not a global install. Only <prefix>/lib/node_modules (POSIX) or <prefix>/node_modules (Windows) counts. */
+function isGlobalNpmLayout(packageRoot: string, platform: NodeJS.Platform, execPath: string): boolean {
+  try {
+    const bin = path.dirname(fs.realpathSync(execPath));
+    const modules = platform === 'win32' ? path.join(bin, 'node_modules') : path.join(path.dirname(bin), 'lib', 'node_modules');
+    return fs.realpathSync(path.dirname(packageRoot)) === fs.realpathSync(modules);
+  } catch {
+    return false;
+  }
 }

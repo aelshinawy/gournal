@@ -82,7 +82,7 @@ Claude Code starts a server with the `PATH` of the app that started it. A deskto
 2. Setup writes the launcher `~/.gournal/bin/gournal`. On Windows, the launcher is `%USERPROFILE%\.gournal\bin\gournal.cmd`.
 3. Claude Code starts the launcher. It does not start the `gournal` command on your `PATH`.
 4. The launcher runs the installed package when it is there. It runs the copy in `~/.gournal/runtime` only when the installed package is missing. The package is missing after you remove a Node.js version, or while `brew upgrade` replaces it.
-5. The launcher looks for Node.js 22.13 or newer each time it runs. It tries the Node.js that worked last, then `node` on the `PATH` of Claude Code, then the usual folders of Node.js version managers and Homebrew. On macOS and Linux, it uses only absolute folders of the `PATH`.
+5. The launcher looks for Node.js 22.13 or newer each time it runs. It tries the Node.js that worked last, then `node` on the `PATH` of Claude Code, then the usual folders of Node.js version managers and Homebrew. On macOS and Linux, it uses only absolute folders of the `PATH`. On Windows, the launcher does not search `PATH`.
 
 These changes do not break the launcher:
 
@@ -91,7 +91,7 @@ These changes do not break the launcher:
 - The removal of a Node.js version.
 - A start from the desktop app.
 
-The copy in `~/.gournal/runtime` changes only when you run `gournal setup claude`. Setup records one install of gournal. If you install under another Node.js version or with another tool, run `gournal setup claude` again so that Claude Code uses the new install.
+The copy in `~/.gournal/runtime` changes only when you run `gournal setup claude`. Setup records one install of gournal. If you install under another Node.js version or with another tool, run any `gournal` command from the new install, or run `gournal setup claude` again, so that Claude Code uses the new install.
 
 If you set `GOURNAL_HOME` when you run setup, the gournal home is that folder, and the launcher keeps it. A `GOURNAL_HOME` that Claude Code passes at run time overrides it. Run undo with the same `GOURNAL_HOME` as the install. Undo removes the two launcher files and the `runtime` folder. It removes the `bin` folder only when the folder is empty.
 

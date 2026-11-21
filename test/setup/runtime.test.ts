@@ -28,20 +28,26 @@ test('a second install of the same version reuses the copy, and an unfinished co
   expect(fs.existsSync(path.join(runtime, app!, 'dist', 'cli.js'))).toBe(true);
 });
 
-test('a run from an installed package adopts it when the recorded source is gone, and a checkout does not', () => {
+test('a run from a global npm install adopts it when the recorded source is gone, and other layouts do not', () => {
   const home = path.join(tmp(), 'h');
-  const old = makeFakePackage(path.join(tmp(), 'node_modules', 'gournal'), '1.0.0');
+  const prefix = tmp();
+  const win = process.platform === 'win32';
+  const execPath = path.join(prefix, win ? 'node.exe' : path.join('bin', 'node'));
+  fs.mkdirSync(path.dirname(execPath), { recursive: true });
+  fs.writeFileSync(execPath, '');
+  const modules = path.join(prefix, ...(win ? ['node_modules'] : ['lib', 'node_modules']));
+  const old = makeFakePackage(path.join(tmp(), 'gone', 'node_modules', 'gournal'), '1.0.0');
   const oldReal = fs.realpathSync(old);
   install(home, old);
-  const fresh = makeFakePackage(path.join(tmp(), 'node_modules', 'gournal'), '1.0.0');
-  const checkout = makeFakePackage(path.join(tmp(), 'checkout'), '1.0.0');
-  const source = (): string => readRecords(path.join(home, 'runtime'))!.source;
-  adoptInstalledPackage(home, { packageRoot: fresh });
-  expect(source()).toBe(oldReal);
   fs.rmSync(old, { recursive: true });
-  adoptInstalledPackage(home, { packageRoot: checkout });
-  expect(source()).toBe(oldReal);
-  adoptInstalledPackage(home, { packageRoot: fresh });
+  const source = (): string => readRecords(path.join(home, 'runtime'))!.source;
+  const adopt = (packageRoot: string): void => adoptInstalledPackage(home, { packageRoot, execPath });
+  for (const other of ['.npm/_npx/abc/node_modules/gournal', 'project/node_modules/gournal', 'checkout']) {
+    adopt(makeFakePackage(path.join(tmp(), other), '1.0.0'));
+    expect(source()).toBe(oldReal);
+  }
+  const fresh = makeFakePackage(path.join(modules, 'gournal'), '1.0.0');
+  adopt(fresh);
   expect(source()).toBe(fs.realpathSync(fresh));
 });
 
