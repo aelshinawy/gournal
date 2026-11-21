@@ -42,9 +42,9 @@ npm install -g gournal
 gournal --version
 ```
 
-With Homebrew (macOS and Linux), run `brew install aelshinawy/tap/gournal`. Do not use npm and Homebrew together.
-
 Gournal prints its version number. Gournal supports macOS, Linux, and Windows (x64). Keep your journal on a local disk. See [Install](https://gournal.aelshinawy.com/docs/start-here/install/) for the requirements and the limits on each system.
+
+With Homebrew (macOS and Linux), run `brew install aelshinawy/tap/gournal`. The Homebrew tap is not published yet. Use npm until it is. Do not use npm and Homebrew together.
 
 Stuck? If your shell says `command not found`, your global npm folder is not on your `PATH`. Run `npm config get prefix` and add its `bin` folder to your `PATH`. See [Troubleshooting](https://gournal.aelshinawy.com/docs/resources/troubleshooting/) for more.
 

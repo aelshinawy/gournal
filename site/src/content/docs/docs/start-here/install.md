@@ -45,7 +45,7 @@ Gournal counts WSL as Linux. Install gournal inside WSL. Run `gournal setup clau
 
 ## Install gournal
 
-Use npm or Homebrew. Do not use both. If you change, run `gournal setup claude` with the new one. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal).
+Use npm or Homebrew. Do not use both. If you switch from one to the other, run `gournal setup claude` from the new install. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal).
 
 ### With npm
 
@@ -57,7 +57,7 @@ npm install -g gournal
 
 ### With Homebrew
 
-Homebrew works on macOS and Linux. The tap is new. If the command fails, use npm until the tap is published.
+Homebrew works on macOS and Linux. The Homebrew tap is not published yet. Use npm until it is.
 
 ```bash
 brew install aelshinawy/tap/gournal
@@ -74,7 +74,7 @@ $ gournal --version
 0.9.0
 ```
 
-Gournal prints its version number. Your number can be different. If your shell says `command not found`, your global npm folder is not on your `PATH`. Run `npm config get prefix` and add its `bin` folder to your `PATH`.
+Gournal prints its version number. Your number can be different. With npm, if your shell says `command not found`, your global npm folder is not on your `PATH`. Run `npm config get prefix` and add its `bin` folder to your `PATH`.
 
 ## Sign in to GitHub (optional)
 
