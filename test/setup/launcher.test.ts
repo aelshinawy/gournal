@@ -391,24 +391,35 @@ describe('Windows launcher', () => {
     expect(fs.readFileSync(path.join(f.home, 'runtime', 'node'), 'utf8').trim()).toBe(v);
   });
 
-  windowsTest('a node.exe found through a relative PATH entry is never run', () => {
+  function relativePathCase(shortCwd: boolean): void {
     const f = winFixture();
-    const cwd = path.join(f.root, 'proj');
-    fs.mkdirSync(path.join(cwd, 'bin'), { recursive: true });
-    fs.copyFileSync(process.execPath, path.join(cwd, 'bin', 'node.exe'));
+    const proj = path.join(f.root, 'proj');
+    fs.mkdirSync(path.join(proj, 'bin'), { recursive: true });
+    fs.copyFileSync(process.execPath, path.join(proj, 'bin', 'node.exe'));
     fs.writeFileSync(path.join(f.home, 'runtime', 'app-x', 'dist', 'cli.js'), 'process.stdout.write(process.execPath)');
-    const where = spawnSync(process.env.ComSpec ?? `${sys}\\System32\\cmd.exe`, ['/d', '/c', 'cd & where node'], {
-      env: { SystemRoot: sys, USERPROFILE: f.root, PATH: `bin;${sys}\\System32` },
-      cwd,
-      encoding: 'utf8',
-    });
-    const out = runWin(f, [], '0', { cwd, path: `bin;${sys}\\System32` });
+    const cmd = process.env.ComSpec ?? `${sys}\\System32\\cmd.exe`;
+    let cwd = proj;
+    if (shortCwd) {
+      const r = spawnSync(cmd, ['/d', '/c', 'for %I in (.) do @echo %~fsI'], { cwd: proj, encoding: 'utf8' });
+      cwd = r.stdout.trim();
+      if (cwd === '' || cwd.toLowerCase() === proj.toLowerCase()) {
+        console.warn('skipped: this volume gives the test folder no 8.3 short name');
+        return;
+      }
+    }
+    const env = { SystemRoot: sys, USERPROFILE: f.root, PATH: `bin;${sys}\\System32` };
+    const where = spawnSync(cmd, ['/d', '/c', 'cd & where node'], { env, cwd, encoding: 'utf8' });
+    const out = runWin(f, [], '0', { cwd, path: env.PATH });
     if (out.status !== 1 || out.stdout !== '' || !out.stderr.includes('gournal: found no Node.js 22.13 or newer')) {
       throw new Error(
         JSON.stringify({ status: out.status, stdout: out.stdout, stderr: out.stderr, cwd, cdAndWhere: where.stdout, whereErr: where.stderr }, null, 2),
       );
     }
-  });
+  }
+
+  windowsTest('a node.exe found through a relative PATH entry is never run', () => relativePathCase(false));
+
+  windowsTest('a relative PATH node is never run when the current folder is given in 8.3 form', () => relativePathCase(true));
 
   windowsTest('the launcher folder can be deleted by the app and the app exit code still comes back', () => {
     const f = winFixture();

@@ -52,7 +52,10 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     'if defined REC call :try "%REC%"',
     // where.exe searches the current folder first, and it turns a relative PATH entry into an
     // absolute path. :trywhere skips every result under the current folder.
-    'set "CDP=%CD%"',
+    // %CD% and where.exe can spell one folder two ways (8.3 RUNNER~1 against runneradmin). Both sides
+    // go through the short-name form (~fs), so the strings match. When a volume has no 8.3 names, ~fs
+    // returns the long name on both sides, and the compare still holds.
+    'for %%C in (.) do set "CDP=%%~fsC"',
     'if not "%CDP:~-1%"=="\\" set "CDP=%CDP%\\"',
     `for /f "delims=" %%N in ('where node 2^>nul') do call :trywhere "%%N"`,
     ...c.files.map((f) => `call :try ${f}`),
@@ -68,10 +71,10 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     '1>&2 echo gournal: %MSG%',
     'exit /b 1',
     ':trywhere',
-    'if /i "%~dp1"=="%CDP%" exit /b',
+    'if /i "%~dps1"=="%CDP%" exit /b',
     // At a drive root every path is under the current folder, so only the root folder itself is skipped.
     'if "%CDP:~3%"=="" goto :trywhere_go',
-    'set "R=%~1"',
+    'set "R=%~fs1"',
     'call set "REST=%%R:%CDP%=%%"',
     'if /i "%CDP%%REST%"=="%R%" exit /b',
     ':trywhere_go',
