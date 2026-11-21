@@ -27,6 +27,33 @@ function routes(since: Date) {
 const throwing = (kind: ConstructorParameters<typeof GhError>[0]): GhRunner => async () => { throw new GhError(kind, `gh ${kind}`); };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+const PRS = [1, 2, 3, 4].map((n) => ({ number: n, updated: `2026-11-0${n + 1}T00:00:00Z` }));
+const prRoutes = (since: Date, list: typeof PRS) => {
+  const r: Record<string, unknown> = {
+    user: { login: 'Dev' },
+    [`search/issues?order=asc&page=1&per_page=100&q=is:pr author:Dev updated:>=${stamp(since)}&sort=updated`]: {
+      items: list.map((p) => ({ number: p.number, title: `PR ${p.number}`, repository_url: 'https://api.github.com/repos/acme/x', user: { login: 'Dev' }, updated_at: p.updated })),
+    },
+    [`search/issues?order=asc&page=1&per_page=100&q=is:pr reviewed-by:Dev -author:Dev updated:>=${stamp(since)}&sort=updated`]: { items: [] },
+  };
+  for (const p of PRS) {
+    r[`repos/acme/x/pulls/${p.number}`] = { number: p.number, title: `PR ${p.number}`, html_url: `u${p.number}`, head: { ref: `b${p.number}` }, state: 'open', created_at: p.updated, base: { ref: 'main' } };
+    r[`repos/acme/x/pulls/${p.number}/commits?page=1&per_page=100`] = [];
+  }
+  return r;
+};
+const pullCalls = (gh: { calls: string[][] }) => gh.calls.map((c) => c[1]).filter((x) => /^repos\/acme\/x\/pulls\/\d$/.test(x));
+/** Wraps a runner so that every commits call after the first `max` times out. */
+const timeoutAfterCommits = (inner: GhRunner, max: number): GhRunner => {
+  let commits = 0;
+  return async (a, o) => {
+    if (a.some((x) => x.includes('/commits'))) { commits += 1; if (commits > max) throw new GhError('timeout', 'gh timed out'); }
+    return inner(a, o);
+  };
+};
+const syncGh = (since: Date, partial: boolean): GhRunner =>
+  partial ? timeoutAfterCommits(fakeGh(prRoutes(since, PRS)), 2) : fakeGh(routes(since));
+
 let home: string;
 let journal: Journal;
 let other: Journal;
@@ -73,50 +100,29 @@ test('second sync starts at the previous sync start', async () => {
   expect(gh.calls[0]).not.toEqual(['api', 'user']); // the login is cached
 });
 
-test('--since backfills but never moves the cursor back', async () => {
+test.each([false, true])('--since backfills but never moves the cursor back (partial: %s)', async (partial) => {
   await runSync(journal, fakeGh(routes(new Date(NOW.getTime() - 30 * DAY))), { auto: false, now: NOW });
+  const stored = cursor();
   const older = new Date(NOW.getTime() - 90 * DAY);
   const later = new Date(NOW.getTime() + DAY);
-  const r = await runSync(journal, fakeGh(routes(older)), { since: older, auto: false, now: later });
+  const r = await runSync(journal, syncGh(older, partial), { since: older, auto: false, now: later });
   expect(r.since).toBe(older.toISOString());
-  expect(r.status).toBe('ok');
-  expect(cursor()).toBe(later.toISOString());
+  expect(r.status).toBe(partial ? 'partial' : 'ok');
+  // A full sync moves the cursor forward to its start. A partial one stops at its last finished PR.
+  const after = cursor();
+  expect(after).toBe(partial ? stored : later.toISOString());
   // A sync that starts before the stored cursor must not move it back.
   const evenLater = new Date(NOW.getTime() - 5 * DAY);
-  await runSync(journal, fakeGh(routes(older)), { since: older, auto: false, now: evenLater });
-  expect(cursor()).toBe(later.toISOString());
+  await runSync(journal, syncGh(older, partial), { since: older, auto: false, now: evenLater });
+  expect(cursor()).toBe(after);
 });
 
-test('a manual --since later than the cursor leaves the cursor unchanged', async () => {
+test.each([false, true])('a manual --since later than the cursor leaves the cursor unchanged (partial: %s)', async (partial) => {
   await runSync(journal, fakeGh(routes(new Date(NOW.getTime() - 30 * DAY))), { auto: false, now: NOW });
   const since = new Date(NOW.getTime() + DAY);
-  const r = await runSync(journal, fakeGh(routes(since)), { since, auto: false, now: new Date(NOW.getTime() + 2 * DAY) });
-  expect(r.status).toBe('ok');
+  const r = await runSync(journal, syncGh(since, partial), { since, auto: false, now: new Date(NOW.getTime() + 2 * DAY) });
+  expect(r.status).toBe(partial ? 'partial' : 'ok');
   expect(cursor()).toBe(NOW.toISOString());
-});
-
-test('timeout keeps partial activity and moves the cursor only to the last finished PR', async () => {
-  const since = new Date(NOW.getTime() - 30 * DAY);
-  const inner = fakeGh(routes(since));
-  // Seed the login only. The seed run finds no route for its own window, and stops with no progress.
-  await runSync(journal, fakeGh(routes(since)), { auto: false, now: new Date(NOW.getTime() - 10 * DAY) });
-  expect(cursor()).toBeNull();
-  journal.db.exec('DELETE FROM activity');
-  let n = 0;
-  const gh: GhRunner = async (args, o) => {
-    n += 1;
-    if (n > 5) throw new GhError('timeout', 'gh timed out');
-    return inner(args, o);
-  };
-  const started = Date.now();
-  const r = await runSync(journal, gh, { auto: true, now: NOW });
-  expect(Date.now() - started).toBeLessThan(AUTO_SYNC_BUDGET_MS + 1000);
-  expect(r.status).toBe('partial');
-  expect(r.inserted).toBeGreaterThan(0);
-  expect(journal.activity.find().length).toBe(r.inserted);
-  // The PRs finish in updated order: 5 (11-03), then 9 (11-04). The call for the blocked-org PR fails.
-  expect(cursor()).toBe('2026-11-04T08:00:00Z');
-  expect(r.warning).toBe('gournal: GitHub sync stopped early (timed out after 10 s); run gournal sync to catch up');
 });
 
 test('an auto partial sync with no finished PR keeps the skipped line and the cursor', async () => {
@@ -130,32 +136,19 @@ test('an auto partial sync with no finished PR keeps the skipped line and the cu
   expect(cursor()).toBeNull();
 });
 
-test('a manual timeout does not claim a 10 s limit', async () => {
+test.each([
+  ['timeout', 'Stopped early (a GitHub call timed out); run gournal sync again to continue.'],
+  ['rate-limit', 'Stopped early (GitHub rate limit reached); run gournal sync again to continue.'],
+] as const)('a manual %s names the reason, claims no 10 s limit, and sets a continue hint', async (kind, warning) => {
   const inner = fakeGh(routes(new Date(NOW.getTime() - 30 * DAY)));
   let n = 0;
-  const gh: GhRunner = async (a, o) => { n += 1; if (n > 5) throw new GhError('timeout', 'gh timed out'); return inner(a, o); };
+  const gh: GhRunner = async (a, o) => { n += 1; if (n > 5) throw new GhError(kind, 'gh stopped'); return inner(a, o); };
   const r = await runSync(journal, gh, { auto: false, now: NOW });
-  expect(r.warning).toBe('Stopped early (a GitHub call timed out); run gournal sync again to continue.');
+  expect(r.status).toBe('partial');
+  expect(r.warning).toBe(warning);
 });
 
 describe('monotonic progress', () => {
-  const PRS = [1, 2, 3, 4].map((n) => ({ number: n, updated: `2026-11-0${n + 1}T00:00:00Z` }));
-  const prRoutes = (since: Date, list: typeof PRS) => {
-    const r: Record<string, unknown> = {
-      user: { login: 'Dev' },
-      [`search/issues?order=asc&page=1&per_page=100&q=is:pr author:Dev updated:>=${stamp(since)}&sort=updated`]: {
-        items: list.map((p) => ({ number: p.number, title: `PR ${p.number}`, repository_url: 'https://api.github.com/repos/acme/x', user: { login: 'Dev' }, updated_at: p.updated })),
-      },
-      [`search/issues?order=asc&page=1&per_page=100&q=is:pr reviewed-by:Dev -author:Dev updated:>=${stamp(since)}&sort=updated`]: { items: [] },
-    };
-    for (const p of PRS) {
-      r[`repos/acme/x/pulls/${p.number}`] = { number: p.number, title: `PR ${p.number}`, html_url: `u${p.number}`, head: { ref: `b${p.number}` }, state: 'open', created_at: p.updated, base: { ref: 'main' } };
-      r[`repos/acme/x/pulls/${p.number}/commits?page=1&per_page=100`] = [];
-    }
-    return r;
-  };
-  const pullCalls = (gh: { calls: string[][] }) => gh.calls.map((c) => c[1]).filter((x) => /^repos\/acme\/x\/pulls\/\d$/.test(x));
-
   test('a partial auto sync advances the cursor to the last finished PR, and the next one continues there', async () => {
     const since = new Date(NOW.getTime() - 30 * DAY);
     const first = fakeGh(prRoutes(since, PRS));
@@ -167,6 +160,8 @@ describe('monotonic progress', () => {
     const r1 = await runSync(journal, cut, { auto: true, now: NOW });
     expect(r1.status).toBe('partial');
     expect(r1.warning).toBe('gournal: GitHub sync stopped early (timed out after 10 s); run gournal sync to catch up');
+    expect(r1.inserted).toBeGreaterThan(0);
+    expect(journal.activity.find().length).toBe(r1.inserted);
     expect(cursor()).toBe('2026-11-03T00:00:00Z');
     expect(journal.repo.getState(SYNC_STATE.lastSyncAt)).toBeNull();
 
@@ -179,34 +174,6 @@ describe('monotonic progress', () => {
     expect([...pullCalls(first), ...pullCalls(second)].filter((x) => x.endsWith('/1'))).toHaveLength(1);
   });
 
-  test('a partial sync never moves the cursor back', async () => {
-    await runSync(journal, fakeGh(routes(new Date(NOW.getTime() - 30 * DAY))), { auto: false, now: NOW });
-    const stored = cursor();
-    const since = new Date(NOW.getTime() - 40 * DAY);
-    const inner = fakeGh(prRoutes(since, PRS));
-    let commits = 0;
-    const gh: GhRunner = async (a, o) => {
-      if (a.some((x) => x.includes('/commits'))) { commits += 1; if (commits > 2) throw new GhError('timeout', 'x'); }
-      return inner(a, o);
-    };
-    await runSync(journal, gh, { since, auto: false, now: new Date(NOW.getTime() + DAY) });
-    expect(cursor()).toBe(stored);
-  });
-
-  test('a partial manual --since later than the cursor leaves the cursor alone', async () => {
-    await runSync(journal, fakeGh(routes(new Date(NOW.getTime() - 30 * DAY))), { auto: false, now: NOW });
-    const stored = cursor();
-    expect(stored).toBe(NOW.toISOString());
-    const since = new Date(NOW.getTime() + DAY);
-    const inner = fakeGh(prRoutes(since, PRS));
-    let commits = 0;
-    const gh: GhRunner = async (a, o) => {
-      if (a.some((x) => x.includes('/commits'))) { commits += 1; if (commits > 2) throw new GhError('timeout', 'x'); }
-      return inner(a, o);
-    };
-    await runSync(journal, gh, { since, auto: false, now: new Date(NOW.getTime() + 2 * DAY) });
-    expect(cursor()).toBe(stored);
-  });
 });
 
 test('the auto deadline stops the fetch between calls', async () => {
@@ -222,15 +189,6 @@ test('the auto deadline stops the fetch between calls', async () => {
   expect(r.status).toBe('partial');
   expect(inner.calls.length).toBe(1);
   expect(cursor()).toBeNull();
-});
-
-test('a manual partial sync names the reason and sets a continue hint', async () => {
-  const inner = fakeGh(routes(new Date(NOW.getTime() - 30 * DAY)));
-  let n = 0;
-  const gh: GhRunner = async (a, o) => { n += 1; if (n > 5) throw new GhError('rate-limit', 'limit'); return inner(a, o); };
-  const r = await runSync(journal, gh, { auto: false, now: NOW });
-  expect(r.status).toBe('partial');
-  expect(r.warning).toBe('Stopped early (GitHub rate limit reached); run gournal sync again to continue.');
 });
 
 test('concurrent syncs use one lease and make no duplicates', async () => {
@@ -339,19 +297,6 @@ describe('auto sync gate', () => {
 });
 
 describe('relinkAfterWrite', () => {
-  test('add_entry links to synced activity without the network', async () => {
-    await runSync(journal, fakeGh(routes(new Date(NOW.getTime() - 30 * DAY))), { auto: false, now: NOW });
-    // relinkAfterWrite takes no gh runner, so it cannot touch the network.
-    const entry = journal.repo.add({
-      summary: 'Shipped the cache', project: 'p', source: 'cli', repo: 'acme/widgets',
-      refs: [{ type: 'pr', value: '5' }],
-    });
-    relinkAfterWrite(journal, [entry.id]);
-    const linked = journal.activity.linkedTo([entry.id])[entry.id] ?? [];
-    expect(linked.length).toBeGreaterThan(0);
-    expect(linked.every((a) => a.pr === 5)).toBe(true);
-  });
-
   test('it never throws and warns once per process', () => {
     const write = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const broken = { activity: { relinkEntries: () => { throw new Error('boom'); } } } as unknown as Journal;

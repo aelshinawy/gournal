@@ -4,8 +4,9 @@ import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { Command } from 'commander';
 import { CONFIG_KEY_DOCS, ENV_VAR_DOCS } from '../site/scripts/reference/docs-meta';
 import {
-  generateReference, inertProgram, orphanExamples, ownedFilesOnDisk, referenceSidebar, writeReference, REFERENCE_DIR,
+  generateReference, inertProgram, orphanExamples, referenceSidebar, writeReference, REFERENCE_DIR,
 } from '../site/scripts/reference/generate';
+import type { GeneratedPage } from '../site/scripts/reference/cli';
 import { cliSection, leafCommands, leafNames } from '../site/scripts/reference/cli';
 import { CAPABILITIES, GROUPS, checkCoverage } from '../site/scripts/reference/capabilities';
 import { capabilityPage } from '../site/scripts/reference/capability-page';
@@ -15,27 +16,16 @@ import { makeTmp } from './helpers/tmp';
 
 const siteRoot = path.resolve(__dirname, '../site');
 const examplesDir = path.join(siteRoot, 'src/content/examples');
-const referenceDir = path.join(siteRoot, REFERENCE_DIR);
 const EM_DASH = String.fromCharCode(0x2014);
 
+let pages: GeneratedPage[];
+beforeAll(async () => { pages = await generateReference({ examplesDir }); });
+
 const get = async (p: string): Promise<string> => {
-  const page = (await generateReference({ examplesDir })).find((x) => x.path === p);
+  const page = pages.find((x) => x.path === p);
   if (!page) throw new Error(`No page ${p}`);
   return page.content;
 };
-
-test('the committed reference is current', async () => {
-  const pages = await generateReference({ examplesDir });
-  const stale = 'Reference is stale. Run: npm run docs:gen';
-  for (const p of pages) {
-    const file = path.join(referenceDir, p.path);
-    if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== p.content) throw new Error(stale);
-  }
-  const expected = pages.map((p) => p.path).sort();
-  // Extra files in owned paths fail too.
-  const onDisk = ownedFilesOnDisk(referenceDir);
-  if (JSON.stringify(onDisk) !== JSON.stringify(expected)) throw new Error(stale);
-});
 
 test('generation is deterministic', async () => {
   const a = await generateReference({ examplesDir });
@@ -69,13 +59,13 @@ test('cli pages show arguments, short flags, and defaults exactly', async () => 
 });
 
 test('hidden commands get no page', async () => {
-  const paths = (await generateReference({ examplesDir })).map((p) => p.path);
+  const paths = pages.map((p) => p.path);
   expect(paths).not.toContain('hook-stop.md');
   expect(paths.some((p) => p.includes('hook'))).toBe(false);
 });
 
 test('subcommands join with a hyphen and group parents get no page', async () => {
-  const paths = (await generateReference({ examplesDir })).map((p) => p.path);
+  const paths = pages.map((p) => p.path);
   expect(paths).toContain('setup-claude.md');
   expect(paths).toContain('index-rebuild.md');
   expect(paths).not.toContain('setup.md');
@@ -141,7 +131,7 @@ test('table escapes pipes and newlines', () => {
 
 test('generated pages contain no em dash and no package version', async () => {
   const version = (JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf8')) as { version: string }).version;
-  for (const p of await generateReference({ examplesDir })) {
+  for (const p of pages) {
     expect(p.content).not.toContain(EM_DASH);
     expect(p.content).not.toContain(version);
   }
@@ -158,7 +148,7 @@ describe('MCP defaults', () => {
   });
 
   test('no MCP description contains "Default:"', async () => {
-    for (const p of await generateReference({ examplesDir })) {
+    for (const p of pages) {
       if (p.path === 'output-shapes.md' || /\n## MCP tool/.test(p.content)) expect(p.content).not.toContain('Default:');
     }
   });
@@ -176,7 +166,6 @@ describe('MCP reference', () => {
   test('every MCP tool has a page', async () => {
     const names = await toolNames();
     expect(names).toHaveLength(12);
-    const pages = await generateReference({ examplesDir });
     for (const n of names) {
       expect(pages.filter((p) => new RegExp(`^(## MCP tool: |### )${n}$`, 'm').test(p.content))).toHaveLength(1);
     }
@@ -242,10 +231,10 @@ describe('MCP reference', () => {
 });
 
 test('every MCP field row has a description', async () => {
-  const pages = (await generateReference({ examplesDir })).filter((p) => /\n## MCP tool/.test(p.content));
-  expect(pages.length).toBeGreaterThan(0);
+  const toolPages = pages.filter((p) => /\n## MCP tool/.test(p.content));
+  expect(toolPages.length).toBeGreaterThan(0);
   const empty: string[] = [];
-  for (const p of pages) {
+  for (const p of toolPages) {
     const mcpPart = p.content.split(/\n## MCP tool/)[1].split(/\n## /)[0];
     for (const line of mcpPart.split('\n')) {
       const cells = line.split(/(?<!\\)\|/).map((c) => c.trim());
@@ -342,7 +331,7 @@ describe('capability pages', () => {
     expect(add).toMatch(/^\| `<summary>` \| yes \| .+ \|$/m);
     expect(await get('stats.md')).not.toContain('#### Arguments');
     // Every argument of every command has a description.
-    for (const p of await generateReference({ examplesDir })) {
+    for (const p of pages) {
       for (const line of p.content.split('\n')) {
         if (/^\| `[<[]/.test(line)) expect(line).not.toMatch(/\| *\|$/);
       }
@@ -526,7 +515,6 @@ describe('one heading per surface', () => {
   test('every anchor the overview and output shapes link to is a heading id on the target page', async () => {
     // Same rule as github-slugger for ASCII headings. A repeated id gets a -1, -2 suffix.
     const slug = (h: string): string => h.trim().toLowerCase().replace(/[^a-z0-9_\s-]/g, '').replace(/ /g, '-');
-    const pages = await generateReference({ examplesDir });
     const linkRe = /\]\(\/docs\/reference\/([a-z-]+)\/#([^)]+)\)/g;
     const broken: string[] = [];
     for (const src of pages.filter((p) => p.path === 'index.md' || p.path === 'output-shapes.md')) {

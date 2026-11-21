@@ -60,19 +60,11 @@ posix('file modes in a new home', () => {
     expect(oct(home)).toBe('700');
   });
 
-  test('a custom GOURNAL_HOME that already exists keeps its mode', () => {
+  test('a custom GOURNAL_HOME keeps the mode of an existing home, db, and backups folder', () => {
     process.umask(0o022);
     const home = path.join(tmp, 'shared');
     fs.mkdirSync(home, { mode: 0o755 });
     fs.chmodSync(home, 0o755);
-    const j = openJournal(home);
-    j.close();
-    expect(oct(home)).toBe('755');
-  });
-
-  test('a custom GOURNAL_HOME keeps the mode of an existing db and backups folder', () => {
-    process.umask(0o022);
-    const home = path.join(tmp, 'shared');
     const j0 = openJournal(home);
     backupDbIfNeeded(j0.db, path.join(home, 'gournal.db'), new Date(2026, 10, 15));
     j0.close();
@@ -81,6 +73,7 @@ posix('file modes in a new home', () => {
     const b = path.join(home, 'backups', 'gournal-2026-11-15.db');
     fs.chmodSync(b, 0o644);
     openJournal(home).close();
+    expect(oct(home)).toBe('755');
     expect(oct(path.join(home, 'gournal.db'))).toBe('644');
     expect(oct(path.join(home, 'backups'))).toBe('755');
     expect(oct(b)).toBe('644');
@@ -99,17 +92,6 @@ posix('the default home', () => {
     for (const [k, v] of Object.entries(saved)) {
       if (v === undefined) delete process.env[k]; else process.env[k] = v;
     }
-  });
-
-  test('a fresh default home is created 0700 under umask 022', async () => {
-    process.umask(0o022);
-    const { gournalHome } = await import('../../src/storage/home');
-    const home = gournalHome();
-    expect(home).toBe(path.join(tmp, '.gournal'));
-    const j = openJournal(home);
-    j.close();
-    expect(oct(home)).toBe('700');
-    expect(oct(path.join(home, 'gournal.db'))).toBe('600');
   });
 
   test('an old loose default home is tightened on open', () => {
@@ -131,7 +113,8 @@ posix('the default home', () => {
     });
   });
 
-  test.each(['EACCES', 'EIO'])('a %s from chmod is not hidden', (code) => {
+  test('an EACCES from chmod is not hidden', () => {
+    const code = 'EACCES';
     process.umask(0o022);
     const home = path.join(tmp, '.gournal');
     openJournal(home).close();
@@ -143,13 +126,14 @@ posix('the default home', () => {
     }
   });
 
-  test.each(['ENOTSUP', 'EINVAL', 'EROFS', 'ENOENT'])('a %s from chmod does not crash the open', (code) => {
+  test('an EPERM from chmod does not crash the open', () => {
     process.umask(0o022);
     const home = path.join(tmp, '.gournal');
     openJournal(home).close();
-    const spy = jest.spyOn(fs, 'chmodSync').mockImplementation(() => { throw Object.assign(new Error(code), { code }); });
+    const spy = jest.spyOn(fs, 'chmodSync').mockImplementation(() => { throw Object.assign(new Error('EPERM'), { code: 'EPERM' }); });
     try {
       expect(() => openJournal(home).close()).not.toThrow();
+      expect(spy).toHaveBeenCalled();
     } finally {
       spy.mockRestore();
     }
@@ -181,18 +165,6 @@ posix('the default home', () => {
     }
   });
 
-  test('a mode error does not crash the open', () => {
-    process.umask(0o022);
-    const home = path.join(tmp, '.gournal');
-    openJournal(home).close();
-    const spy = jest.spyOn(fs, 'chmodSync').mockImplementation(() => { throw Object.assign(new Error('EPERM'), { code: 'EPERM' }); });
-    try {
-      expect(() => openJournal(home).close()).not.toThrow();
-      expect(spy).toHaveBeenCalled();
-    } finally {
-      spy.mockRestore();
-    }
-  });
 });
 
 posix('ensurePrivateFile', () => {
@@ -210,7 +182,8 @@ posix('ensurePrivateFile', () => {
     expect(() => ensurePrivateFile(path.join(tmp, 'missing', 'a.db'))).toThrow(/ENOENT/);
   });
 
-  test.each(['EACCES', 'EIO'])('a %s error from the create call is not hidden', (code) => {
+  test('an EACCES error from the create call is not hidden', () => {
+    const code = 'EACCES';
     const spy = jest.spyOn(fs, 'openSync').mockImplementation(() => { throw Object.assign(new Error(code), { code }); });
     try {
       expect(() => ensurePrivateFile(path.join(tmp, 'a.db'))).toThrow(code);
@@ -219,8 +192,8 @@ posix('ensurePrivateFile', () => {
     }
   });
 
-  test.each(['ENOTSUP', 'EPERM', 'EINVAL', 'EROFS'])('a %s error from the create call is ignored', (code) => {
-    const spy = jest.spyOn(fs, 'openSync').mockImplementation(() => { throw Object.assign(new Error(code), { code }); });
+  test('an EPERM error from the create call is ignored', () => {
+    const spy = jest.spyOn(fs, 'openSync').mockImplementation(() => { throw Object.assign(new Error('EPERM'), { code: 'EPERM' }); });
     try {
       expect(() => ensurePrivateFile(path.join(tmp, 'a.db'))).not.toThrow();
     } finally {

@@ -14,10 +14,11 @@
   "scripts": {
     "build": "tsc",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "prepublishOnly": "npm run clean && npm run build && npm test",
+    "prepublishOnly": "npm run clean && npm run build && npm test && npm run test:site",
     "dev": "ts-node src/cli.ts",
     "test": "jest",
     "test:ci": "jest --coverage",
+    "test:site": "jest --config jest.site.config.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "lint": "depcruise src --config .dependency-cruiser.cjs",
     "knip": "knip --no-progress",

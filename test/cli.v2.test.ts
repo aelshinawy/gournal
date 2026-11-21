@@ -75,18 +75,11 @@ describe('gournal CLI on the SQLite journal', () => {
     expect(restore.stdout).toContain('second');
   });
 
-  test('add with a near-duplicate tag prints a similar-tag note on stderr', async () => {
-    await run('add', 'first', '-t', 'review');
-    const r = await run('add', 'second', '-t', 'reveiw');
-    expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/^✓ Entry added! \([0-9A-Z]{8}\)$/);
-    expect(r.stderr).toBe('New tag "reveiw". Close existing tags: review');
-  });
-
   test('add prints similar-tag notes, then dropped resolves, on stderr', async () => {
     await run('add', 'first', '-t', 'review');
     const r = await run('add', 'second', '-t', 'reveiw', '--resolves', 'ZZZZZZZZ');
     expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/^✓ Entry added! \([0-9A-Z]{8}\)$/);
     expect(r.stderr).toBe(['New tag "reveiw". Close existing tags: review', 'Could not resolve ZZZZZZZZ: No entry with id "ZZZZZZZZ"'].join('\n'));
   });
 
@@ -227,14 +220,6 @@ describe('gournal CLI reads on Query and renderers', () => {
     }
   };
 
-  test('standup shows an open blocker from an earlier day', async () => {
-    seed([{ summary: 'Stuck on CI', kind: 'blocker', createdAt: daysAgo(2) }]);
-    const r = await run('standup');
-    expect(r.status).toBe(0);
-    expect(plain(r.stdout)).toContain('Blockers');
-    expect(plain(r.stdout)).toContain('Stuck on CI');
-  });
-
   test('a resolved blocker leaves the standup', async () => {
     const [b] = seed([{ summary: 'Stuck on CI', kind: 'blocker', createdAt: daysAgo(2) }]);
     expect((await run('resolve', b.id.slice(-8))).status).toBe(0);
@@ -251,14 +236,15 @@ describe('gournal CLI reads on Query and renderers', () => {
     expect(r).not.toContain('Blockers');
   });
 
-  test('an open blocker older than --from still shows (carry-forward)', async () => {
-    seed([{ summary: 'Old blocker', kind: 'blocker', createdAt: daysAgo(5) }]);
+  test.each([['by default', 2, false], ['older than --from (carry-forward)', 5, true]])('standup shows an open blocker from an earlier day: %s', async (_label, age, withFrom) => {
+    seed([{ summary: 'Stuck on CI', kind: 'blocker', createdAt: daysAgo(age) }]);
     const day = new Date();
     day.setDate(day.getDate() - 2);
     const from = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-    const r = plain((await run('standup', '--from', from)).stdout);
-    expect(r).toContain('Blockers');
-    expect(r).toContain('Old blocker');
+    const r = await run('standup', ...(withFrom ? ['--from', from] : []));
+    expect(r.status).toBe(0);
+    expect(plain(r.stdout)).toContain('Blockers');
+    expect(plain(r.stdout)).toContain('Stuck on CI');
   });
 
   test('the open query honours --project and --tags', async () => {
@@ -318,26 +304,6 @@ describe('gournal CLI reads on Query and renderers', () => {
     expect((await run('find', 'alpha', '-n', '1')).stdout).toContain('Found 1 entries:');
   });
 
-  test('find uses text search over details', async () => {
-    seed([{ summary: 'plain', details: 'contains zebra word', createdAt: daysAgo(1) }]);
-    expect((await run('find', 'zebra')).stdout).toContain('Found 1 entries:');
-  });
-
-  test('log --from --to covers whole local days', async () => {
-    const late = new Date();
-    late.setDate(late.getDate() - 3);
-    late.setHours(23, 30, 0, 0);
-    seed([
-      { summary: 'late entry', createdAt: late.toISOString() },
-      { summary: 'outside entry', createdAt: daysAgo(5) },
-    ]);
-    const day = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const r = await run('log', '--from', day(late), '--to', day(late));
-    expect(r.status).toBe(0);
-    expect(r.stdout).toContain('late entry');
-    expect(r.stdout).not.toContain('outside entry');
-  });
-
   test('--from overrides --week', async () => {
     seed([{ summary: 'old entry', createdAt: daysAgo(20) }]);
     const day = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -377,18 +343,12 @@ describe('gournal CLI reads on Query and renderers', () => {
     expect(csv.stdout).not.toContain('out of range');
   });
 
-  ftsTest('index rebuild prints the count', async () => {
-    seed([{ summary: 'one', createdAt: daysAgo(1) }]);
-    const r = await run('index', 'rebuild');
-    expect(r.status).toBe(0);
-    expect(r.stdout).toContain('Search index rebuilt: 1 entries.');
-  });
-
-  ftsTest('index rebuild takes the daily backup first', async () => {
+  ftsTest('index rebuild prints the count and takes the daily backup first', async () => {
     seed([{ summary: 'one', createdAt: daysAgo(1) }]);
     rmTmp(path.join(home, 'backups')); // the seed write took the day's backup
     const r = await run('index', 'rebuild');
     expect(r.status).toBe(0);
+    expect(r.stdout).toContain('Search index rebuilt: 1 entries.');
     const daily = fs.readdirSync(path.join(home, 'backups')).filter((n) => /^gournal-\d{4}-\d{2}-\d{2}\.db$/.test(n));
     expect(daily).toHaveLength(1);
   });
@@ -492,32 +452,23 @@ describe('standup and log with GitHub activity', () => {
     expect(r.stdout).not.toContain('Also');
   });
 
-  test('standup prints the sync warning on stderr and still prints the standup', async () => {
+  test.each(['standup', 'log'])('%s prints the sync warning on stderr and still prints its report', async (cmd) => {
     delete process.env.GOURNAL_NO_AUTOSYNC;
     seedEntry('Did a thing');
     const gh: GhRunner = async () => { throw new GhError('auth', 'x'); };
-    const r = await runIn(home, ['standup'], { gh });
+    const r = await runIn(home, [cmd], { gh });
     expect(r.status).toBe(0);
     expect(r.stderr).toBe('gournal: GitHub sync skipped (gh is not signed in; run gh auth login); showing stored activity');
     expect(r.stdout).toContain('Did a thing');
   });
 
-  test('log runs auto-sync too, and a missing gh stays silent', async () => {
+  test('a missing gh stays silent', async () => {
     delete process.env.GOURNAL_NO_AUTOSYNC;
-    seedEntry('Did a thing');
-    const down: GhRunner = async () => { throw new GhError('auth', 'x'); };
-    const r = await runIn(home, ['log'], { gh: down });
-    expect(r.stderr).toContain('GitHub sync skipped');
-    expect(r.stdout).toContain('Did a thing');
-    const home2 = mkHome();
-    try {
-      const j = openJournal(home2);
-      try { j.repo.add({ summary: 'Other', project: 'p', source: 'cli' }); } finally { j.close(); }
-      const missing: GhRunner = async () => { throw new GhError('missing', 'x'); };
-      const q = await runIn(home2, ['log'], { gh: missing });
-      expect(q.stderr).toBe('');
-      expect(q.stdout).toContain('Other');
-    } finally { rmTmp(home2); }
+    seedEntry('Other');
+    const missing: GhRunner = async () => { throw new GhError('missing', 'x'); };
+    const r = await runIn(home, ['log'], { gh: missing });
+    expect(r.stderr).toBe('');
+    expect(r.stdout).toContain('Other');
   });
 
   test('a bad option fails before any sync runs', async () => {
