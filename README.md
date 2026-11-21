@@ -152,7 +152,7 @@ gournal setup claude --uninstall
 npm uninstall -g gournal
 ```
 
-With Homebrew, run `brew uninstall gournal` as the second command.
+With Homebrew, run `brew uninstall gournal` as the second command. If you remove the package first, see [You removed gournal before you ran the uninstall](https://gournal.aelshinawy.com/docs/resources/troubleshooting/#you-removed-gournal-before-you-ran-the-uninstall).
 
 Both commands keep your journal. It lives in `~/.gournal`. See [Data safety and backups](https://gournal.aelshinawy.com/docs/guides/data-safety-and-backups/) before you delete that folder.
 

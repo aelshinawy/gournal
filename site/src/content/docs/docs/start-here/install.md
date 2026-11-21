@@ -88,9 +88,9 @@ Gournal keeps its data in `~/.gournal`. On Windows, this is `%USERPROFILE%\.gour
 
 ## Upgrade
 
-With Homebrew, run `brew upgrade gournal`. Claude Code then runs the new version from the `opt` folder of Homebrew. You do not have to run setup again. The next gournal command also updates the copy that Claude Code uses when the package is missing.
+With Homebrew, run `brew upgrade gournal`. Claude Code then runs the new version from the `opt` folder of Homebrew. You do not have to run setup again. The next gournal command also updates the copy. Claude Code uses the copy only when the package is missing.
 
-With npm, run `npm install -g gournal` again to get the newest version. The next gournal command also updates the copy that Claude Code uses. The `mcp` and `hook` commands do not update it. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal). If you upgrade from version 0.6 or older, see [Migrating from 0.x](/docs/guides/migrating-from-0x/).
+With npm, run `npm install -g gournal` again to get the newest version. Setup records one install. If you install the newer version the same way (the same Node.js version and the same tool), the next gournal command updates the copy. If you install under another Node.js version or with another tool, run `gournal setup claude` again so that Claude Code uses it. The `mcp` and `hook` commands do not update the copy. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal). If you upgrade from version 0.6 or older, see [Migrating from 0.x](/docs/guides/migrating-from-0x/).
 
 ## Uninstall
 

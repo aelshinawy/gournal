@@ -61,7 +61,7 @@ Run the command again at any time. A step that is already done prints `already s
 gournal setup claude --uninstall
 ```
 
-The command removes the MCP registration, the skill file (only if gournal wrote it), the gournal hook, and the launcher with its copy of gournal (`~/.gournal/bin` and `~/.gournal/runtime`). It changes nothing else. It asks before each step unless you pass `--yes`. It does not delete your journal. The backup file `settings.json.gournal-backup` stays. When the MCP registration or the hook stays (you answer no, or the `claude` command is missing), the launcher stays too, and setup says so. The registration and the hook start the launcher.
+The command removes the MCP registration, the skill file (only if gournal wrote it), the gournal hook, and the launcher with its copy of gournal (`~/.gournal/bin` and `~/.gournal/runtime`). It changes nothing else. It asks before each step unless you pass `--yes`. It does not delete your journal. The backup file `settings.json.gournal-backup` stays. When the MCP registration or the hook stays (you answer no, the `claude` command is missing, or setup cannot remove them), the launcher stays too, and setup says so. The registration and the hook start the launcher.
 
 ```console
 $ gournal setup claude --uninstall --yes
@@ -106,13 +106,13 @@ These changes do not break the launcher:
 - The removal of a Node.js version.
 - A start from the desktop app.
 
-After you run `npm install -g gournal` for a newer version, the next `gournal` command updates the copy in `~/.gournal/runtime`. Only a package under `node_modules` updates the copy. The `mcp` and `hook` commands never update it. Run `gournal setup claude` again when you want to check the setup.
+Setup records one install of gournal. After you install a newer gournal the same way (the same Node.js version and the same tool), the next `gournal` command updates the copy in `~/.gournal/runtime`. Only a package under `node_modules` updates the copy. The `mcp` and `hook` commands never update it. If you install under another Node.js version or with another tool, run `gournal setup claude` again so that Claude Code uses it.
 
 A Homebrew install also uses the launcher. The launcher runs gournal from `/opt/homebrew/opt/gournal` with `/opt/homebrew/opt/node/bin/node`. It runs the copy only when that folder is missing. On Intel Macs, the folder is `/usr/local`. On Linux, it is `/home/linuxbrew/.linuxbrew`. These paths follow `brew upgrade` and do not need your `PATH`. If you switch from npm to Homebrew, see [Install](/docs/start-here/install/#install-gournal).
 
 If you set `GOURNAL_HOME` when you run setup, the gournal home is that folder, and the launcher keeps it. A `GOURNAL_HOME` that Claude Code passes at run time overrides it. Run undo with the same `GOURNAL_HOME` as the install. Undo removes the two launcher files and the `runtime` folder. It removes the `bin` folder only when the folder is empty.
 
-If you remove the package with `npm uninstall -g gournal` or `brew uninstall gournal` before you run `gournal setup claude --uninstall`, gournal stays silent and cleans up later. See [Claude Code cannot start gournal](/docs/resources/troubleshooting/#claude-code-cannot-start-gournal).
+If you remove the package with `npm uninstall -g gournal` or `brew uninstall gournal` before you run `gournal setup claude --uninstall`, gournal runs from its copy for one minute. Then the MCP server stops with a message. The Stop hook stays silent and removes the setup about one hour later. See [You removed gournal before you ran the uninstall](/docs/resources/troubleshooting/#you-removed-gournal-before-you-ran-the-uninstall).
 
 If Claude Code cannot start gournal, see [Claude Code cannot start gournal](/docs/resources/troubleshooting/#claude-code-cannot-start-gournal).
 
