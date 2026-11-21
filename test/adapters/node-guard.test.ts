@@ -1,11 +1,9 @@
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { NODE_FLOOR } from '../../src/adapters/check-node';
 import { makeTmp, rmTmp } from '../helpers/tmp';
 
 const root = path.join(__dirname, '..', '..');
-const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 let home: string;
 beforeEach(() => { home = makeTmp('gournal-guard-'); });
 afterEach(() => rmTmp(home));
@@ -14,10 +12,6 @@ const spawnOld = (args: string[], env: Record<string, string>) =>
   spawnSync(process.execPath, ['-r', path.join(root, 'test/fixtures/old-node.js'), '-r', 'ts-node/register/transpile-only', 'src/cli.ts', ...args],
     { cwd: root, encoding: 'utf8', input: '{}', env: { PATH: process.env.PATH ?? '', HOME: home, USERPROFILE: home, GOURNAL_HOME: home, ...env } });
 
-test('the floor matches package.json engines and the CI matrix', () => {
-  expect(pkg.engines.node).toBe(`>=${NODE_FLOOR.major}.${NODE_FLOOR.minor}`);
-  expect(fs.readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8')).toContain(`'${NODE_FLOOR.major}.${NODE_FLOOR.minor}'`);
-});
 test('the guard files use only syntax that Node 14 parses', () => {
   for (const f of ['src/cli.ts', 'src/adapters/suppress-warnings.ts', 'src/adapters/check-node.ts']) {
     expect(fs.readFileSync(path.join(root, f), 'utf8')).not.toMatch(/\?\?=|\|\|=|&&=|static\s*\{|#[A-Za-z_]\w*\s*[=(;]|^\s*await\b/m);

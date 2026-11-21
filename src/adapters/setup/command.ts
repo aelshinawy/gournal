@@ -1,4 +1,3 @@
-/** The Node.js that runs setup, and the cmd.exe path that a Windows registration uses. */
 export interface CommandEnv { execPath: string; cmdExe: string }
 export interface GournalCommand { command: string; args: string[] }
 
@@ -17,7 +16,6 @@ export function displayQuote(word: string, platform: NodeJS.Platform = process.p
   return /^[\w@%+=:,./-]+$/.test(word) ? word : `"${word}"`;
 }
 
-/** The last path part. It splits on both `/` and `\\`, so a Windows path works on any platform. */
 export const baseName = (p: string): string => p.split(/[\\/]/).pop() ?? '';
 
 /**
@@ -34,7 +32,6 @@ export function isGournalNodeLaunch(nodeCommand: string, script: string): boolea
   return name === 'cli.js' && parts.some((d) => d.toLowerCase() === 'gournal');
 }
 
-/** How a registered command relates to the one setup writes now. */
 /** True for `/d /c <gournal.cmd> ...tail`, the way setup runs the Windows launcher through cmd.exe. */
 export function isLauncherCmd(args: string[], tail: string[]): boolean {
   return args.length === 3 + tail.length && args[0] === '/d' && args[1] === '/c' && baseName(args[2]!).toLowerCase() === 'gournal.cmd' && tail.every((t, i) => args[3 + i] === t);

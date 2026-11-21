@@ -26,7 +26,6 @@ export interface GateOptions {
 /** Any clock value before September 2001 is not a real removal time. */
 const MIN_EPOCH_S = 1_000_000_000;
 
-/** The marker value, or null when the file is missing or holds anything but whole seconds from MIN_EPOCH_S to nowS. */
 function readSeconds(file: string, nowS: number): number | null {
   try {
     const text = fs.readFileSync(file, 'utf8').trim();

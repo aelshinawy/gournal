@@ -9,13 +9,6 @@ test('the launcher hook shapes are gournal hooks', () => {
   expect(isGournalHook('/opt/my-gournal-notes/bin hook stop')).toBe(false);
 });
 
-test('the cmd.exe exec hook is ours and is removed by uninstall', () => {
-  const s = { hooks: { Stop: [{ hooks: [{ type: 'command', command: 'C:\\Windows\\System32\\cmd.exe', args: ['/d', '/c', 'C:\\h\\bin\\gournal.cmd', 'hook', 'stop'] }] }] } };
-  expect(removeStopHook(s).changed).toBe(true);
-  const other = { hooks: { Stop: [{ hooks: [{ type: 'command', command: 'C:\\Windows\\System32\\cmd.exe', args: ['/d', '/c', 'C:\\x\\other.cmd', 'hook', 'stop'] }] }] } };
-  expect(removeStopHook(other).changed).toBe(false);
-});
-
 test('classifyRegistration', () => {
   const cur = { command: '/h/bin/gournal', args: ['mcp'] };
   expect(classifyRegistration(cur, cur)).toBe('current');

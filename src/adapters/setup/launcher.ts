@@ -47,7 +47,6 @@ const POSIX_CANDIDATES: NodeCandidates = {
   ],
 };
 
-/** Characters that cmd.exe reads as syntax even inside the launcher path. */
 const LAUNCH_UNSAFE = /[%^&|<>!"()@\r\n]/;
 
 /**
@@ -67,7 +66,6 @@ const NO_NODE_MESSAGE =
   `found no Node.js ${FLOOR_TEXT} or newer with the node:sqlite module. ` +
   `Install Node.js ${FLOOR_TEXT} or newer. Then run "gournal setup claude" in a terminal.`;
 
-/** Render the POSIX sh launcher that Claude Code starts. It finds Node at run time. */
 export function renderPosixLauncher(o: { home: string; bakeHome: boolean; candidates?: NodeCandidates }): string {
   const c = o.candidates ?? POSIX_CANDIDATES;
   const home = shellQuote(o.home);
@@ -103,13 +101,11 @@ export function renderPosixLauncher(o: { home: string; bakeHome: boolean; candid
   ].join('\n');
 }
 
-/** The command Claude Code runs to start the launcher. On Windows, cmd.exe runs the .cmd file. */
 export function launcherCommand(launcher: string, platform: NodeJS.Platform, cmdExe: string): { command: string; args: string[] } {
   // No /s: without /s, cmd keeps the two quotes around a path with a space.
   return platform === 'win32' ? { command: cmdExe, args: ['/d', '/c', launcher] } : { command: launcher, args: [] };
 }
 
-/** Return a message when cmd.exe cannot start this launcher path. Return null when it can. */
 export function checkLauncherPath(launcher: string, platform: NodeJS.Platform): string | null {
   if (platform !== 'win32' || !LAUNCH_UNSAFE.test(launcher)) return null;
   return `Launcher: cannot start ${launcher} through cmd.exe: the path holds one of % ^ & | < > ! " ( ) @. Set GOURNAL_HOME to a folder without these characters and run setup again.`;

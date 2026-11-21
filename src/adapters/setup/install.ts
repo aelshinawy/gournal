@@ -28,7 +28,6 @@ async function registerMcp(ctx: SetupCtx): Promise<'ok' | 'missing' | 'failed'> 
   return res;
 }
 
-/** Remove the old registration, then add the launcher one. Print what to run when a step fails. */
 async function replaceMcp(ctx: SetupCtx, old: { command: string; args: string[] }): Promise<void> {
   const { io } = ctx;
   const removed = await ctx.runClaude(ctx.removeArgs);

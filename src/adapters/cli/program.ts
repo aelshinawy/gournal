@@ -73,7 +73,6 @@ export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<n
       platform: process.platform,
     });
   } catch {
-    // The gate never stops a command by failing. Run it.
   }
   // Both lines go to stderr as plain text. Stdout belongs to the MCP protocol.
   if (gate.kind === 'exit') {
@@ -84,7 +83,6 @@ export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<n
   try {
     adoptInstalledPackage(full.home, { packageRoot: io.packageRoot });
   } catch {
-    // Adoption is best effort. It never fails a command.
   }
   try {
     await buildProgram(full).parseAsync(argv);

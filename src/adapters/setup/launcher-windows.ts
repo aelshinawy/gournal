@@ -10,7 +10,6 @@ const WINDOWS_CANDIDATES: NodeCandidates = {
     '"%USERPROFILE%\\scoop\\apps\\nodejs\\current\\node.exe"',
     '"%USERPROFILE%\\scoop\\apps\\nodejs-lts\\current\\node.exe"',
   ],
-  // Each entry is a folder glob. The leaf file is added by globLeaf.
   globs: [
     '"%NVM_HOME%\\v*"',
     '"%LOCALAPPDATA%\\nvm\\v*"',
@@ -34,7 +33,6 @@ function guard(fragment: string): string {
   return m ? `if defined ${m[1]} ` : '';
 }
 
-/** Render the cmd.exe launcher (CRLF line ends). It finds Node at run time. */
 export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeCandidates }): string {
   const c = o.candidates ?? WINDOWS_CANDIDATES;
   const probe = (set: string): string => `"%~1" -e "${probeSource("'")}" >nul 2>&1 <nul && set "${set}=%~1"`;
@@ -57,7 +55,6 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     'if exist "%GH%\\runtime\\source" set /p SRC=<"%GH%\\runtime\\source"',
     `set "MSG=${noApp('%GH%\\runtime')}"`,
     `if defined SRC set "MSG=${noApp('%SRC% or in %GH%\\runtime')}"`,
-    // The installed package wins. The copy runs only when the source is gone.
     'if defined SRC if exist "%SRC%\\dist\\cli.js" set "DIR=%SRC%"',
     'if not defined DIR if exist "%GH%\\runtime\\current" set /p APP=<"%GH%\\runtime\\current"',
     'if not defined DIR if defined APP if exist "%GH%\\runtime\\%APP%\\dist\\cli.js" set "DIR=%GH%\\runtime\\%APP%"',

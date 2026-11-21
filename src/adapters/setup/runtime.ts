@@ -28,7 +28,6 @@ export function runtimePaths(gournalHome: string, platform: NodeJS.Platform): Ru
   };
 }
 
-/** Write a file when its content differs. Returns true when it wrote. */
 function writeIfDiffers(file: string, content: string, mode?: number): boolean {
   if (readText(file) === content) return false;
   writeViaTemp(file, (tmp) => fs.writeFileSync(tmp, content), { mode });
@@ -87,7 +86,6 @@ export function installRuntime(o: {
   nodePath: string;
   platform: NodeJS.Platform;
   bakeHome: boolean;
-  /** Where the installed package lives. The default is read from `packageRoot`. */
   records?: SourceRecords;
 }): { action: InstallAction; paths: RuntimePaths } {
   const paths = runtimePaths(o.gournalHome, o.platform);
@@ -110,7 +108,6 @@ export function installRuntime(o: {
   return { action: previousText === null ? 'installed' : wrote ? 'updated' : 'unchanged', paths };
 }
 
-/** Remove the launcher and the runtime. Other files in the home stay. */
 export function removeRuntime(gournalHome: string, platform: NodeJS.Platform): boolean {
   const paths = runtimePaths(gournalHome, platform);
   let removed = false;

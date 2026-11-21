@@ -1,11 +1,8 @@
 import fs from 'fs';
 
 export interface HomebrewInstall {
-  /** The Homebrew prefix, for example /opt/homebrew. */
   prefix: string;
-  /** The stable Node.js path: <prefix>/opt/node/bin/node. */
   node: string;
-  /** The stable package path under opt. It has no version in it. */
   source: string;
 }
 

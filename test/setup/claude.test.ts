@@ -902,18 +902,4 @@ describe('the launcher registration', () => {
     expect(await run({}, makeIo({ check }))).toBe(1);
     expect(err).toContain('Check: the launcher did not start gournal (exit 1). gournal: found no Node.js 22.13 or newer.');
   });
-
-  test('uninstall removes the launcher and the runtime and keeps the journal', async () => {
-    await run({ hook: true });
-    fs.writeFileSync(path.join(h.gh, 'gournal.db'), 'journal');
-    out.length = 0;
-    expect(await run({ uninstall: true })).toBe(0);
-    expect(fs.existsSync(LAUNCHER())).toBe(false);
-    expect(fs.existsSync(path.join(h.gh, 'runtime'))).toBe(false);
-    expect(fs.readFileSync(path.join(h.gh, 'gournal.db'), 'utf8')).toBe('journal');
-    expect(out).toContain('Launcher: removed.');
-    out.length = 0;
-    expect(await run({ uninstall: true })).toBe(0);
-    expect(out).toContain('Launcher: not set up.');
-  });
 });

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { createLauncherCheck, minimalEnv } from '../../src/adapters/setup/launcher-check';
+import { createLauncherCheck } from '../../src/adapters/setup/launcher-check';
 import { makeRealTmp, rmTmp } from '../helpers/tmp';
 
 const posixTest = process.platform === 'win32' ? test.skip : test;

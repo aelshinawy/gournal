@@ -21,9 +21,7 @@ export interface CliIo {
   exec?: CommandRunner;
   /** Test seam for the spinner. The default is process.stderr. */
   spinnerStream?: SpinnerStream;
-  /** Test seam for the install gate. The default is the package that holds this code. */
   packageRoot?: string;
-  /** Test seam for the install gate. The default is the clock. */
   now?: () => Date;
 }
 

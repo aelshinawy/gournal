@@ -7,11 +7,8 @@ import { VERSION } from '../version';
 import type { SetupCtx } from './claude';
 
 export interface LauncherStep {
-  /** Install the launcher once per run. Returns true when it is in place. */
   ensure(): boolean;
-  /** True when ensure ran and the launcher is in place. */
   readonly installed: boolean;
-  /** Run the launcher with a minimal environment. Print the result. */
   check(): Promise<void>;
 }
 

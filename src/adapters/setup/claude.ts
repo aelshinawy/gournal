@@ -19,15 +19,11 @@ export interface SetupIo {
   isTTY: boolean;
   confirm(message: string, def: boolean): Promise<boolean>;
   exec: CommandRunner;
-  /** Test seam. The default reads process.execPath and the Windows cmd.exe path. */
   env?: CommandEnv;
   /** Test seam. The default is process.platform. */
   platform?: NodeJS.Platform;
-  /** Test seam. The default is the package that holds this code. */
   packageRoot?: string;
-  /** Test seam. The default runs the launcher with a minimal environment. */
   check?: CommandRunner;
-  /** Test seam. The default is true for a gournal home that is not the built-in one. */
   bakeHome?: boolean;
 }
 

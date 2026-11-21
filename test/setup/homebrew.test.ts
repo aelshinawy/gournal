@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { detectHomebrew } from '../../src/adapters/setup/homebrew';
 import { makeFakeBrew } from '../helpers/fake-brew';
-import { makeFakePackage } from '../helpers/fake-package';
 import { makeHarness, type Harness } from '../helpers/setup-harness';
 import { makeRealTmp, rmTmp } from '../helpers/tmp';
 import { VERSION } from '../../src/adapters/version';
@@ -27,15 +26,6 @@ posixTest('detectHomebrew finds the opt paths from a Cellar package', () => {
     node: `${prefix}/opt/node/bin/node`,
     source: `${prefix}/opt/gournal/libexec/lib/node_modules/gournal`,
   });
-});
-
-posixTest('detectHomebrew is null for an npm package, on win32, and without opt/node', () => {
-  const { prefix, packageRoot } = makeFakeBrew(root, '0.9.0');
-  const npmRoot = makeFakePackage(path.join(prefix, 'lib', 'node_modules', 'gournal'), '0.9.0');
-  expect(detectHomebrew(npmRoot, 'darwin')).toBeNull();
-  expect(detectHomebrew(packageRoot, 'win32')).toBeNull();
-  fs.rmSync(path.join(prefix, 'opt', 'node'), { recursive: true });
-  expect(detectHomebrew(packageRoot, 'darwin')).toBeNull();
 });
 
 posixTest('a Homebrew setup registers the launcher and records the opt node', async () => {

@@ -19,7 +19,6 @@ function assertBuilt(root: string): void {
   }
 }
 
-/** The first node_modules/<name> that Node would search from realDir upward, or null. */
 function findDependency(realDir: string, name: string): string | null {
   const searched = createRequire(path.join(realDir, 'x.js')).resolve.paths(name) ?? [];
   for (const dir of searched) {
@@ -81,7 +80,6 @@ export function packageFingerprint(root: string): string {
   return hash.digest('hex').slice(0, 12);
 }
 
-/** Copy package.json, dist, and the production dependency closure. Symlinks are followed. */
 export function copyPackage(root: string, dest: string): void {
   assertBuilt(root);
   const plan = planDependencies(root);
