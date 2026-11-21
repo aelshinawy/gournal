@@ -427,7 +427,7 @@
               "maxLength": 1000
             },
             "message": {
-              "description": "Deprecated alias for summary. Use summary instead.",
+              "description": "Deprecated alias for summary. Use summary instead. It will be removed in the next minor release.",
               "type": "string",
               "maxLength": 1000
             },
@@ -1717,7 +1717,7 @@
       {
         "name": "list_entries",
         "title": "List journal entries",
-        "description": "List journal entries, newest first. The text result is JSON. Pass a low `limit` so that the result does not flood your context.",
+        "description": "Deprecated: use find_entries (same filters and more). This tool will be removed in the next minor release. List journal entries, newest first. The text result is JSON. Pass a low `limit` so that the result does not flood your context.",
         "inputSchema": {
           "type": "object",
           "properties": {
