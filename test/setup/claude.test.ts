@@ -1046,4 +1046,13 @@ describe('the launcher registration', () => {
     expect(await run({ uninstall: true }, makeIo({ packageRoot: copy }))).toBe(0);
     expect(fs.existsSync(path.join(h.gh, 'runtime'))).toBe(false);
   });
+
+  test('uninstall names an unreadable settings.json when it keeps the launcher', async () => {
+    await run({});
+    writeSettings('{ not json');
+    out.length = 0;
+    expect(await run({ uninstall: true })).toBe(1);
+    expect(fs.existsSync(LAUNCHER())).toBe(true);
+    expect(out).toContain(`Launcher: kept, because ${settingsFile()} is not valid JSON and may hold a hook that starts it. Run this command again when you have fixed that.`);
+  });
 });

@@ -152,9 +152,14 @@ export function addStopHook(settings: Json, hook: StopHook): { next: Json; chang
   return { next, changed: true, action: 'added' };
 }
 
-/** Remove every gournal Stop hook. Drop the containers that this leaves empty. */
-export function removeStopHook(settings: Json, current?: StopHook): { next: Json; changed: boolean } {
-  if (gournalHooks(settings, current).length === 0) return { next: settings, changed: false };
+/**
+ * Remove every gournal Stop hook. Drop the containers that this leaves empty.
+ * With `exactOnly`, remove only the entries that equal `current`, the hook of one gournal home.
+ */
+export function removeStopHook(settings: Json, current?: StopHook, exactOnly = false): { next: Json; changed: boolean } {
+  const mine = (h: unknown): boolean => (exactOnly ? current !== undefined && isObj(h) && sameHook(h, current) : isOurs(h, current));
+  const has = stopGroups(settings).some((g) => isObj(g) && Array.isArray(g.hooks) && g.hooks.some(mine));
+  if (!has) return { next: settings, changed: false };
   const next = clone(settings);
   const hooks = next.hooks as Json;
   const kept: unknown[] = [];
@@ -163,7 +168,7 @@ export function removeStopHook(settings: Json, current?: StopHook): { next: Json
       kept.push(group);
       continue;
     }
-    const rest = group.hooks.filter((h) => !isOurs(h, current));
+    const rest = group.hooks.filter((h) => !mine(h));
     if (rest.length === group.hooks.length) kept.push(group);
     else if (rest.length > 0) kept.push({ ...group, hooks: rest });
   }

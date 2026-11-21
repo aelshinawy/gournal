@@ -165,7 +165,7 @@ describe('POSIX launcher', () => {
     const out = run(f);
     expect(out.status).toBe(1);
     expect(out.stderr).toBe(
-      `gournal: the launcher cannot find gournal in  or in ${f.home}/runtime. Run "gournal setup claude" in a terminal, or run "claude mcp remove --scope user gournal" to remove gournal from Claude Code.\n`,
+      `gournal: the launcher cannot find gournal in ${f.home}/runtime. Run "gournal setup claude" in a terminal, or run "claude mcp remove --scope user gournal" to remove gournal from Claude Code.\n`,
     );
     const hook = run(f, ['hook']);
     expect(hook.status).toBe(0);

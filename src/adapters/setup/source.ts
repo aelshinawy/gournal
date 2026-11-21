@@ -16,7 +16,10 @@ const FILES = ['source', 'anchor', 'rack'] as const;
 export function sourceRecords(packageRoot: string, brew: HomebrewInstall | null): SourceRecords {
   if (brew) return { source: brew.source, anchor: `${brew.prefix}/Cellar`, rack: `${brew.prefix}/Cellar/gournal` };
   const source = fs.realpathSync(packageRoot);
-  return { source, anchor: path.dirname(source), rack: source };
+  // A checkout or an npm link is not under node_modules. Its parent folder stays when the checkout
+  // goes, so the anchor is a folder inside the source, and removing the source gives "away".
+  const installed = source.split(path.sep).includes('node_modules');
+  return { source, anchor: installed ? path.dirname(source) : path.join(source, 'node_modules'), rack: source };
 }
 
 /** Write the three records. Returns true when a file changed. */

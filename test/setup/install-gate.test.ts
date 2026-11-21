@@ -4,7 +4,7 @@ import { Readable } from 'stream';
 import { makeRealTmp, rmTmp } from '../helpers/tmp';
 import { INSTALL_FAMILIES } from '../../src/adapters/setup/launcher';
 import { CLEANUP_AFTER_S, MCP_GRACE_S, installGate } from '../../src/adapters/setup/install-gate';
-import { findOtherInstall, readRecords, writeRecords, type SourceRecords } from '../../src/adapters/setup/source';
+import { findOtherInstall, readRecords, sourceRecords, writeRecords, type SourceRecords } from '../../src/adapters/setup/source';
 import { canSymlink } from '../helpers/symlink';
 import { runCli } from '../../src/adapters/cli/program';
 
@@ -139,6 +139,48 @@ describe('npm uninstall', () => {
     const f = setup();
     ago(f, 100);
     install(f);
+    expect(gateFor(f)(MCP)).toEqual({ kind: 'run' });
+    expect(fs.existsSync(f.removedAt)).toBe(false);
+  });
+
+  test.each([['zero', '0'], ['small', '5'], ['negative', '-1'], ['future', String(Math.floor(now.getTime() / 1000) + 99999)], ['corrupt', 'abc'], ['empty', '']])(
+    'a %s marker starts the clock now: the hook does not clean up',
+    (_name, text) => {
+      const f = setup();
+      fs.writeFileSync(f.removedAt, `${text}\n`);
+      expect(gateFor(f)(HOOK)).toEqual({ kind: 'run' });
+      expect(fs.readFileSync(f.removedAt, 'utf8')).toBe(`${Math.floor(now.getTime() / 1000)}\n`);
+    },
+  );
+
+  test('mcp at 3600 s or more exits, and never cleans up', () => {
+    const f = setup();
+    ago(f, 99999);
+    expect(gateFor(f)(MCP)).toEqual({ kind: 'exit', code: 1, message: gone(f) });
+  });
+
+  test('only "hook stop" is silent and cleans up; another hook command follows the normal rules', () => {
+    const f = setup();
+    ago(f, 5000);
+    expect(gateFor(f)(['node', 'gournal', 'hook'])).toEqual({ kind: 'exit', code: 1, message: gone(f) });
+    expect(gateFor(f)(['node', 'gournal', 'hook', 'start'])).toEqual({ kind: 'exit', code: 1, message: gone(f) });
+    expect(gateFor(f)(HOOK)).toEqual({ kind: 'cleanup' });
+  });
+
+  test('a checkout or npm link that goes away is not an uninstall', () => {
+    const f = setup((root) => {
+      const checkout = path.join(root, 'work', 'gournal');
+      fs.mkdirSync(path.join(checkout, 'node_modules'), { recursive: true });
+      fs.mkdirSync(path.join(checkout, 'dist'), { recursive: true });
+      fs.writeFileSync(path.join(checkout, 'dist', 'cli.js'), '');
+      fs.writeFileSync(path.join(checkout, 'package.json'), '{}');
+      return sourceRecords(checkout, null);
+    });
+    const checkout = path.join(f.root, 'work', 'gournal');
+    expect(readRecords(path.join(f.home, 'runtime'))!.anchor).toBe(path.join(checkout, 'node_modules'));
+    fs.rmSync(checkout, { recursive: true });
+    ago(f, 5000);
+    expect(gateFor(f)(HOOK)).toEqual({ kind: 'run' });
     expect(gateFor(f)(MCP)).toEqual({ kind: 'run' });
     expect(fs.existsSync(f.removedAt)).toBe(false);
   });

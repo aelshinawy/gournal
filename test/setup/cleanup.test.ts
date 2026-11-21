@@ -50,8 +50,26 @@ test('a launcher registration of another gournal home is kept', async () => {
   await clean(h, h.fakeExec());
   expect(registered(h)).toMatchObject(other);
   expect(h.calls).toEqual([]);
-  expect(fs.existsSync(h.skillFile())).toBe(false);
+  // The skill file is shared. The registration of another home still needs it.
+  expect(fs.existsSync(h.skillFile())).toBe(true);
   expect(h.stopCommands(h.readSettings())).toEqual([FOREIGN_HOOK.command]);
+});
+
+test('a gournal-shaped hook of another home survives, and this home hook goes', async () => {
+  const h = await installed();
+  const otherHook = "'/else/.gournal/bin/gournal' hook stop";
+  const settings = h.readSettings();
+  settings.hooks.Stop.push({ hooks: [{ type: 'command', command: otherHook }] });
+  h.writeSettings(settings);
+  await clean(h, h.fakeExec());
+  expect(h.stopCommands(h.readSettings())).toEqual([FOREIGN_HOOK.command, otherHook]);
+});
+
+test('a registration that is gone still lets the skill go', async () => {
+  const h = await installed();
+  fs.writeFileSync(path.join(h.home, '.claude.json'), '{}');
+  await clean(h, h.fakeExec());
+  expect(fs.existsSync(h.skillFile())).toBe(false);
 });
 
 test('a foreign registration named gournal is kept', async () => {

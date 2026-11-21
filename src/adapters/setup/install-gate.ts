@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { writeViaTemp } from '../../storage';
 import { runtimePaths } from './runtime';
 import { detectHomebrew } from './homebrew';
 import { copyHomeOf, findOtherInstall, homeAsSpelled, readRecords, sourceRecords, uninstallVerdict, writeRecords } from './source';
@@ -30,10 +31,16 @@ export interface GateOptions {
   find?: { exists(p: string): boolean; readdir(p: string): string[] };
 }
 
-function readSeconds(file: string): number | null {
+/** Any clock value before September 2001 is not a real removal time. */
+const MIN_EPOCH_S = 1_000_000_000;
+
+/** The marker value, or null when the file is missing or holds anything but whole seconds from MIN_EPOCH_S to nowS. */
+function readSeconds(file: string, nowS: number): number | null {
   try {
-    const n = Number.parseInt(fs.readFileSync(file, 'utf8').trim(), 10);
-    return Number.isFinite(n) ? n : null;
+    const text = fs.readFileSync(file, 'utf8').trim();
+    if (!/^\d+$/.test(text)) return null;
+    const n = Number(text);
+    return n >= MIN_EPOCH_S && n <= nowS ? n : null;
   } catch {
     return null;
   }
@@ -68,14 +75,16 @@ export function installGate(o: GateOptions): GateResult {
     return { kind: 'run' };
   }
   const nowS = Math.floor(o.now.getTime() / 1000);
-  let since = readSeconds(marker);
+  let since = readSeconds(marker, nowS);
   if (since === null) {
+    // A missing, corrupt, zero, negative, or future marker starts the clock now.
     since = nowS;
-    fs.writeFileSync(marker, `${nowS}\n`);
+    writeViaTemp(marker, (tmp) => fs.writeFileSync(tmp, `${nowS}\n`));
   }
   const age = nowS - since;
   const command = o.argv[2];
-  if (command === 'hook') return age < CLEANUP_AFTER_S ? { kind: 'run' } : { kind: 'cleanup' };
+  // Only the Stop hook is silent and cleans up. A future hook command gets the normal rules.
+  if (command === 'hook' && o.argv[3] === 'stop') return age < CLEANUP_AFTER_S ? { kind: 'run' } : { kind: 'cleanup' };
   if (command === 'setup' && o.argv.includes('--uninstall')) return { kind: 'run' };
   if (age < MCP_GRACE_S) {
     return { kind: 'run', notice: `gournal: the installed package ${records.source} is missing. gournal runs from its copy in ${copyHome}/runtime.` };
