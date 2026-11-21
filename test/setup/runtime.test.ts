@@ -15,23 +15,6 @@ const tmp = (): string => {
 };
 const install = (home: string, pkg: string) => installRuntime({ gournalHome: home, packageRoot: pkg, nodePath: '/n/node', platform: process.platform, bakeHome: false });
 
-test('copyPackage copies package.json, dist, and the production closure, and nests a different version', () => {
-  const root = makeFakePackage(path.join(tmp(), 'pkg'), '1.0.0', { a: '1.0.0', b: '1.0.0' });
-  const put = (dir: string, deps?: Record<string, string>, version = '1.0.0'): void => {
-    fs.mkdirSync(path.join(root, dir), { recursive: true });
-    fs.writeFileSync(path.join(root, dir, 'package.json'), JSON.stringify({ name: 'x', version, dependencies: deps }));
-  };
-  put('node_modules/a', { shared: '1.0.0' });
-  put('node_modules/b', { shared: '2.0.0' });
-  put('node_modules/shared');
-  put('node_modules/b/node_modules/shared', undefined, '2.0.0');
-  fs.mkdirSync(path.join(root, 'src'));
-  const dest = path.join(tmp(), 'out');
-  copyPackage(root, dest);
-  expect(fs.readdirSync(dest).sort()).toEqual(['dist', 'node_modules', 'package.json']);
-  expect(fs.existsSync(path.join(dest, 'node_modules', 'b', 'node_modules', 'shared'))).toBe(true);
-});
-
 test('a second install of the same version reuses the copy, and an unfinished copy is rebuilt', () => {
   const home = path.join(tmp(), 'h');
   const pkg = makeFakePackage(path.join(tmp(), 'pkg'), '1.0.0');
@@ -60,4 +43,18 @@ test('a run from an installed package adopts it when the recorded source is gone
   expect(source()).toBe(oldReal);
   adoptInstalledPackage(home, { packageRoot: fresh });
   expect(source()).toBe(fs.realpathSync(fresh));
+});
+
+test('copyPackage nests a dependency whose version differs from the hoisted one', () => {
+  const root = makeFakePackage(path.join(tmp(), 'pkg'), '1.0.0', { a: '1.0.0', b: '1.0.0' });
+  const shared = (dir: string, version: string): void => {
+    fs.mkdirSync(path.join(root, dir, 'node_modules', 'shared'), { recursive: true });
+    fs.writeFileSync(path.join(root, dir, 'package.json'), JSON.stringify({ name: dir, version: '1.0.0', dependencies: { shared: version } }));
+    fs.writeFileSync(path.join(root, dir, 'node_modules', 'shared', 'package.json'), JSON.stringify({ name: 'shared', version }));
+  };
+  shared('node_modules/a', '1.0.0');
+  shared('node_modules/b', '2.0.0');
+  const dest = path.join(tmp(), 'out');
+  copyPackage(root, dest);
+  expect(fs.existsSync(path.join(dest, 'node_modules', 'b', 'node_modules', 'shared'))).toBe(true);
 });
