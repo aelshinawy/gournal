@@ -22,17 +22,19 @@ Skip this step if you do not use Claude Code. You can add entries yourself with 
 
 ```console
 $ gournal setup claude --yes
-MCP server: register gournal for all projects (claude mcp add --scope user gournal -- gournal mcp).
+MCP server: register gournal for all projects (claude mcp add --scope user gournal -- /Users/you/.gournal/bin/gournal mcp).
+Launcher: installed in /Users/you/.gournal/runtime.
 MCP server: the claude CLI was not found on PATH. Run this command yourself:
-  claude mcp add --scope user gournal -- gournal mcp
+  claude mcp add --scope user gournal -- /Users/you/.gournal/bin/gournal mcp
 Skill: write /Users/you/.claude/skills/gournal/SKILL.md.
 Skill: installed.
 Stop hook: not enabled (add --hook to enable it).
+Check: Claude Code can start gournal without your shell PATH.
 ```
 
 This example ran on a machine with no `claude` CLI, so gournal printed the command for you to run. With `claude` installed, gournal runs it for you. Restart Claude Code after setup. Then run `claude mcp list`. The list must show `gournal`.
 
-See [Claude Code setup](/docs/guides/claude-code-setup/) for what the command changes, the Stop hook, and how to undo it.
+See [Claude Code setup](/docs/guides/claude-code-setup/) for what the command changes, the Stop hook, and how to undo it. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal) if you use a Node.js version manager.
 
 ## 3. Add entries
 

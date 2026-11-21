@@ -56,7 +56,7 @@ gournal setup claude
 
 The command asks before each of three steps:
 
-1. **MCP server.** It registers `gournal mcp` with Claude Code for all your projects.
+1. **MCP server.** It registers a launcher at `~/.gournal/bin/gournal` that starts `gournal mcp` for Claude Code.
 2. **Skill.** It writes `~/.claude/skills/gournal/SKILL.md`. The skill tells Claude when to log work.
 3. **Stop hook.** It adds a hook to `~/.claude/settings.json`. This step is off by default. Add `--hook` to turn it on.
 

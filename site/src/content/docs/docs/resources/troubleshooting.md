@@ -1,9 +1,9 @@
 ---
 title: Troubleshooting
-description: Fix GitHub sync warnings, sync errors, and entries that do not link to activity.
+description: Fix GitHub sync warnings, Claude Code start errors, and entries that do not link to activity.
 ---
 
-This page explains the messages that gournal prints when a GitHub sync has a problem. It also explains why an entry may not link to a pull request. For other questions, see the [FAQ](/docs/resources/faq/).
+This page explains the messages that gournal prints when a GitHub sync has a problem. It also explains why an entry may not link to a pull request. For a Claude Code start error, see [Claude Code cannot start gournal](#claude-code-cannot-start-gournal). For other questions, see the [FAQ](/docs/resources/faq/).
 
 ## A warning shows when I run a report
 
@@ -82,3 +82,22 @@ A link needs a PR ref, a commit ref, or a `done` entry on the same repository an
 5. Add a PR ref. Use the tag `pr-42` or run `gournal add "..." -t pr-42`. The ref links the entry to all activity of the pull request.
 
 If gournal prints `gournal: relink after write failed (...)` on stderr, the entry was saved, but gournal could not update its links. The next edit of the entry recomputes them.
+
+## Claude Code cannot start gournal
+
+Claude Code starts gournal through a launcher. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal). When the launcher or Node.js fails, gournal prints one line. `VERSION`, `PATH`, and `HOME` in the table stand for the values on your machine.
+
+| Message | What to do |
+| --- | --- |
+| `gournal needs Node.js 22.13 or newer. This is Node.js VERSION at PATH. Switch to Node.js 22.13 or newer and run the command again.` | Switch to Node.js 22.13 or newer. Then run the command again. |
+| `gournal needs the node:sqlite module. The Node.js VERSION build at PATH does not have it. Install an official Node.js build.` | Install Node.js from nodejs.org or from a version manager. Some distribution builds lack `node:sqlite`. |
+| `gournal: the launcher cannot find its copy of gournal in HOME/runtime. Run "gournal setup claude" in a terminal.` | Run `gournal setup claude`. Setup copies gournal into the `runtime` folder again. |
+| `gournal: found no Node.js 22.13 or newer with the node:sqlite module. Install Node.js 22.13 or newer. Then run "gournal setup claude" in a terminal.` | Install Node.js 22.13 or newer. Then run `gournal setup claude`. |
+| `Check: the launcher did not start gournal (exit N).` | Read the text after the message. It holds the first line that the launcher printed. Fix that error, and run `gournal setup claude` again. |
+
+The Stop hook prints none of these messages. It exits with code 0 and no output.
+
+After you fix the cause, check the registration.
+
+1. Run `claude mcp list`. The list must show `gournal`.
+2. Run `gournal setup claude` again. It replaces an old registration.
