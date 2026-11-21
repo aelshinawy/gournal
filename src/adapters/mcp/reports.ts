@@ -17,8 +17,9 @@ export function registerGetStandup({ server, guarded, gh }: ToolContext): void {
       inputSchema: periodInput,
     },
     guarded(async (args: PeriodArgs, journal) => {
-      const syncWarning = await maybeAutoSync(journal, gh(), new Date());
-      const model = standupModel(journal, args, new Date());
+      const now = new Date();
+      const syncWarning = await maybeAutoSync(journal, gh(), now);
+      const model = standupModel(journal, args, now);
       return dataResult(withWarning(standupMarkdown(model), syncWarning), { ...standupJson(model), syncWarning });
     })
   );
@@ -34,8 +35,9 @@ export function registerGetWorkLog({ server, guarded, gh }: ToolContext): void {
       inputSchema: periodInput,
     },
     guarded(async (args: PeriodArgs, journal) => {
-      const syncWarning = await maybeAutoSync(journal, gh(), new Date());
-      const model = workLogModel(journal, args, new Date());
+      const now = new Date();
+      const syncWarning = await maybeAutoSync(journal, gh(), now);
+      const model = workLogModel(journal, args, now);
       return dataResult(withWarning(workLogMarkdown(model), syncWarning), { ...workLogJson(model), syncWarning });
     })
   );

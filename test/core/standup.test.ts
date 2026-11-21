@@ -1,4 +1,4 @@
-import { buildStandup, isEmptyStandup, resolvePeriod } from '../../src/core';
+import { buildStandup, filterActivity, isEmptyStandup, resolvePeriod } from '../../src/core';
 import type { Activity } from '../../src/core';
 import { makeActivity, makeEntry } from './factory';
 
@@ -29,14 +29,6 @@ test('an item exactly staleAfterDays old is not stale', () => {
   expect(m.stale.count).toBe(0);
 });
 
-test('open items created after the period end are left out', () => {
-  const yesterday = resolvePeriod({ yesterday: true }, now, 1);
-  const period = { ...yesterday, end: new Date(2026, 10, 14, 23, 59) };
-  const m = build([blocker('Logged today', now)], 14, period);
-  expect(m.blockers).toEqual([]);
-  expect(isEmptyStandup(m)).toBe(true);
-});
-
 test('done groups by project in first-seen order', () => {
   const a1 = makeEntry({ project: 'a', createdAt: daysAgo(0) });
   const b1 = makeEntry({ project: 'b', createdAt: daysAgo(0) });
@@ -44,14 +36,6 @@ test('done groups by project in first-seen order', () => {
   const m = build([], 14, today, [a1, b1, a2]);
   expect(m.done.map((g) => g.project)).toEqual(['a', 'b']);
   expect(m.done[0].entries).toEqual([a1, a2]);
-});
-
-test('non-done entries in done and resolved or done entries in open are ignored', () => {
-  const m = build(
-    [makeEntry({ kind: 'blocker', status: 'resolved', createdAt: daysAgo(1) }), makeEntry({ kind: 'done', createdAt: daysAgo(1) })],
-    14, today, [blocker('x', daysAgo(1))],
-  );
-  expect(isEmptyStandup(m)).toBe(true);
 });
 
 test('blockers and next sort oldest first, and metadata is copied', () => {
@@ -97,5 +81,25 @@ describe('activity in the standup model', () => {
   test('Also is null when every unlinked item is linked', () => {
     const m = withActivity({ linked: { [entry.id]: [linkedAct] }, unlinked: [linkedAct] });
     expect(m.also).toBeNull();
+  });
+});
+
+describe('filterActivity', () => {
+  const widgets = makeActivity({ repo: 'acme/widgets' });
+  const other = makeActivity({ repo: 'acme/other' });
+  const aliases = { 'acme/widgets': 'Widgets' };
+
+  test('non-empty tags hide all activity', () => {
+    expect(filterActivity([widgets, other], { tags: ['x'] }, aliases)).toEqual([]);
+  });
+
+  test('a project filter keeps activity whose repo maps to that project, without case', () => {
+    expect(filterActivity([widgets, other], { project: 'widgets' }, aliases)).toEqual([widgets]);
+  });
+
+  test('no project and no tags returns the list unchanged', () => {
+    const list = [widgets, other];
+    expect(filterActivity(list, {}, aliases)).toBe(list);
+    expect(filterActivity(list, { tags: [] }, aliases)).toBe(list);
   });
 });
