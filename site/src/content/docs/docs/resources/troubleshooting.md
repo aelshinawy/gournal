@@ -1,9 +1,9 @@
 ---
 title: Troubleshooting
-description: Fix GitHub sync warnings, sync errors, and entries that do not link to activity.
+description: Fix GitHub sync warnings, Claude Code start errors, and entries that do not link to activity.
 ---
 
-This page explains the messages that gournal prints when a GitHub sync has a problem. It also explains why an entry may not link to a pull request. For other questions, see the [FAQ](/docs/resources/faq/).
+This page explains the messages that gournal prints when a GitHub sync has a problem. It also explains why an entry may not link to a pull request. For a Claude Code start error, see [Claude Code cannot start gournal](#claude-code-cannot-start-gournal). For other questions, see the [FAQ](/docs/resources/faq/).
 
 ## A warning shows when I run a report
 
@@ -82,3 +82,30 @@ A link needs a PR ref, a commit ref, or a `done` entry on the same repository an
 5. Add a PR ref. Use the tag `pr-42` or run `gournal add "..." -t pr-42`. The ref links the entry to all activity of the pull request.
 
 If gournal prints `gournal: relink after write failed (...)` on stderr, the entry was saved, but gournal could not update its links. The next edit of the entry recomputes them.
+
+## Claude Code cannot start gournal
+
+Claude Code starts gournal through a launcher. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal). When the launcher or Node.js fails, gournal prints one line. In the table, `VERSION` is the Node.js version, `NODE_PATH` is the path of the Node.js program, `GOURNAL_HOME` is your gournal home folder (`~/.gournal` by default), `SOURCE` is the folder of the installed gournal package, and `LAUNCHER` is the launcher path (`~/.gournal/bin/gournal`).
+
+| Message | What to do |
+| --- | --- |
+| `gournal needs Node.js 22.13 or newer. This is Node.js VERSION at NODE_PATH. Switch to Node.js 22.13 or newer and run the command again.` | Switch to Node.js 22.13 or newer. Then run the command again. |
+| `gournal needs the node:sqlite module. The Node.js VERSION build at NODE_PATH does not have it. Install an official Node.js build.` | Install Node.js from nodejs.org or from a version manager. Some distribution builds lack `node:sqlite`. |
+| `gournal: the launcher cannot find gournal in SOURCE or in GOURNAL_HOME/runtime. Run "gournal setup claude" in a terminal, or run "claude mcp remove --scope user gournal" to remove gournal from Claude Code.` | To keep gournal, install it again and run `gournal setup claude`. Setup copies gournal into the `runtime` folder again. To remove gournal, run the `claude mcp remove` command from the message. |
+| `gournal: the installed package SOURCE is missing. gournal runs from its copy in GOURNAL_HOME/runtime.` | The installed package is gone. For one minute after gournal first notices the removal, the MCP server runs from its copy. Install gournal again, or run `LAUNCHER setup claude --uninstall`. |
+| `gournal: gournal is no longer installed: SOURCE is gone. To remove gournal from Claude Code, run: LAUNCHER setup claude --uninstall` | The package was removed, and the one minute is over. The MCP server stops. Run the command from the message to remove gournal from Claude Code. |
+| `gournal: found no Node.js 22.13 or newer with the node:sqlite module. Install Node.js 22.13 or newer. Then run "gournal setup claude" in a terminal.` | Install Node.js 22.13 or newer. Then run `gournal setup claude`. |
+| `Check: the launcher did not start gournal (exit N).` | Read the text after the message. It holds the first line that the launcher printed. Fix that error, and run `gournal setup claude` again. |
+
+The Stop hook prints none of these messages. It exits with code 0 and no output.
+
+### You removed gournal before you ran the uninstall
+
+If you remove the package before you run `gournal setup claude --uninstall`, the registration and the Stop hook stay. The Stop hook stays silent. For one minute after gournal first notices the removal, the MCP server runs from its copy. After that, it stops with a message. Run `~/.gournal/bin/gournal setup claude --uninstall` to remove the setup. On Windows, run `%USERPROFILE%\.gournal\bin\gournal.cmd setup claude --uninstall`. The command keeps your journal.
+
+If you remove gournal and then the Node.js version that held it, the copy keeps serving until you run that command. A Volta global install has the same limit, because Volta removes the whole package folder. Removing a Node.js version alone, or switching to another one, never ends the setup.
+
+After you fix the cause, check the registration.
+
+1. Run `claude mcp list`. The list must show `gournal`.
+2. Run `gournal setup claude` again. It replaces an old registration.

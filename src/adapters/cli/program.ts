@@ -2,6 +2,7 @@ import { Command, CommanderError } from 'commander';
 import { red } from '../../render';
 import { VERSION } from '../version';
 import { gournalHome } from '../../storage';
+import { PACKAGE_ROOT, adoptInstalledPackage, installGate, type GateResult } from '../setup';
 import { createCliContext, type CliIo, type RegisterCommand } from './context';
 import { registerAdd, registerClear, registerUndo, registerRestore, registerResolve, registerTags, registerProjects, registerFind } from './entries';
 import { registerStandup, registerLog, registerStats, registerExport } from './reports';
@@ -62,6 +63,29 @@ export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<n
     gh: io.gh,
     spinnerStream: io.spinnerStream,
   };
+  let gate: GateResult = { kind: 'run' };
+  try {
+    gate = installGate({
+      argv,
+      packageRoot: io.packageRoot ?? PACKAGE_ROOT,
+      gournalHome: full.home,
+      now: (io.now ?? (() => new Date()))(),
+      platform: process.platform,
+    });
+  } catch {
+    // The gate never stops a command by failing. Run it.
+  }
+  // The message goes to stderr as plain text. Stdout belongs to the MCP protocol. An empty message stays silent.
+  if (gate.kind === 'exit') {
+    if (gate.message) full.err(gate.message);
+    return gate.code;
+  }
+  if (gate.notice) full.err(gate.notice);
+  try {
+    adoptInstalledPackage(full.home, { packageRoot: io.packageRoot });
+  } catch {
+    // Adoption is best effort. It never fails a command.
+  }
   try {
     await buildProgram(full).parseAsync(argv);
     return 0;

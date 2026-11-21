@@ -54,9 +54,9 @@ Run this command to connect gournal to Claude Code.
 gournal setup claude
 ```
 
-The command asks before each of three steps:
+The command asks before each of three steps. Then it checks that Claude Code can start gournal:
 
-1. **MCP server.** It registers `gournal mcp` with Claude Code for all your projects.
+1. **MCP server.** It registers a launcher at `~/.gournal/bin/gournal` that starts `gournal mcp` for Claude Code. The launcher lives in the gournal home, `~/.gournal` by default.
 2. **Skill.** It writes `~/.claude/skills/gournal/SKILL.md`. The skill tells Claude when to log work.
 3. **Stop hook.** It adds a hook to `~/.claude/settings.json`. This step is off by default. Add `--hook` to turn it on.
 
@@ -149,6 +149,8 @@ To uninstall, run these commands in this order:
 gournal setup claude --uninstall
 npm uninstall -g gournal
 ```
+
+If you remove the package first, see [You removed gournal before you ran the uninstall](https://gournal.aelshinawy.com/docs/resources/troubleshooting/#you-removed-gournal-before-you-ran-the-uninstall).
 
 Both commands keep your journal. It lives in `~/.gournal`. See [Data safety and backups](https://gournal.aelshinawy.com/docs/guides/data-safety-and-backups/) before you delete that folder.
 

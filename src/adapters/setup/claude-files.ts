@@ -50,3 +50,14 @@ export function readRegistration(claudeJson: string): { command: string; args: s
     return null;
   }
 }
+
+/** Write settings.json. Keep the first backup: it holds the file as it was before gournal. Only install takes it. */
+export function writeSettingsFile(
+  f: { settingsFile: string; backupFile: string; platform: NodeJS.Platform },
+  read: Extract<SettingsRead, { kind: 'ok' }>,
+  next: Json,
+  takeBackup: boolean,
+): void {
+  if (takeBackup && read.exists && !fs.existsSync(f.backupFile)) fs.copyFileSync(f.settingsFile, f.backupFile);
+  writeAtomic(f.settingsFile, JSON.stringify(next, null, 2) + '\n', f.platform);
+}
