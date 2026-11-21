@@ -75,9 +75,9 @@ export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<n
   } catch {
     // The gate never stops a command by failing. Run it.
   }
-  // Both lines go to stderr as plain text. Stdout belongs to the MCP protocol.
+  // The message goes to stderr as plain text. Stdout belongs to the MCP protocol. An empty message stays silent.
   if (gate.kind === 'exit') {
-    full.err(gate.message);
+    if (gate.message) full.err(gate.message);
     return gate.code;
   }
   if (gate.notice) full.err(gate.notice);

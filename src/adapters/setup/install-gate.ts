@@ -65,8 +65,8 @@ export function installGate(o: GateOptions): GateResult {
   }
   const age = nowS - since;
   const command = o.argv[2];
-  // Only the Stop hook is silent. A future hook command gets the normal rules.
-  if (command === 'hook' && o.argv[3] === 'stop') return { kind: 'run' };
+  // Only the Stop hook is silent, also during the grace. A future hook command gets the normal rules.
+  if (command === 'hook' && o.argv[3] === 'stop') return { kind: 'exit', code: 0, message: '' };
   if (command === 'setup' && o.argv.includes('--uninstall')) return { kind: 'run' };
   if (age < MCP_GRACE_S) {
     return { kind: 'run', notice: `gournal: the installed package ${records.source} is missing. gournal runs from its copy in ${realHome}/runtime.` };

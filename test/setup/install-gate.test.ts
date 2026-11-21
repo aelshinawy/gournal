@@ -19,10 +19,12 @@ async function run(argv: string[], afterS: number) {
   fs.mkdirSync(path.join(copy, 'dist'), { recursive: true });
   fs.mkdirSync(pm, { recursive: true });
   writeRecords(path.join(home, 'runtime'), { source: path.join(pm, 'gournal'), anchor: pm, rack: path.join(pm, 'gournal') });
+  const transcript = path.join(root, 'transcript.jsonl');
+  fs.writeFileSync(transcript, `${JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Edit', input: {} }] } })}\n`);
   const out: string[] = [];
   const err: string[] = [];
   const saved = Object.getOwnPropertyDescriptor(process, 'stdin')!;
-  Object.defineProperty(process, 'stdin', { value: Readable.from(['{}']), configurable: true });
+  Object.defineProperty(process, 'stdin', { value: Readable.from([JSON.stringify({ session_id: 'gate', transcript_path: transcript })]), configurable: true });
   try {
     const status = await runCli(['node', 'gournal', ...argv], {
       home, packageRoot: copy, now: () => new Date(now.getTime() + afterS * 1000),

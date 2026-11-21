@@ -105,7 +105,7 @@ expect_version() {
 }
 # The hook must print nothing and exit 0.
 expect_silent_hook() {
-  launch hook "" "{}"
+  launch hook "" "$(node -e 'console.log(JSON.stringify({ session_id: "launcher-smoke", transcript_path: process.argv[1] }))' "$tmp/transcript.jsonl")"
   [ "$launch_status" -eq 0 ] || fail "the hook exited with $launch_status: $(cat "$tmp/l.err")"
   [ -z "$(cat "$tmp/l.out" "$tmp/l.err")" ] || fail "the hook printed: $(cat "$tmp/l.out") $(cat "$tmp/l.err")"
 }
