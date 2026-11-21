@@ -122,10 +122,21 @@ test('an app folder without .complete is never reused and temp folders are prune
   fs.rmSync(path.join(paths.runtimeDir, app, 'dist'), { recursive: true });
   fs.mkdirSync(path.join(paths.runtimeDir, '.tmp-999-abc'));
   fs.writeFileSync(path.join(paths.runtimeDir, '.tmp-999-abc', 'x'), 'x');
+  const old = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  fs.utimesSync(path.join(paths.runtimeDir, '.tmp-999-abc'), old, old);
   install(home, pkg);
   expect(fs.existsSync(path.join(paths.runtimeDir, app, '.complete'))).toBe(true);
   expect(fs.existsSync(path.join(paths.runtimeDir, app, 'dist', 'cli.js'))).toBe(true);
   expect(fs.readdirSync(paths.runtimeDir).filter((n) => n.startsWith('.tmp-'))).toEqual([]);
+});
+
+test('a young temp folder of another process survives the prune', () => {
+  const home = path.join(tmp(), 'h');
+  const pkg = makeFakePackage(path.join(tmp(), 'pkg'), '1.0.0');
+  const { paths } = install(home, pkg);
+  fs.mkdirSync(path.join(paths.runtimeDir, '.tmp-1-live'));
+  install(home, pkg);
+  expect(fs.existsSync(path.join(paths.runtimeDir, '.tmp-1-live'))).toBe(true);
 });
 
 test('removeRuntime removes the launcher and the runtime and keeps gournal.db', () => {
@@ -148,7 +159,7 @@ test('refreshRuntime does nothing without a runtime and creates no files', () =>
 });
 
 const installed = (name: string, version: string): string =>
-  makeFakePackage(path.join(tmp(), 'node_modules', name === 'gournal' ? 'gournal' : name), version);
+  makeFakePackage(path.join(tmp(), 'node_modules', name), version);
 
 const setVersion = (pkg: string, version: string): void =>
   fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: 'gournal', version, dependencies: { dep: '1.0.0' } }));
@@ -167,6 +178,32 @@ test('refreshRuntime switches only to a newer version of the recorded package', 
   expect(refreshRuntime(home, { packageRoot: pkg })).toBe(false);
   setVersion(pkg, '0.10.0');
   expect(refreshRuntime(home, { packageRoot: pkg })).toBe(false);
+});
+
+test('refreshRuntime heals a missing current app and keeps the previous app', () => {
+  const home = path.join(tmp(), 'h');
+  const pkg = installed('gournal', '0.9.0');
+  install(home, pkg);
+  setVersion(pkg, '0.10.0');
+  expect(refreshRuntime(home, { packageRoot: pkg })).toBe(true);
+  const [previous, current] = ['0.9.0', '0.10.0'].map((v) => apps(home).find((n) => n.startsWith(`app-${v}-`)) as string);
+  // The previous app survives a refresh, because a running server may use it.
+  expect(fs.existsSync(path.join(home, 'runtime', previous, 'dist', 'cli.js'))).toBe(true);
+  // The current app is gone. The next refresh copies the package again, even for the same version.
+  fs.rmSync(path.join(home, 'runtime', current), { recursive: true });
+  expect(refreshRuntime(home, { packageRoot: pkg })).toBe(true);
+  expect(fs.existsSync(path.join(home, 'runtime', current, 'dist', 'cli.js'))).toBe(true);
+  expect(fs.existsSync(path.join(home, 'runtime', current, '.complete'))).toBe(true);
+});
+
+test('refreshRuntime records the running Node.js when the node record is missing', () => {
+  const home = path.join(tmp(), 'h');
+  const pkg = installed('gournal', '0.9.0');
+  install(home, pkg);
+  fs.rmSync(runtimePaths(home, process.platform).nodeFile);
+  setVersion(pkg, '0.10.0');
+  expect(refreshRuntime(home, { packageRoot: pkg })).toBe(true);
+  expect(fs.readFileSync(runtimePaths(home, process.platform).nodeFile, 'utf8')).toBe(`${process.execPath}\n`);
 });
 
 test('refreshRuntime skips a newer install that is not the recorded source', () => {

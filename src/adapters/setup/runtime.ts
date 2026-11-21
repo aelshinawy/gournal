@@ -12,6 +12,8 @@ export interface RuntimePaths { home: string; binDir: string; launcher: string; 
 export type InstallAction = 'installed' | 'updated' | 'unchanged';
 
 const COMPLETE = '.complete';
+/** A temp folder younger than this may belong to a setup or a refresh that runs now. */
+const TMP_MAX_AGE_MS = 60 * 60 * 1000;
 
 export function runtimePaths(gournalHome: string, platform: NodeJS.Platform): RuntimePaths {
   const binDir = path.join(gournalHome, 'bin');
@@ -46,11 +48,13 @@ function writeIfDiffers(file: string, content: string, mode?: number): boolean {
 function ensureApp(paths: RuntimePaths, appName: string, packageRoot: string): boolean {
   const appDir = path.join(paths.runtimeDir, appName);
   if (fs.existsSync(path.join(appDir, COMPLETE))) return false;
-  fs.rmSync(appDir, { recursive: true, force: true });
   const tmp = path.join(paths.runtimeDir, `.tmp-${process.pid}-${crypto.randomBytes(4).toString('hex')}`);
   try {
     copyPackage(packageRoot, tmp);
     fs.writeFileSync(path.join(tmp, COMPLETE), '');
+    // Check again after the slow copy. Another process may have finished this app, and a finished app may be in use.
+    if (fs.existsSync(path.join(appDir, COMPLETE))) return false;
+    fs.rmSync(appDir, { recursive: true, force: true });
     try {
       fs.renameSync(tmp, appDir);
     } catch (err) {
@@ -63,7 +67,10 @@ function ensureApp(paths: RuntimePaths, appName: string, packageRoot: string): b
   return true;
 }
 
-/** Remove old apps and temp folders. The new app and the previous app stay, because a running server may use the previous one. */
+/**
+ * Remove old apps and old temp folders. The new app and the previous app stay, because a running server may use the previous one.
+ * A temp folder that is younger than one hour stays, because another process may fill it now.
+ */
 function prune(runtimeDir: string, keep: Set<string>): void {
   let names: string[];
   try {
@@ -74,6 +81,7 @@ function prune(runtimeDir: string, keep: Set<string>): void {
   for (const name of names) {
     if (keep.has(name) || !(name.startsWith('app-') || name.startsWith('.tmp-'))) continue;
     try {
+      if (name.startsWith('.tmp-') && Date.now() - fs.statSync(path.join(runtimeDir, name)).mtimeMs < TMP_MAX_AGE_MS) continue;
       fs.rmSync(path.join(runtimeDir, name), { recursive: true, force: true });
     } catch {
       // A folder that stays is removed by the next run.
@@ -155,10 +163,17 @@ export function refreshRuntime(gournalHome: string, o: { packageRoot?: string; p
       return false;
     }
   }
-  const have = (JSON.parse(fs.readFileSync(path.join(paths.runtimeDir, current, 'package.json'), 'utf8')) as { version: string }).version;
+  // A current app that is missing or corrupt counts as version 0, so the refresh copies the package again.
+  let have = '0.0.0';
+  try {
+    have = (JSON.parse(fs.readFileSync(path.join(paths.runtimeDir, current, 'package.json'), 'utf8')) as { version: string }).version;
+  } catch {
+    // Self-heal below.
+  }
   const source = (JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8')) as { version: string }).version;
   if (!newer(source, have)) return false;
-  const nodePath = (readText(paths.nodeFile) ?? '').trim();
+  // Without a node record, the Node.js that runs this command is the best record. It passed the guard.
+  const nodePath = (readText(paths.nodeFile) ?? '').trim() || process.execPath;
   installRuntime({ gournalHome, packageRoot, nodePath, platform, bakeHome: !isDefaultHome(gournalHome) });
   return true;
 }
