@@ -391,7 +391,7 @@ describe('Windows launcher', () => {
     expect(fs.readFileSync(path.join(f.home, 'runtime', 'node'), 'utf8').trim()).toBe(v);
   });
 
-  function relativePathCase(shortCwd: boolean): void {
+  function relativePathCase(form: 'plain' | 'long' | 'short'): void {
     const f = winFixture();
     const proj = path.join(f.root, 'proj');
     fs.mkdirSync(path.join(proj, 'bin'), { recursive: true });
@@ -399,13 +399,17 @@ describe('Windows launcher', () => {
     fs.writeFileSync(path.join(f.home, 'runtime', 'app-x', 'dist', 'cli.js'), 'process.stdout.write(process.execPath)');
     const cmd = process.env.ComSpec ?? `${sys}\\System32\\cmd.exe`;
     let cwd = proj;
-    if (shortCwd) {
+    if (form !== 'plain') {
+      const long = fs.realpathSync.native(proj);
       const r = spawnSync(cmd, ['/d', '/c', 'for %I in (.) do @echo %~fsI'], { cwd: proj, encoding: 'utf8' });
-      cwd = r.stdout.trim();
-      if (cwd === '' || cwd.toLowerCase() === proj.toLowerCase()) {
-        console.warn('skipped: this volume gives the test folder no 8.3 short name');
+      const short = r.stdout.trim();
+      if (short === '' || short.toLowerCase() === long.toLowerCase()) {
+        const why = `no 8.3 short name for ${long} (short form: "${short}")`;
+        if (process.env.CI) throw new Error(why);
+        console.warn(`skipped: ${why}`);
         return;
       }
+      cwd = form === 'long' ? long : short;
     }
     const env = { SystemRoot: sys, USERPROFILE: f.root, PATH: `bin;${sys}\\System32` };
     const where = spawnSync(cmd, ['/d', '/c', 'cd & where node'], { env, cwd, encoding: 'utf8' });
@@ -417,9 +421,11 @@ describe('Windows launcher', () => {
     }
   }
 
-  windowsTest('a node.exe found through a relative PATH entry is never run', () => relativePathCase(false));
+  windowsTest('a node.exe found through a relative PATH entry is never run', () => relativePathCase('plain'));
 
-  windowsTest('a relative PATH node is never run when the current folder is given in 8.3 form', () => relativePathCase(true));
+  windowsTest('a relative PATH node is never run when the current folder is given in its long form', () => relativePathCase('long'));
+
+  windowsTest('a relative PATH node is never run when the current folder is given in its 8.3 form', () => relativePathCase('short'));
 
   windowsTest('the launcher folder can be deleted by the app and the app exit code still comes back', () => {
     const f = winFixture();
