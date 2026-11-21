@@ -139,6 +139,20 @@ describe('POSIX launcher', () => {
     expect(run(f).stdout).toContain(`node=${firstNewest}\n`);
   });
 
+  posixTest('a first glob with only a failing node lets a later glob win', () => {
+    const f = fixture('h', none);
+    writeFakeNode(path.join(f.root, 'g1', 'v1', 'node'), false);
+    const later = path.join(f.root, 'g2', 'v1', 'node');
+    writeFakeNode(later, true);
+    const cands: NodeCandidates = {
+      files: [],
+      globs: ['g1', 'g2'].map((g) => `${shellQuote(path.join(f.root, g))}/v*/node`),
+      system: [],
+    };
+    fs.writeFileSync(f.launcher, renderPosixLauncher({ home: f.home, bakeHome: false, candidates: cands }));
+    expect(run(f).stdout).toContain(`node=${later}\n`);
+  });
+
   posixTest('the first absolute PATH node fails the probe and a later one runs and is recorded', () => {
     const f = fixture('h', none);
     writeFakeNode(path.join(f.root, 'a', 'node'), false);
@@ -319,8 +333,10 @@ describe('launcher text', () => {
 
   test('the Windows launcher uses CRLF, no delayed expansion, and ends with the node line', () => {
     const text = renderWindowsLauncher({ bakeHome: true });
-    expect(text.split('\r\n').length).toBeGreaterThan(20);
+    // Every line end is CRLF: the count of LF equals the count of CRLF, and no bare CR or LF is left.
+    expect(text.split('\n')).toHaveLength(text.split('\r\n').length);
     expect(text.replace(/\r\n/g, '')).not.toMatch(/[\r\n]/);
+    expect(text.split('\r\n').length).toBeGreaterThan(40);
     expect(text).toContain('setlocal EnableExtensions DisableDelayedExpansion');
     expect(text).not.toMatch(/EnableDelayedExpansion/);
     expect(text).toContain('if not defined GOURNAL_HOME set "GOURNAL_HOME=%GH%"');
@@ -328,6 +344,13 @@ describe('launcher text', () => {
     expect(text.endsWith(`\r\n:run\r\n(goto) 2>nul & set "GOURNAL_HOME=%GOURNAL_HOME%" & ${node}`)).toBe(true);
     expect(renderWindowsLauncher({ bakeHome: false }).endsWith(`\r\n:run\r\n(goto) 2>nul & ${node}`)).toBe(true);
     expect(text).not.toMatch(/exit 0|exit 1/);
+    // An unset NVM_HOME or FNM_DIR must not turn a candidate into a path at the drive root.
+    expect(text).toContain('if defined NVM_HOME for /d %%D in ("%NVM_HOME%\\v*")');
+    expect(text).toContain('if defined NVM_SYMLINK call :try "%NVM_SYMLINK%\\node.exe"');
+    expect(text).toContain('if defined FNM_DIR for /d %%D in ("%FNM_DIR%\\node-versions\\*")');
+    // The where results are walked up with quoted compares, and only node.exe counts.
+    expect(text).not.toContain('call set "REST=');
+    expect(text).toContain('if /i not "%~x1"==".exe" exit /b');
     expect(renderWindowsLauncher({ bakeHome: false })).not.toContain('GOURNAL_HOME');
   });
 
@@ -435,9 +458,9 @@ describe('Windows launcher', () => {
     expect(fs.readFileSync(path.join(f.home, 'runtime', 'node'), 'utf8').trim()).toBe(v);
   });
 
-  function relativePathCase(form: 'plain' | 'long' | 'short'): void {
+  function relativePathCase(form: 'plain' | 'long' | 'short', dirName = 'proj'): void {
     const f = winFixture();
-    const proj = path.join(f.root, 'proj');
+    const proj = path.join(f.root, dirName);
     fs.mkdirSync(path.join(proj, 'bin'), { recursive: true });
     fs.copyFileSync(process.execPath, path.join(proj, 'bin', 'node.exe'));
     fs.writeFileSync(path.join(f.home, 'runtime', 'app-x', 'dist', 'cli.js'), 'process.stdout.write(process.execPath)');
@@ -470,6 +493,32 @@ describe('Windows launcher', () => {
   windowsTest('a relative PATH node is never run when the current folder is given in its long form', () => relativePathCase('long'));
 
   windowsTest('a relative PATH node is never run when the current folder is given in its 8.3 form', () => relativePathCase('short'));
+
+  // The current folder name holds a character that cmd.exe reads as syntax. The node.exe in it must still be skipped.
+  windowsTest.each([['a=b'], ['a^b'], ['a%b'], ['a&b'], ['a!b'], ['a~1b'], ['a b']])(
+    'a relative PATH node is never run when the current folder is named %s',
+    (name) => relativePathCase('plain', name),
+  );
+
+  windowsTest('a node.cmd found by where is never run', () => {
+    const f = winFixture();
+    const bin = path.join(f.root, 'shim');
+    fs.mkdirSync(bin, { recursive: true });
+    fs.writeFileSync(path.join(bin, 'node.cmd'), '@echo shim ran\r\n');
+    const out = runWin(f, [], '0', { path: `${bin};${sys}\\System32` });
+    expect({ status: out.status, stdout: out.stdout }).toEqual({ status: 1, stdout: '' });
+    expect(out.stderr).toContain('gournal: found no Node.js 22.13 or newer');
+  });
+
+  windowsTest('no source and no copy gives a no-app line without a double space', () => {
+    const f = winFixture();
+    fs.rmSync(path.join(f.home, 'runtime', 'current'));
+    const out = runWin(f, []);
+    expect(out.status).toBe(1);
+    expect(out.stderr.trim()).toBe(
+      `gournal: the launcher cannot find gournal in ${f.home}\\runtime. Run "gournal setup claude" in a terminal, or run "claude mcp remove --scope user gournal" to remove gournal from Claude Code.`,
+    );
+  });
 
   windowsTest('the launcher folder can be deleted by the app and the app exit code still comes back', () => {
     const f = winFixture();

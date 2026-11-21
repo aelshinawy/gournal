@@ -22,15 +22,24 @@ export const WINDOWS_CANDIDATES: NodeCandidates = {
   system: [],
 };
 
+// The fnm folders (node-versions) keep node.exe in an "installation" subfolder. The other managers keep it in the version folder.
 function globLeaf(glob: string): string {
   return glob.includes('node-versions') ? 'installation\\node.exe' : 'node.exe';
+}
+
+// A fragment that starts with an environment variable gets a guard. An unset variable would turn
+// "%NVM_HOME%\\v*" into "\\v*", a path at the drive root.
+function guard(fragment: string): string {
+  const m = /^"%(\w+)%/.exec(fragment);
+  return m ? `if defined ${m[1]} ` : '';
 }
 
 /** Render the cmd.exe launcher (CRLF line ends). It finds Node at run time. */
 export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeCandidates }): string {
   const c = o.candidates ?? WINDOWS_CANDIDATES;
   const probe = (set: string): string => `"%~1" -e "${probeSource("'")}" >nul 2>&1 <nul && set "${set}=%~1"`;
-  const noApp = 'the launcher cannot find gournal in %SRC% or in %GH%\\runtime. Run "gournal setup claude" in a terminal, or run "claude mcp remove --scope user gournal" to remove gournal from Claude Code.';
+  const noApp = (where: string): string =>
+    `the launcher cannot find gournal in ${where}. Run "gournal setup claude" in a terminal, or run "claude mcp remove --scope user gournal" to remove gournal from Claude Code.`;
   const noNode = `found no Node.js ${FLOOR_TEXT} or newer with the node:sqlite module. Install Node.js ${FLOOR_TEXT} or newer. Then run "gournal setup claude" in a terminal.`;
   return [
     '@echo off',
@@ -46,7 +55,8 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     'set "PICK="',
     'set "GPICK="',
     'if exist "%GH%\\runtime\\source" set /p SRC=<"%GH%\\runtime\\source"',
-    `set "MSG=${noApp}"`,
+    `set "MSG=${noApp('%GH%\\runtime')}"`,
+    `if defined SRC set "MSG=${noApp('%SRC% or in %GH%\\runtime')}"`,
     // The installed package wins. The copy runs only when the source is gone.
     'if defined SRC if exist "%SRC%\\dist\\cli.js" set "DIR=%SRC%"',
     'if not defined DIR if exist "%GH%\\runtime\\current" set /p APP=<"%GH%\\runtime\\current"',
@@ -63,10 +73,10 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     'for %%C in (.) do set "CDP=%%~fsC"',
     'if not "%CDP:~-1%"=="\\" set "CDP=%CDP%\\"',
     `for /f "delims=" %%N in ('where node 2^>nul') do call :trywhere "%%N"`,
-    ...c.files.map((f) => `call :try ${f}`),
-    ...c.globs.map((g) => `if not defined PICK if not defined GPICK for /d %%D in (${g}) do call :tryall "%%D\\${globLeaf(g)}"`),
+    ...c.files.map((f) => `${guard(f)}call :try ${f}`),
+    ...c.globs.map((g) => `if not defined PICK if not defined GPICK ${guard(g)}for /d %%D in (${g}) do call :tryall "%%D\\${globLeaf(g)}"`),
     'if not defined PICK if defined GPICK set "PICK=%GPICK%"',
-    ...c.system.map((f) => `call :try ${f}`),
+    ...c.system.map((f) => `${guard(f)}call :try ${f}`),
     'if not defined PICK goto :quit',
     'if /i not "%PICK%"=="%REC%" <nul set /p "=%PICK%" >"%GH%\\runtime\\node.tmp"',
     'move /y "%GH%\\runtime\\node.tmp" "%GH%\\runtime\\node" >nul 2>&1',
@@ -76,12 +86,21 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     '1>&2 echo gournal: %MSG%',
     'exit /b 1',
     ':trywhere',
-    'if /i "%~dps1"=="%CDP%" exit /b',
+    // where also lists node.cmd and node.bat. A batch file runs without "call" and ends this script. Only node.exe counts.
+    'if /i not "%~x1"==".exe" exit /b',
+    // Walk from the folder of the result up to the root. Every compare is a quoted string compare, so
+    // a folder name with = ^ % & ! ~ or a space cannot change the syntax.
+    'set "W=%~dps1"',
+    'if /i "%W%"=="%CDP%" exit /b',
     // At a drive root every path is under the current folder, so only the root folder itself is skipped.
     'if "%CDP:~3%"=="" goto :trywhere_go',
-    'set "R=%~fs1"',
-    'call set "REST=%%R:%CDP%=%%"',
-    'if /i "%CDP%%REST%"=="%R%" exit /b',
+    ':trywhere_up',
+    'for %%P in ("%W%..") do set "NW=%%~fsP"',
+    'if not "%NW:~-1%"=="\\" set "NW=%NW%\\"',
+    'if /i "%NW%"=="%W%" goto :trywhere_go',
+    'set "W=%NW%"',
+    'if /i "%W%"=="%CDP%" exit /b',
+    'goto :trywhere_up',
     ':trywhere_go',
     'call :try "%~1"',
     'exit /b',
