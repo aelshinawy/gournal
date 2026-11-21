@@ -415,7 +415,13 @@
         {
           "name": "kind",
           "type": "string",
-          "required": false
+          "required": false,
+          "enum": [
+            "done",
+            "blocker",
+            "next"
+          ],
+          "default": "done"
         },
         {
           "name": "project",
@@ -457,6 +463,10 @@
           "type": "array",
           "required": false
         }
+      ],
+      "outputs": [
+        "entry",
+        "notes"
       ]
     },
     {
@@ -483,7 +493,12 @@
         {
           "name": "kind",
           "type": "string",
-          "required": false
+          "required": false,
+          "enum": [
+            "done",
+            "blocker",
+            "next"
+          ]
         },
         {
           "name": "project",
@@ -500,6 +515,10 @@
           "type": "array",
           "required": false
         }
+      ],
+      "outputs": [
+        "entry",
+        "notes"
       ]
     },
     {
@@ -513,6 +532,10 @@
           "type": "string",
           "required": true
         }
+      ],
+      "outputs": [
+        "entry",
+        "notes"
       ]
     },
     {
@@ -531,6 +554,10 @@
           "type": "string",
           "required": false
         }
+      ],
+      "outputs": [
+        "entry",
+        "notes"
       ]
     },
     {
@@ -567,12 +594,21 @@
         {
           "name": "status",
           "type": "string",
-          "required": false
+          "required": false,
+          "enum": [
+            "open",
+            "resolved"
+          ]
         },
         {
           "name": "source",
           "type": "string",
-          "required": false
+          "required": false,
+          "enum": [
+            "cli",
+            "mcp",
+            "migration"
+          ]
         },
         {
           "name": "from",
@@ -587,18 +623,28 @@
         {
           "name": "limit",
           "type": "integer",
-          "required": false
+          "required": false,
+          "default": 50
         },
         {
           "name": "order",
           "type": "string",
-          "required": false
+          "required": false,
+          "enum": [
+            "asc",
+            "desc"
+          ],
+          "default": "desc"
         },
         {
           "name": "includeDeleted",
           "type": "boolean",
           "required": false
         }
+      ],
+      "outputs": [
+        "count",
+        "entries"
       ]
     },
     {
@@ -630,8 +676,13 @@
         {
           "name": "limit",
           "type": "integer",
-          "required": false
+          "required": false,
+          "default": 50
         }
+      ],
+      "outputs": [
+        "count",
+        "entries"
       ]
     },
     {
@@ -682,6 +733,19 @@
           "type": "array",
           "required": false
         }
+      ],
+      "outputs": [
+        "also",
+        "blockers",
+        "done",
+        "end",
+        "isMultiDay",
+        "linkedActivity",
+        "next",
+        "stale",
+        "start",
+        "syncWarning",
+        "title"
       ]
     },
     {
@@ -732,6 +796,16 @@
           "type": "array",
           "required": false
         }
+      ],
+      "outputs": [
+        "count",
+        "days",
+        "end",
+        "linkedActivity",
+        "projectCount",
+        "start",
+        "syncWarning",
+        "title"
       ]
     },
     {
@@ -745,6 +819,9 @@
           "type": "string",
           "required": false
         }
+      ],
+      "outputs": [
+        "tags"
       ]
     },
     {
@@ -752,7 +829,10 @@
       "annotations": {
         "readOnlyHint": true
       },
-      "inputs": []
+      "inputs": [],
+      "outputs": [
+        "projects"
+      ]
     },
     {
       "name": "export_entries",
@@ -763,7 +843,12 @@
         {
           "name": "format",
           "type": "string",
-          "required": false
+          "required": false,
+          "enum": [
+            "md",
+            "csv"
+          ],
+          "default": "md"
         },
         {
           "name": "project",
@@ -788,9 +873,11 @@
         {
           "name": "limit",
           "type": "integer",
-          "required": false
+          "required": false,
+          "default": 200
         }
-      ]
+      ],
+      "outputs": []
     },
     {
       "name": "sync_activity",
@@ -805,6 +892,14 @@
           "type": "string",
           "required": false
         }
+      ],
+      "outputs": [
+        "inserted",
+        "linked",
+        "since",
+        "status",
+        "updated",
+        "warning"
       ]
     }
   ]

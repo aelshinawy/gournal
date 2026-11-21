@@ -5,6 +5,7 @@ on:
     paths: &paths
       - 'site/**'
       - 'src/**'
+      - 'scripts/**'
       - 'README.md'
       - 'package.json'
       - 'package-lock.json'
@@ -24,7 +25,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('site-pr-{0}', github.ref) || 'pages' }}
+  # Only main shares the pages group. A dispatch on another branch must not replace a queued deploy.
+  group: ${{ github.ref == 'refs/heads/main' && 'pages' || format('site-{0}', github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

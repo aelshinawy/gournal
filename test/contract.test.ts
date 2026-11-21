@@ -5,7 +5,7 @@ import type { Command } from 'commander';
 import { buildProgram } from '../src/adapters/cli';
 import { createServer } from '../src/adapters/mcp';
 
-// The frozen surface: CLI command names, arguments and flags, and MCP tool names, annotations and input fields.
+// The frozen surface: CLI command names, arguments and flags, and MCP tool names, annotations, input fields (type, enum, default) and output field names.
 // Descriptions are not pinned. The generated reference docs show them, and site.yml checks that diff.
 // To accept an intended change, run: UPDATE_CONTRACT=1 npx jest test/contract.test.ts
 const FIXTURE = path.join(__dirname, 'fixtures', 'contract', 'surface.json');
@@ -32,9 +32,9 @@ async function mcpSurface() {
   const { tools } = await client.listTools();
   await client.close();
   return tools.map((t) => {
-    const { properties = {}, required = [] } = t.inputSchema as { properties?: Record<string, { type?: string }>; required?: string[] };
-    const inputs = Object.entries(properties).map(([name, p]) => ({ name, type: p.type ?? null, required: required.includes(name) }));
-    return { name: t.name, annotations: t.annotations ?? null, inputs };
+    const { properties = {}, required = [] } = t.inputSchema as { properties?: Record<string, { type?: string; enum?: unknown[]; default?: unknown }>; required?: string[] };
+    const inputs = Object.entries(properties).map(([name, p]) => ({ name, type: p.type ?? null, required: required.includes(name), enum: p.enum, default: p.default }));
+    return { name: t.name, annotations: t.annotations ?? null, inputs, outputs: Object.keys(t.outputSchema?.properties ?? {}).sort() };
   });
 }
 

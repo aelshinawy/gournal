@@ -30,22 +30,44 @@ test('two tables under one heading get distinct region names', () => {
   expect(result).toEqual(['Options table', 'Options table 2', 'Other table']);
 });
 
-test('every code block gets a focusable region with a unique name', () => {
+test('code block names carry the nearest heading and stay unique', () => {
+  const mod = moduleUrl('ec-focusable.mjs');
+  const result = runModule(
+    `import { codeLabelMeta } from ${JSON.stringify(mod)};` +
+      `const v = codeLabelMeta()().element;` +
+      `const metas = [];` +
+      `const ctx = (t, title) => ({ textContent: () => t, data: { astro: { frontmatter: { title } } }, setField: (n, k, d) => metas.push(d.meta) });` +
+      `const pre = (lang, meta) => ({ tagName: 'pre', children: [{ type: 'element', tagName: 'code', data: { lang, meta } }] });` +
+      `v.visit(pre('json'), ctx('', 'Page title'));` +
+      `v.visit({ tagName: 'h2' }, ctx('Options'));` +
+      `v.visit(pre('bash', 'title="x"'), ctx('', 'Page title'));` +
+      `v.visit(pre('bash'), ctx('', 'Page title'));` +
+      `v.visit(pre('plaintext'), ctx('', 'Page title'));` +
+      `v.visit({ tagName: 'h2' }, ctx('Say "hi"'));` +
+      `v.visit(pre('bash'), ctx('', 'Page title'));` +
+      `console.log(JSON.stringify(metas));`
+  );
+  const names = (result as string[]).map((m) => decodeURIComponent(m.match(/glabel="([^"]+)"/)![1]));
+  expect(names).toEqual(['Page title, json code', 'Options, bash code', 'Options, bash code 2', 'Options, text code', 'Say "hi", bash code']);
+  expect((result as string[])[1]).toMatch(/^title="x" glabel=/);
+});
+
+test('the Expressive Code hook turns the block name into a focusable region', () => {
   const mod = moduleUrl('ec-focusable.mjs');
   const result = runModule(
     `import { ecFocusable } from ${JSON.stringify(mod)};` +
       `const hook = ecFocusable().hooks.postprocessRenderedBlock;` +
-      `const label = (language, groupIndex) => {` +
+      `const label = (language, name) => {` +
       `  const pre = { type: 'element', tagName: 'pre', children: [] };` +
-      `  hook({ codeBlock: { language, parentDocument: { positionInDocument: { groupIndex } } }, renderData: { blockAst: { type: 'root', children: [{ type: 'element', tagName: 'div', children: [pre] }] } } });` +
+      `  const metaOptions = { getString: () => name && encodeURIComponent(name) };` +
+      `  hook({ codeBlock: { language, metaOptions }, renderData: { blockAst: { type: 'root', children: [{ type: 'element', tagName: 'div', children: [pre] }] } } });` +
       `  return [pre.properties.tabindex, pre.properties.role, pre.properties.ariaLabel];` +
       `};` +
-      `console.log(JSON.stringify([label('json', 0), label('json', 1), label('plaintext', 2)]));`
+      `console.log(JSON.stringify([label('json', 'Options, json code'), label('plaintext', undefined)]));`
   );
   expect(result).toEqual([
-    ['0', 'region', 'json code 1'],
-    ['0', 'region', 'json code 2'],
-    ['0', 'region', 'text code 3']
+    ['0', 'region', 'Options, json code'],
+    ['0', 'region', 'text code']
   ]);
 });
 
