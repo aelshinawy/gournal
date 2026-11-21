@@ -229,7 +229,7 @@ Corners are gently rounded: 4px for inline code, sidebar items, and small marks;
 - **States:** "Copied" fills the button with violet. "Selected" (no Clipboard API) uses violet wash and selects the command text. A status region announces both.
 
 ### Terminal plate
-- **Recording ratio:** 1200 / 1000, from Width and Height in scripts/demo/standup.tape. Change the plate aspect ratio in home.css when the tape size changes.
+- **Recording ratio:** 1080 / 900, from Width and Height in scripts/demo/standup.tape. Change the plate aspect ratio in home.css when the tape size changes.
 - **Style:** the VHS recording in a terminal-plate box with a 14px radius and a strong-rule border. On wide screens, proof notes sit to its right, each with a 1px violet leader line.
 - **Motion:** the video autoplays muted and loops. Under reduced motion the video is hidden and the poster image shows.
 

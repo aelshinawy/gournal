@@ -1,9 +1,8 @@
 ---
-const base = import.meta.env.BASE_URL;
 const links = [
-  { label: 'Docs', href: `${base}docs/start-here/introduction/` },
-  { label: 'Reference', href: `${base}docs/reference/add/` },
-  { label: 'Changelog', href: `${base}docs/resources/changelog/` }
+  { label: 'Docs', href: '/docs/start-here/introduction/' },
+  { label: 'Reference', href: '/docs/reference/add/' },
+  { label: 'Changelog', href: 'https://github.com/aelshinawy/gournal/releases' }
 ];
 // External links are icons after a small separator. Paths: GitHub Octicons mark-github, Simple Icons npm.
 const icons = [
@@ -24,8 +23,8 @@ const icons = [
 
 <header class="g-nav">
   <div class="g-wrap g-nav__inner">
-    <a class="g-nav__mark" href={base} aria-label="gournal home">
-      <img class="g-nav__logo" src={`${base}favicon.svg`} width="22" height="22" alt="" />
+    <a class="g-nav__mark" href="/" aria-label="gournal home">
+      <img class="g-nav__logo" src="/favicon.svg" width="22" height="22" alt="" />
       gournal
     </a>
     <nav aria-label="Main">

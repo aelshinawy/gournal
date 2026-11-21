@@ -135,29 +135,6 @@ starlight-toc a[aria-current='true'] {
   overflow-wrap: anywhere;
 }
 
-/* The reference overview tables: same full width and same column proportions in every group. */
-.sl-markdown-content .g-table--overview table {
-  table-layout: fixed;
-  min-width: 40rem;
-}
-
-.sl-markdown-content .g-table--overview :is(th, td) {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.sl-markdown-content .g-table--overview :is(th, td):first-child {
-  width: 28%;
-}
-
-.sl-markdown-content .g-table--overview :is(th, td):nth-child(2) {
-  width: 40%;
-}
-
-.sl-markdown-content .g-table--overview :is(th, td):nth-child(3) {
-  width: 32%;
-}
-
 /* Tables scroll in their own focusable box (.g-table, added by rehype-table-region). */
 .sl-markdown-content .g-table {
   max-width: 100%;
@@ -172,6 +149,8 @@ starlight-toc a[aria-current='true'] {
   /* Starlight sets display: block on tables, which shrinks the grid to its content. */
   display: table;
   width: 100%;
+  /* A narrow screen scrolls the table instead of crushing its columns. */
+  min-width: 36rem;
   font-family: var(--g-font-ui);
   font-size: var(--g-text-sm);
   font-variant-numeric: tabular-nums;
@@ -183,6 +162,8 @@ starlight-toc a[aria-current='true'] {
   padding: var(--g-space-2) var(--g-space-3);
   border-bottom: 1px solid var(--g-rule);
   vertical-align: top;
+  /* Starlight breaks cells at any character. Break at word boundaries. */
+  overflow-wrap: normal;
 }
 
 .sl-markdown-content tr:last-child :is(th, td) {
@@ -197,13 +178,13 @@ starlight-toc a[aria-current='true'] {
   white-space: nowrap;
 }
 
-.sl-markdown-content :is(th, td):last-child:not(:first-child) {
-  min-width: 16rem;
+/* Code in a cell breaks at spaces only. A wide table scrolls in its region. */
+.sl-markdown-content :is(th, td) code {
+  overflow-wrap: normal;
 }
 
 .sl-markdown-content td:first-child code {
   white-space: nowrap;
-  overflow-wrap: normal;
 }
 
 /* Callouts: no side stripe. A full hairline box with a tinted wash. */

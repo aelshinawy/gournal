@@ -22,7 +22,6 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
     "lint": "depcruise src --config .dependency-cruiser.cjs",
     "knip": "knip --no-progress",
-    "measure:install": "sh scripts/measure-install.sh",
     "check:dashes": "node scripts/check-dashes.mjs",
     "docs:gen": "node -r ts-node/register/transpile-only site/scripts/reference/run.ts"
   },

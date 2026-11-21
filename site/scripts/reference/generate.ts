@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { buildProgram } from '../../../src/adapters/cli';
-import { CAPABILITIES, GROUPS, checkCoverage } from './capabilities';
+import { CAPABILITIES, checkCoverage } from './capabilities';
 import { capabilityPage, outputShapesPage, overviewPage } from './capability-page';
 import { cliSection, leafCommands, type GeneratedPage } from './cli';
 import { configPage, environmentPage } from './config';
@@ -11,28 +11,6 @@ import { listTools, sharedShapes, toolSection } from './mcp';
 export type { GeneratedPage };
 
 export const REFERENCE_DIR = 'src/content/docs/docs/reference';
-const SIDEBAR_FILE = 'src/generated/reference-sidebar.json';
-
-export interface SidebarGroup { label: string; collapsed: boolean; items: string[] }
-
-/** The capability groups for the Reference sidebar, in group order. Astro config imports the JSON. */
-export function referenceSidebar(): SidebarGroup[] {
-  return GROUPS.map((g) => ({
-    label: g.label,
-    collapsed: true,
-    items: CAPABILITIES.filter((c) => c.group === g.id).map((c) => `docs/reference/${c.slug}`),
-  }));
-}
-
-function sidebarJson(): string {
-  return `${JSON.stringify(referenceSidebar(), null, 2)}\n`;
-}
-
-/**
- * Paths the generator owns, relative to the reference folder. It deletes any other file in a
- * directory entry. The generator owns the whole reference folder.
- */
-const OWNED: ReadonlyArray<{ dir: string } | { file: string }> = [{ dir: '.' }];
 
 /** A program build must not open the journal. These no-op seams keep it inert. */
 export function inertProgram() {
@@ -90,16 +68,6 @@ export async function generateReference(opts: { examplesDir: string }): Promise<
   return pages.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
 
-/** Files that exist in an owned path of the reference folder, relative to it, sorted. */
-function ownedFilesOnDisk(referenceDir: string): string[] {
-  const out: string[] = [];
-  for (const entry of OWNED) {
-    if ('dir' in entry) out.push(...sortedFiles(path.join(referenceDir, entry.dir), entry.dir === '.' ? '' : entry.dir));
-    else if (fs.existsSync(path.join(referenceDir, entry.file))) out.push(entry.file);
-  }
-  return out.sort();
-}
-
 /** Remove empty folders below `dir`, so a removed section leaves no empty folder. */
 function removeEmptyDirs(dir: string): void {
   if (!fs.existsSync(dir)) return;
@@ -116,7 +84,7 @@ export async function writeReference(siteRoot: string): Promise<{ written: strin
   const pages = await generateReference({ examplesDir: path.join(siteRoot, 'src/content/examples') });
   const keep = new Set(pages.map((p) => p.path));
   const deleted: string[] = [];
-  for (const rel of ownedFilesOnDisk(referenceDir)) {
+  for (const rel of sortedFiles(referenceDir)) {
     if (keep.has(rel)) continue;
     fs.rmSync(path.join(referenceDir, rel));
     deleted.push(rel);
@@ -129,9 +97,6 @@ export async function writeReference(siteRoot: string): Promise<{ written: strin
     fs.writeFileSync(target, p.content);
     written.push(p.path);
   }
-  const sidebarTarget = path.join(siteRoot, SIDEBAR_FILE);
-  fs.mkdirSync(path.dirname(sidebarTarget), { recursive: true });
-  fs.writeFileSync(sidebarTarget, sidebarJson());
   return { written, deleted };
 }
 

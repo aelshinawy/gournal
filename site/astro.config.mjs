@@ -4,26 +4,29 @@ import starlightLinksValidator from 'starlight-links-validator';
 import { satteri } from '@astrojs/markdown-satteri';
 import { ecFocusable } from './plugins/ec-focusable.mjs';
 import { rehypeTableRegion } from './plugins/rehype-table-region.mjs';
-import { rehypeBaseLinks } from './plugins/rehype-base-links.mjs';
-import { BASE, SITE_URL, siteUrl } from './site.config.mjs';
-import referenceSidebar from './src/generated/reference-sidebar.json' with { type: 'json' };
+import { OG_ALT, OG_HEIGHT, OG_WIDTH, SITE_URL, siteUrl } from './site.config.mjs';
+import { CAPABILITIES, GROUPS } from './scripts/reference/capabilities.ts';
 
 const OG_IMAGE = siteUrl('og.png');
-const OG_ALT = 'A gournal standup in the terminal: done work by project, blockers, next items, and linked GitHub activity.';
+const referenceGroups = GROUPS.map((g) => ({
+  label: g.label,
+  collapsed: true,
+  items: CAPABILITIES.filter((c) => c.group === g.id).map((c) => `docs/reference/${c.slug}`)
+}));
 
 export default defineConfig({
   site: SITE_URL,
-  base: BASE,
+  redirects: { '/docs': '/docs/start-here/introduction/' },
   markdown: {
-    processor: satteri({ features: { smartPunctuation: false }, hastPlugins: [rehypeTableRegion(), rehypeBaseLinks(BASE)] })
+    processor: satteri({ features: { smartPunctuation: false }, hastPlugins: [rehypeTableRegion()] })
   },
   integrations: [
     starlight({
       title: 'gournal',
       head: [
         { tag: 'meta', attrs: { property: 'og:image', content: OG_IMAGE } },
-        { tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
-        { tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+        { tag: 'meta', attrs: { property: 'og:image:width', content: String(OG_WIDTH) } },
+        { tag: 'meta', attrs: { property: 'og:image:height', content: String(OG_HEIGHT) } },
         { tag: 'meta', attrs: { property: 'og:image:alt', content: OG_ALT } },
         { tag: 'meta', attrs: { name: 'twitter:image', content: OG_IMAGE } }
       ],
@@ -40,9 +43,7 @@ export default defineConfig({
           borderRadius: '8px'
         }
       },
-      // The validator reads links as written in Markdown, before rehypeBaseLinks adds the base.
-      // With a non-root base it rejects every prefix-free link, so it runs only for base "/".
-      plugins: BASE === '/' ? [starlightLinksValidator()] : [],
+      plugins: [starlightLinksValidator()],
       sidebar: [
         {
           label: 'Start here',
@@ -68,7 +69,7 @@ export default defineConfig({
           label: 'Reference',
           items: [
             { slug: 'docs/reference', label: 'Overview' },
-            ...referenceSidebar,
+            ...referenceGroups,
             'docs/reference/output-shapes',
             'docs/reference/configuration',
             'docs/reference/environment'
@@ -76,7 +77,7 @@ export default defineConfig({
         },
         {
           label: 'Resources',
-          items: ['docs/resources/changelog', 'docs/resources/faq', 'docs/resources/troubleshooting']
+          items: ['docs/resources/faq', 'docs/resources/troubleshooting']
         }
       ]
     })

@@ -434,7 +434,7 @@ p {
   position: relative;
   width: 100%;
   max-width: 44rem;
-  aspect-ratio: 1200 / 1000;
+  aspect-ratio: 1080 / 900;
   background: var(--h-plate);
   border: 1px solid var(--h-plate-rule);
   border-radius: var(--g-radius-lg);
@@ -559,17 +559,6 @@ p {
 .g-demo__toggle[data-state='paused'] .g-demo__icon--pause,
 .g-demo__toggle:not([data-state='paused']) .g-demo__icon--play {
   display: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .g-demo__video,
-  .g-demo__toggle {
-    display: none;
-  }
-
-  .g-demo__still {
-    display: block;
-  }
 }
 
 /* Sections. */
@@ -1079,6 +1068,15 @@ p {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  .g-demo__video,
+  .g-demo__toggle {
+    display: none;
+  }
+
+  .g-demo__still {
+    display: block;
   }
 
   *,
