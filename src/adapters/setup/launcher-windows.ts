@@ -92,7 +92,9 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     // cmd does not read this file again after node exits. An uninstall through the launcher deletes
     // this file and its folder. The line status is the node exit code.
     ':run',
-    '(goto) 2>nul & "%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %*',
+    // "(goto)" ends the setlocal scope, so the baked home is set again on this line (expanded at parse
+    // time). Node needs no other variable that this script sets.
+    `(goto) 2>nul & ${o.bakeHome ? 'set "GOURNAL_HOME=%GOURNAL_HOME%" & ' : ''}"%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %*`,
     '',
   ].join('\r\n');
 }

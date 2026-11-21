@@ -280,7 +280,9 @@ describe('launcher text', () => {
     expect(text).toContain('setlocal EnableExtensions DisableDelayedExpansion');
     expect(text).not.toMatch(/EnableDelayedExpansion/);
     expect(text).toContain('if not defined GOURNAL_HOME set "GOURNAL_HOME=%GH%"');
-    expect(text.endsWith('\r\n:run\r\n(goto) 2>nul & "%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %*\r\n')).toBe(true);
+    const node = '"%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %*\r\n';
+    expect(text.endsWith(`\r\n:run\r\n(goto) 2>nul & set "GOURNAL_HOME=%GOURNAL_HOME%" & ${node}`)).toBe(true);
+    expect(renderWindowsLauncher({ bakeHome: false }).endsWith(`\r\n:run\r\n(goto) 2>nul & ${node}`)).toBe(true);
     expect(text).not.toMatch(/exit 0|exit 1/);
     expect(renderWindowsLauncher({ bakeHome: false })).not.toContain('GOURNAL_HOME');
   });
@@ -315,6 +317,37 @@ describe('Windows launcher', () => {
     fs.copyFileSync(process.execPath, node);
     return { root, home, launcher, node };
   }
+
+  function bakedFixture(): ReturnType<typeof winFixture> {
+    const f = winFixture();
+    fs.writeFileSync(f.launcher, renderWindowsLauncher({ bakeHome: true }));
+    fs.writeFileSync(path.join(f.home, 'runtime', 'node'), `${f.node}\r\n`);
+    fs.writeFileSync(
+      path.join(f.home, 'runtime', 'app-x', 'dist', 'cli.js'),
+      "process.stdout.write(process.env.GOURNAL_HOME ?? 'unset')",
+    );
+    return f;
+  }
+
+  function runWith(f: { root: string; launcher: string }, extra: Record<string, string>) {
+    return spawnSync(process.env.ComSpec ?? `${sys}\\System32\\cmd.exe`, ['/d', '/c', f.launcher], {
+      env: { SystemRoot: sys, USERPROFILE: f.root, PATH: `${sys}\\System32`, ...extra },
+      encoding: 'utf8',
+    });
+  }
+
+  windowsTest('bakeHome gives the app the launcher home when GOURNAL_HOME is unset', () => {
+    const f = bakedFixture();
+    const out = runWith(f, {});
+    expect({ status: out.status, stdout: out.stdout, stderr: out.stderr }).toMatchObject({ status: 0, stdout: f.home });
+  });
+
+  windowsTest('bakeHome keeps a GOURNAL_HOME that is already set', () => {
+    const f = bakedFixture();
+    const other = path.join(f.root, 'other');
+    const out = runWith(f, { GOURNAL_HOME: other });
+    expect({ status: out.status, stdout: out.stdout, stderr: out.stderr }).toMatchObject({ status: 0, stdout: other });
+  });
 
   function runWin(f: { root: string; launcher: string }, args: string[], appExit = '0', o: { cwd?: string; path?: string } = {}) {
     return spawnSync(process.env.ComSpec ?? `${sys}\\System32\\cmd.exe`, ['/d', '/c', f.launcher, ...args], {
