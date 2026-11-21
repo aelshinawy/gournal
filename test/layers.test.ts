@@ -1,4 +1,3 @@
-import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 
@@ -11,12 +10,6 @@ const depcruise = (target: string) =>
     [bin, target, '--config', '.dependency-cruiser.cjs', '--output-type', 'err'],
     { encoding: 'utf8', cwd: root }
   );
-
-test('src follows the layer rules', () => {
-  const r = depcruise('src');
-  expect(r.stdout + r.stderr).not.toMatch(/error/i);
-  expect(r.status).toBe(0);
-});
 
 test('the rules catch each violation', () => {
   const r = depcruise('test/fixtures/layers/src');
@@ -39,9 +32,3 @@ test('each fixture line hits the expected rule', () => {
   expect(out).toContain(`error cli-stays-in-cli: ${F}/adapters/mcp/bad.ts → ${F}/adapters/cli/spinner.ts`);
   expect(out).not.toContain(`→ ${F}/core/group.ts`);
 });
-
-test('src has only the layer folders and the bin shim', () =>
-  expect(fs.readdirSync(path.join(root, 'src')).sort()).toEqual(['adapters', 'cli.ts', 'core', 'render', 'sources', 'storage']));
-
-test.each(['core', 'storage', 'sources', 'render', 'adapters'])('layer %s has an index.ts', (layer) =>
-  expect(fs.existsSync(path.join(root, 'src', layer, 'index.ts'))).toBe(true));

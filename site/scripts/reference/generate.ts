@@ -91,7 +91,7 @@ export async function generateReference(opts: { examplesDir: string }): Promise<
 }
 
 /** Files that exist in an owned path of the reference folder, relative to it, sorted. */
-export function ownedFilesOnDisk(referenceDir: string): string[] {
+function ownedFilesOnDisk(referenceDir: string): string[] {
   const out: string[] = [];
   for (const entry of OWNED) {
     if ('dir' in entry) out.push(...sortedFiles(path.join(referenceDir, entry.dir), entry.dir === '.' ? '' : entry.dir));

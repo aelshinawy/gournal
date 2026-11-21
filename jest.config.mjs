@@ -1,3 +1,6 @@
+// Tests of the docs site run in jest.site.config.mjs, not in the OS matrix.
+export const siteTests = '<rootDir>/test/(site|docs)-[^/]*\\.test\\.ts$';
+
 export default {
   testEnvironment: 'node',
   globalSetup: '<rootDir>/test/global-setup.ts',
@@ -12,7 +15,7 @@ export default {
   testTimeout: 30000,
   testMatch: ['**/*.test.ts'],
   // Git worktrees under .claude/ hold full copies of the test suite.
-  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/.claude/'],
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/.claude/', siteTests],
   modulePathIgnorePatterns: ['<rootDir>/.claude/'],
   collectCoverageFrom: ['src/**/*.ts'],
   coverageThreshold: {
