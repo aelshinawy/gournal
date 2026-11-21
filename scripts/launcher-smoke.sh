@@ -52,10 +52,16 @@ fail() {
   exit 1
 }
 
+# The helper below splits the registered command on spaces, so a space in the path breaks it.
+case "$tmp" in
+  *" "*) fail "the temporary folder path holds a space: $tmp. Set TMPDIR to a folder without a space." ;;
+esac
+
 # Compare canonical forms: the mixed form on Windows, the physical path on POSIX (macOS /var is a symlink).
 if [ "$windows" -eq 1 ]; then
-  canon_tmp=$tmp
-  canon_home=$(cygpath -m "$real_home")
+  # The long form on both sides, so RUNNER~1 and runneradmin compare equal.
+  canon_tmp=$(cygpath -ml "$tmp")
+  canon_home=$(cygpath -ml "$real_home")
 else
   canon_tmp=$(cd -P "$tmp" && pwd -P)
   canon_home=$(cd -P "$real_home" && pwd -P)
@@ -83,6 +89,8 @@ ci_node=$(node -p "process.execPath")
 echo "launcher-smoke: build and pack"
 npm run --silent clean
 npm run --silent build
+# The probe of the launcher, from the build. The scenario below must use the same source.
+probe=$(node -e 'process.stdout.write(require(process.argv[1]).probeSource("\""))' "$root/dist/adapters/setup/launcher.js")
 tarball=$(npm pack --silent --pack-destination "$tmp/pack" | tail -n 1 | tr -d '\r')
 [ -f "$tmp/pack/$tarball" ] || fail "npm pack did not create $tarball"
 
@@ -255,10 +263,17 @@ case "$recorded" in
   "$va"/*) fail "runtime/node still names version A: $recorded" ;;
 esac
 if [ "$windows" -eq 0 ]; then
-  case "$recorded" in
-    "$vb"/*) ;;
-    *) fail "runtime/node does not name version B: $recorded" ;;
-  esac
+  # The launcher walks the PATH before the nvm folders. A dev box whose /usr/bin/node passes the probe records that node.
+  path_node=""
+  for n in /usr/bin/node /bin/node; do
+    if [ -x "$n" ] && "$n" -e "$probe" </dev/null >/dev/null 2>&1; then path_node="$n"; fi
+  done
+  if [ -z "$path_node" ]; then
+    case "$recorded" in
+      "$vb"/*) ;;
+      *) fail "runtime/node does not name version B: $recorded" ;;
+    esac
+  fi
 fi
 echo "launcher-smoke: runtime/node is now $recorded"
 
@@ -284,13 +299,19 @@ else
     cp "$GOURNAL_OLD_NODE" "$nodes/vOld/bin/node"
     chmod +x "$nodes/vOld/bin/node"
     printf '%s\n' "$nodes/vOld/bin/node" >"$HOME/.gournal/runtime/node"
-    # Compute the expected result with the probe of the launcher on every system candidate.
-    system=$(node -e 'console.log(require(process.argv[1]).POSIX_CANDIDATES.system.join("\n"))' "$root/dist/adapters/setup/launcher.js")
-    probe='var v=process.versions.node.split(".").map(Number);if(!(v[0]>22||(v[0]===22&&v[1]>=13)))process.exit(1);require("node:sqlite")'
+    # Compute the expected result with the probe and the candidate lists of the launcher, from the build.
+    # Each file and glob fragment runs through sh with this HOME, as the launcher does.
+    all=$(node -e '
+      const c = require(process.argv[1]).POSIX_CANDIDATES;
+      const lines = [...c.files, ...c.globs, ...c.system].map((w) => `for n in ${w}; do printf "%s\\n" "$n"; done`);
+      console.log(lines.join("\n"));
+    ' "$root/dist/adapters/setup/launcher.js" | sh)
     good=""
-    for n in $system /opt/homebrew/opt/node@*/bin/node /usr/local/opt/node@*/bin/node /home/linuxbrew/.linuxbrew/opt/node@*/bin/node /usr/local/n/versions/node/*/bin/node; do
+    while IFS= read -r n; do
       if [ -f "$n" ] && [ -x "$n" ] && "$n" -e "$probe" </dev/null >/dev/null 2>&1; then good="$n"; fi
-    done
+    done <<EOF
+$all
+EOF
     launch reg "" "" --version
     if [ -n "$good" ]; then
       [ "$launch_status" -eq 0 ] || fail "a system Node passes ($good), but the launcher exited with $launch_status: $(cat "$tmp/l.err")"
