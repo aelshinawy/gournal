@@ -91,9 +91,13 @@ export function renderPosixLauncher(o: { home: string; bakeHome: boolean; candid
     ...(o.bakeHome ? [`[ -n "\${GOURNAL_HOME+x}" ] || { GOURNAL_HOME=${home}; export GOURNAL_HOME; }`] : []),
     'first=${1-}',
     `quit() { [ "$first" = hook ] && exit 0; printf 'gournal: %s\\n' "$1" >&2; exit 1; }`,
+    // The installed package wins. The copy runs only when the source is gone.
+    'src=; { IFS= read -r src < "$home/runtime/source"; } 2>/dev/null',
     'app=; { IFS= read -r app < "$home/runtime/current"; } 2>/dev/null',
-    '[ -n "$app" ] && [ -f "$home/runtime/$app/dist/cli.js" ] || ' +
-      'quit "the launcher cannot find its copy of gournal in ${home}/runtime. Run \\"gournal setup claude\\" in a terminal."',
+    'dir=; if [ -n "$src" ] && [ -f "$src/dist/cli.js" ]; then dir=$src; ' +
+      'elif [ -n "$app" ] && [ -f "$home/runtime/$app/dist/cli.js" ]; then dir=$home/runtime/$app; fi',
+    '[ -n "$dir" ] || quit "the launcher cannot find gournal in ${src} or in ${home}/runtime. ' +
+      'Run \\"gournal setup claude\\" in a terminal, or run \\"claude mcp remove --scope user gournal\\" to remove gournal from Claude Code."',
     `ok() { case $1 in /*) ;; *) return 1 ;; esac; [ -f "$1" ] && [ -x "$1" ] && "$1" -e '${probeSource('"')}' </dev/null >/dev/null 2>&1; }`,
     'pick=; rec=; { IFS= read -r rec < "$home/runtime/node"; } 2>/dev/null',
     '[ -n "$rec" ] && ok "$rec" && pick=$rec',
@@ -106,7 +110,7 @@ export function renderPosixLauncher(o: { home: string; bakeHome: boolean; candid
     `[ -n "$pick" ] || quit "${NO_NODE_MESSAGE.replace(/"/g, '\\"')}"`,
     'if [ "$pick" != "$rec" ]; then printf \'%s\\n\' "$pick" > "$home/runtime/node.$$" 2>/dev/null && ' +
       '/bin/mv -f "$home/runtime/node.$$" "$home/runtime/node" 2>/dev/null || /bin/rm -f "$home/runtime/node.$$" 2>/dev/null; fi',
-    'exec "$pick" "$home/runtime/$app/dist/cli.js" "$@"',
+    'exec "$pick" "$dir/dist/cli.js" "$@"',
     '',
   ].join('\n');
 }

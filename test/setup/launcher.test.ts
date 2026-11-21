@@ -165,7 +165,7 @@ describe('POSIX launcher', () => {
     const out = run(f);
     expect(out.status).toBe(1);
     expect(out.stderr).toBe(
-      `gournal: the launcher cannot find its copy of gournal in ${f.home}/runtime. Run "gournal setup claude" in a terminal.\n`,
+      `gournal: the launcher cannot find gournal in  or in ${f.home}/runtime. Run "gournal setup claude" in a terminal, or run "claude mcp remove --scope user gournal" to remove gournal from Claude Code.\n`,
     );
     const hook = run(f, ['hook']);
     expect(hook.status).toBe(0);
@@ -241,6 +241,50 @@ describe('POSIX launcher', () => {
     expect(fs.readFileSync(rec(f), 'utf8')).toBe(`${n}\n`);
   });
 
+  function withSource(f: Fixture, live: boolean): { source: string; node: string } {
+    const source = path.join(f.root, 'src');
+    if (live) {
+      fs.mkdirSync(path.join(source, 'dist'), { recursive: true });
+      fs.writeFileSync(path.join(source, 'dist', 'cli.js'), '// source\n');
+    }
+    fs.writeFileSync(path.join(f.home, 'runtime', 'source'), `${source}\n`);
+    const node = path.join(f.root, 'rec', 'node');
+    writeFakeNode(node, true);
+    fs.writeFileSync(rec(f), `${node}\n`);
+    return { source, node };
+  }
+
+  posixTest('a live source wins over the copy', () => {
+    const f = fixture('h', none);
+    const { source } = withSource(f, true);
+    const out = run(f, ['x']);
+    expect(out.status).toBe(0);
+    expect(out.stdout).toContain(`args=${path.join(source, 'dist', 'cli.js')} x\n`);
+  });
+
+  posixTest('a missing source runs the copy', () => {
+    const f = fixture('h', none);
+    withSource(f, false);
+    const out = run(f, ['x']);
+    expect(out.status).toBe(0);
+    expect(out.stdout).toContain(`args=${appPath(f)} x\n`);
+  });
+
+  posixTest('no source and no copy gives the new no-app line, and silence for the hook', () => {
+    const f = fixture('h', none);
+    const { source } = withSource(f, false);
+    fs.rmSync(path.join(f.home, 'runtime', 'app-x'), { recursive: true });
+    const out = run(f);
+    expect(out.status).toBe(1);
+    expect(out.stdout).toBe('');
+    expect(out.stderr).toBe(
+      `gournal: the launcher cannot find gournal in ${source} or in ${f.home}/runtime. Run "gournal setup claude" in a terminal, or run "claude mcp remove --scope user gournal" to remove gournal from Claude Code.\n`,
+    );
+    const hook = run(f, ['hook']);
+    expect(hook.status).toBe(0);
+    expect(hook.stdout + hook.stderr).toBe('');
+  });
+
   posixTest('production list: an fnm default alias under XDG data is found', () => {
     const f = fixture('h');
     const n = path.join(f.root, 'user', '.local', 'share', 'fnm', 'aliases', 'default', 'bin', 'node');
@@ -280,7 +324,7 @@ describe('launcher text', () => {
     expect(text).toContain('setlocal EnableExtensions DisableDelayedExpansion');
     expect(text).not.toMatch(/EnableDelayedExpansion/);
     expect(text).toContain('if not defined GOURNAL_HOME set "GOURNAL_HOME=%GH%"');
-    const node = '"%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %*\r\n';
+    const node = '"%PICK%" "%DIR%\\dist\\cli.js" %*\r\n';
     expect(text.endsWith(`\r\n:run\r\n(goto) 2>nul & set "GOURNAL_HOME=%GOURNAL_HOME%" & ${node}`)).toBe(true);
     expect(renderWindowsLauncher({ bakeHome: false }).endsWith(`\r\n:run\r\n(goto) 2>nul & ${node}`)).toBe(true);
     expect(text).not.toMatch(/exit 0|exit 1/);
@@ -477,5 +521,25 @@ describe('Windows launcher', () => {
     });
     expect({ status: out.status, stderr: out.stderr }).toMatchObject({ status: 0 });
     expect(fs.readFileSync(path.join(f.home, 'runtime', 'node'), 'utf8').trim()).toBe(local);
+  });
+
+  windowsTest('a missing source runs the copy on Windows, and the exit code passes through', () => {
+    const f = winFixture();
+    fs.writeFileSync(path.join(f.home, 'runtime', 'node'), `${f.node}\r\n`);
+    fs.writeFileSync(path.join(f.home, 'runtime', 'source'), `${path.join(f.root, 'gone')}\r\n`);
+    const out = runWin(f, ['a'], '3');
+    expect({ status: out.status, stdout: out.stdout, stderr: out.stderr }).toEqual({ status: 3, stdout: '["a"]', stderr: '' });
+  });
+
+  windowsTest('a cleanup that deletes gournal.cmd leaves stderr empty', () => {
+    const f = winFixture();
+    fs.writeFileSync(path.join(f.home, 'runtime', 'node'), `${f.node}\r\n`);
+    fs.writeFileSync(
+      path.join(f.home, 'runtime', 'app-x', 'dist', 'cli.js'),
+      `require('fs').rmSync(${JSON.stringify(f.launcher)}, { force: true });`,
+    );
+    const out = runWin(f, ['setup', 'claude', '--uninstall', '--yes']);
+    expect({ status: out.status, stdout: out.stdout, stderr: out.stderr }).toEqual({ status: 0, stdout: '', stderr: '' });
+    expect(fs.existsSync(f.launcher)).toBe(false);
   });
 });

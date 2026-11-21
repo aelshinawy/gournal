@@ -31,7 +31,13 @@ export interface SetupIo {
   bakeHome?: boolean;
 }
 
-export interface SetupOptions { uninstall: boolean; yes: boolean; hook: boolean }
+export interface SetupOptions {
+  uninstall: boolean;
+  yes: boolean;
+  hook: boolean;
+  /** With uninstall: remove only the registration that points at this gournal home's launcher. */
+  ownedOnly?: boolean;
+}
 
 /** What the install and uninstall flows share. `status` is the exit code, and a flow raises it to 1. */
 export interface SetupCtx {

@@ -5,3 +5,8 @@ export type { CommandRunner } from './runner';
 export { SKILL_MD, SKILL_MARKER } from './skill';
 export { stopHook } from './hook';
 export { shouldRefresh, refreshRuntime } from './runtime';
+export { installGate } from './install-gate';
+export type { GateResult } from './install-gate';
+export { selfCleanup } from './cleanup';
+export { PACKAGE_ROOT } from './package-copy';
+export { homeAsSpelled } from './source';

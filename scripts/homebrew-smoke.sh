@@ -239,6 +239,7 @@ step() {
   gbin=$2
   want_node=$3
   extra_path=$4
+  want_source=$5
   status=0
   adds_before=$(grep -c '^mcp add ' "$calls" || true)
   run_setup "$gbin" --yes --hook || status=$?
@@ -249,12 +250,16 @@ step() {
   [ "$(count reg "$HOME/.claude.json")" = "1" ] || fail "scenario 3 ($label): the registration count is not 1"
   [ "$(count hook "$settings")" = "1" ] || fail "scenario 3 ($label): the hook count is not 1"
   [ "$(runtime_node)" = "$want_node" ] || fail "scenario 3 ($label): runtime/node holds '$(runtime_node)', expected '$want_node'"
+  # F1: runtime/source follows the channel that ran last.
+  [ "$(tr -d '\n' <"$HOME/.gournal/runtime/source")" = "$want_source" ] || fail "scenario 3 ($label): runtime/source holds '$(tr -d '\n' <"$HOME/.gournal/runtime/source")', expected '$want_source'"
 }
-step "npm first" "$npm_bin" "$ci_node" "$ci_node_dir"
-step "homebrew" "$brew_bin" "$brew_node" "$prefix/bin"
-step "npm again" "$npm_bin" "$ci_node" "$ci_node_dir"
+npm_source=$(cd -P "$tmp/npm/lib/node_modules/gournal" && pwd -P)
+brew_source="$prefix/opt/gournal/libexec/lib/node_modules/gournal"
+step "npm first" "$npm_bin" "$ci_node" "$ci_node_dir" "$npm_source"
+step "homebrew" "$brew_bin" "$brew_node" "$prefix/bin" "$brew_source"
+step "npm again" "$npm_bin" "$ci_node" "$ci_node_dir" "$npm_source"
 # Leave the Homebrew channel last, as a user would for the uninstall scenario.
-step "homebrew again" "$brew_bin" "$brew_node" "$prefix/bin"
+step "homebrew again" "$brew_bin" "$brew_node" "$prefix/bin" "$brew_source"
 
 echo "homebrew-smoke: scenario 4, uninstall"
 extra_path="$prefix/bin"
@@ -265,5 +270,100 @@ cat "$tmp/setup.out"
 [ "$(count hook "$settings")" = "0" ] || fail "scenario 4: a gournal hook is left in settings.json"
 [ "$(count reg "$HOME/.claude.json")" = "0" ] || fail "scenario 4: the registration is left"
 [ -f "$brew_cli" ] || fail "scenario 4: the Cellar files are gone"
+
+# Scenarios 5 and 6 start the launcher the way Claude Code does: no shell PATH. The fake claude is
+# on the PATH only for the run that has to call it.
+silent_hook() {
+  hook_status=0
+  printf '{}' | env -i HOME="$HOME" PATH="$1" /bin/sh -c "$hook_cmd" >"$tmp/hook.out" 2>&1 || hook_status=$?
+  [ "$hook_status" -eq 0 ] || fail "the hook exited with status $hook_status: $(cat "$tmp/hook.out")"
+  [ ! -s "$tmp/hook.out" ] || fail "the hook printed: $(cat "$tmp/hook.out")"
+}
+removed_at="$HOME/.gournal/runtime/removed-at"
+
+echo "homebrew-smoke: scenario 5, brew uninstall without --uninstall"
+extra_path="$prefix/bin"
+status=0
+run_setup "$brew_bin" --yes --hook || status=$?
+cat "$tmp/setup.out"
+[ "$status" -eq 0 ] || fail "scenario 5: setup exited with status $status"
+gui env GOURNAL_NO_AUTOSYNC=1 "$launcher" add "brew smoke" >/dev/null || fail "scenario 5: add through the launcher failed"
+[ -f "$HOME/.gournal/gournal.db" ] || fail "scenario 5: add did not create gournal.db"
+hook_cmd=$(node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(s.hooks.Stop[0].hooks[0].command)' "$settings")
+brew uninstall --formula "$tap/gournal"
+installed=0
+[ ! -e "$brew_cli" ] || fail "scenario 5: brew uninstall left $brew_cli"
+silent_hook "$min_path"
+[ -f "$removed_at" ] || fail "scenario 5: the first hook after the uninstall did not write removed-at"
+actual=$(gui "$launcher" --version 2>"$tmp/grace.err")
+[ "$actual" = "$expected" ] || fail "scenario 5: version in the grace window is '$actual', expected '$expected'"
+[ "$(wc -l <"$tmp/grace.err" | tr -d ' ')" -eq 1 ] || fail "scenario 5: stderr in the grace window is not one line: $(cat "$tmp/grace.err")"
+grep -q 'is missing. gournal runs from its copy in' "$tmp/grace.err" || fail "scenario 5: the notice line is wrong: $(cat "$tmp/grace.err")"
+settings_before=$(cksum <"$settings")
+echo $(( $(date +%s) - 61 )) >"$removed_at"
+mcp_status=0
+gui "$launcher" mcp </dev/null >"$tmp/gone.out" 2>"$tmp/gone.err" || mcp_status=$?
+[ "$mcp_status" -eq 1 ] || fail "scenario 5: mcp after the grace window exited with $mcp_status, expected 1"
+[ ! -s "$tmp/gone.out" ] || fail "scenario 5: mcp wrote to stdout: $(cat "$tmp/gone.out")"
+[ "$(wc -l <"$tmp/gone.err" | tr -d ' ')" -eq 1 ] || fail "scenario 5: stderr after the grace window is not one line: $(cat "$tmp/gone.err")"
+grep -q 'setup claude --uninstall' "$tmp/gone.err" || fail "scenario 5: the no-longer-installed line is wrong: $(cat "$tmp/gone.err")"
+silent_hook "$min_path"
+[ "$(cksum <"$settings")" = "$settings_before" ] || fail "scenario 5: the hook changed settings.json before the cleanup time"
+[ -d "$HOME/.gournal/runtime" ] || fail "scenario 5: the hook removed the runtime before the cleanup time"
+echo $(( $(date +%s) - 3600 )) >"$removed_at"
+silent_hook "$tmp/fakebin:$min_path"
+[ "$(count hook "$settings")" = "0" ] || fail "scenario 5: the cleanup left the gournal hook"
+[ "$(count reg "$HOME/.claude.json")" = "0" ] || fail "scenario 5: the cleanup left the registration"
+grep -q '^mcp remove ' "$calls" || fail "scenario 5: the cleanup did not run claude mcp remove"
+[ ! -e "$HOME/.claude/skills/gournal/SKILL.md" ] || fail "scenario 5: the cleanup left the skill file"
+[ ! -e "$launcher" ] || fail "scenario 5: the cleanup left the launcher"
+[ ! -e "$HOME/.gournal/runtime" ] || fail "scenario 5: the cleanup left the runtime folder"
+[ -f "$HOME/.gournal/gournal.db" ] || fail "scenario 5: the cleanup removed the journal file"
+
+echo "homebrew-smoke: scenario 6, premise P17 (the rack stays during brew upgrade)"
+# Two versions of the packed tarball: a temp copy of the package with two version values.
+p17="$tmp/p17"
+mkdir "$p17"
+for v in 0.0.1 0.0.2; do
+  mkdir "$p17/src-$v"
+  cp -R dist "$p17/src-$v/dist"
+  node -e 'const p = require("./package.json"); p.version = process.argv[1]; require("fs").writeFileSync(process.argv[2], JSON.stringify(p, null, 2));' "$v" "$p17/src-$v/package.json"
+  (cd "$p17/src-$v" && npm pack --silent --pack-destination "$p17" >/dev/null)
+done
+formula_for() {
+  sum=$(shasum -a 256 "$p17/gournal-$1.tgz" | cut -d ' ' -f 1)
+  sed -e "s|^  url \".*\"|  url \"file://$p17/gournal-$1.tgz\"|" \
+      -e "s|^  sha256 \".*\"|  sha256 \"$sum\"|" \
+      packaging/homebrew/gournal.rb >"$formula_dir/gournal.rb"
+}
+formula_for 0.0.1
+brew install --formula "$tap/gournal"
+installed=1
+extra_path="$prefix/bin"
+status=0
+run_setup "$brew_bin" --yes --hook || status=$?
+cat "$tmp/setup.out"
+[ "$status" -eq 0 ] || fail "scenario 6: setup exited with status $status"
+hook_cmd=$(node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(s.hooks.Stop[0].hooks[0].command)' "$settings")
+: >"$p17/loop.log"
+(
+  while [ ! -f "$p17/stop" ]; do
+    [ -d "$prefix/Cellar/gournal" ] || echo RACK-GONE >>"$p17/loop.log"
+    sleep 0.01
+  done
+) &
+loop_pid=$!
+formula_for 0.0.2
+upgrade_status=0
+brew upgrade --formula "$tap/gournal" || upgrade_status=$?
+: >"$p17/stop"
+wait "$loop_pid" || true
+[ "$upgrade_status" -eq 0 ] || fail "scenario 6: brew upgrade exited with status $upgrade_status"
+[ ! -s "$p17/loop.log" ] || fail "P17: the rack folder $prefix/Cellar/gournal was gone during brew upgrade: $(wc -l <"$p17/loop.log" | tr -d ' ') samples"
+silent_hook "$min_path"
+[ ! -e "$removed_at" ] || fail "scenario 6: removed-at exists after brew upgrade"
+actual=$(gui "$launcher" --version 2>"$tmp/upgrade.err")
+[ -z "$(cat "$tmp/upgrade.err")" ] || fail "scenario 6: stderr after brew upgrade: $(cat "$tmp/upgrade.err")"
+echo "$actual"
 
 echo "homebrew-smoke: OK (gournal $expected)"

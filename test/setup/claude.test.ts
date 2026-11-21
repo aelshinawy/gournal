@@ -8,6 +8,7 @@ import { addStopHook, removeStopHook, isGournalHook } from '../../src/adapters/s
 import { VERSION } from '../../src/adapters/version';
 import { runIn } from '../helpers/run-cli';
 import { makeHarness, type Harness } from '../helpers/setup-harness';
+import { makeFakePackage } from '../helpers/fake-package';
 import { canSymlink } from '../helpers/symlink';
 import { makeRealTmp, rmTmp } from '../helpers/tmp';
 
@@ -985,7 +986,7 @@ describe('the launcher registration', () => {
     out.length = 0;
     expect(await run({ uninstall: true, yes: false }, makeIo({ answer: false }))).toBe(0);
     expect(fs.existsSync(LAUNCHER())).toBe(true);
-    expect(out).toContain('Launcher: kept.');
+    expect(out).toContain('Launcher: kept, because the MCP registration still starts it. Run this command again when you have fixed that.');
   });
 
   test('the non-terminal plan lists the launcher step', async () => {
@@ -1013,5 +1014,36 @@ describe('the launcher registration', () => {
   test('win32 runs the check through cmd.exe', async () => {
     expect(await run({}, winIo())).toBe(0);
     expect(checks[0]).toEqual([CMD_EXE, '/d', '/c', WIN_CMD(), '--version']);
+  });
+
+  test('uninstall keeps the launcher when the claude CLI is missing, and says why', async () => {
+    await run({});
+    out.length = 0;
+    expect(await run({ uninstall: true }, makeIo({ exec: fakeExec(127) }))).toBe(1);
+    expect(fs.existsSync(LAUNCHER())).toBe(true);
+    expect(out).toContain('Launcher: kept, because the MCP registration still starts it. Run this command again when you have fixed that.');
+  });
+
+  test('uninstall keeps the launcher when the user keeps the Stop hook, and says why', async () => {
+    await run({ hook: true });
+    out.length = 0;
+    const io = makeIo({ confirm: async (m) => !m.includes('Stop hook') });
+    expect(await run({ uninstall: true, yes: false }, io)).toBe(0);
+    expect(fs.existsSync(LAUNCHER())).toBe(true);
+    expect(stopCommands(readSettings())).toEqual([HOOK()]);
+    expect(out).toContain('Launcher: kept, because the Stop hook still starts it. Run this command again when you have fixed that.');
+  });
+
+  test('setup from the copy is refused and changes nothing, and uninstall from the copy works', async () => {
+    const copy = path.join(h.gh, 'runtime', 'app-x');
+    h.pkg = makeFakePackage(copy, VERSION);
+    fs.writeFileSync(path.join(h.gh, 'runtime', 'source'), `${path.join(root, 'gone')}\n`);
+    expect(await run({ hook: true }, makeIo({ packageRoot: copy }))).toBe(1);
+    expect(err).toContain(`Launcher: run setup from an installed gournal, not from the copy in ${path.join(h.gh, 'runtime')}.`);
+    expect(calls).toEqual([]);
+    expect(fs.existsSync(LAUNCHER())).toBe(false);
+    expect(fs.existsSync(h.settingsFile())).toBe(false);
+    expect(await run({ uninstall: true }, makeIo({ packageRoot: copy }))).toBe(0);
+    expect(fs.existsSync(path.join(h.gh, 'runtime'))).toBe(false);
   });
 });

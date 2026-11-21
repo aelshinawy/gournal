@@ -30,7 +30,7 @@ function globLeaf(glob: string): string {
 export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeCandidates }): string {
   const c = o.candidates ?? WINDOWS_CANDIDATES;
   const probe = (set: string): string => `"%~1" -e "${probeSource("'")}" >nul 2>&1 <nul && set "${set}=%~1"`;
-  const noApp = 'the launcher cannot find its copy of gournal in %GH%\\runtime. Run "gournal setup claude" in a terminal.';
+  const noApp = 'the launcher cannot find gournal in %SRC% or in %GH%\\runtime. Run "gournal setup claude" in a terminal, or run "claude mcp remove --scope user gournal" to remove gournal from Claude Code.';
   const noNode = `found no Node.js ${FLOOR_TEXT} or newer with the node:sqlite module. Install Node.js ${FLOOR_TEXT} or newer. Then run "gournal setup claude" in a terminal.`;
   return [
     '@echo off',
@@ -39,14 +39,19 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     'for %%I in ("%~dp0..") do set "GH=%%~fI"',
     ...(o.bakeHome ? ['if not defined GOURNAL_HOME set "GOURNAL_HOME=%GH%"'] : []),
     'set "FIRST=%~1"',
+    'set "SRC="',
     'set "APP="',
+    'set "DIR="',
     'set "REC="',
     'set "PICK="',
     'set "GPICK="',
+    'if exist "%GH%\\runtime\\source" set /p SRC=<"%GH%\\runtime\\source"',
     `set "MSG=${noApp}"`,
-    'if exist "%GH%\\runtime\\current" set /p APP=<"%GH%\\runtime\\current"',
-    'if not defined APP goto :quit',
-    'if not exist "%GH%\\runtime\\%APP%\\dist\\cli.js" goto :quit',
+    // The installed package wins. The copy runs only when the source is gone.
+    'if defined SRC if exist "%SRC%\\dist\\cli.js" set "DIR=%SRC%"',
+    'if not defined DIR if exist "%GH%\\runtime\\current" set /p APP=<"%GH%\\runtime\\current"',
+    'if not defined DIR if defined APP if exist "%GH%\\runtime\\%APP%\\dist\\cli.js" set "DIR=%GH%\\runtime\\%APP%"',
+    'if not defined DIR goto :quit',
     `set "MSG=${noNode}"`,
     'if exist "%GH%\\runtime\\node" set /p REC=<"%GH%\\runtime\\node"',
     'if defined REC call :try "%REC%"',
@@ -97,7 +102,7 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     ':run',
     // "(goto)" ends the setlocal scope, so the baked home is set again on this line (expanded at parse
     // time). Node needs no other variable that this script sets.
-    `(goto) 2>nul & ${o.bakeHome ? 'set "GOURNAL_HOME=%GOURNAL_HOME%" & ' : ''}"%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %*`,
+    `(goto) 2>nul & ${o.bakeHome ? 'set "GOURNAL_HOME=%GOURNAL_HOME%" & ' : ''}"%PICK%" "%DIR%\\dist\\cli.js" %*`,
     '',
   ].join('\r\n');
 }

@@ -313,4 +313,102 @@ launch reg "$child_ci$sep$child_rest" "" setup claude --uninstall --yes
 [ ! -e "$HOME/.gournal/runtime" ] || fail "uninstall left the runtime folder"
 [ -f "$HOME/.gournal/gournal.db" ] || fail "uninstall removed the journal file"
 
+# Scenarios 6 and 7 use version B (and a new version C). Make version B again, because the earlier
+# scenarios removed it. The fake claude only logs. It does not write ~/.claude.json, so the scenario writes
+# the registration that "claude mcp add" would write.
+if [ "$windows" -eq 1 ]; then
+  vb_path=$(cygpath -u "$vb_bin")
+  cli_b="$vb/node_modules/gournal/dist/cli.js"
+  vc="$nodes/vC"
+  vc_bin="$vc"
+  child_vc=$(cygpath -w "$vc_bin")
+else
+  vb_path="$vb_bin"
+  cli_b="$vb/lib/node_modules/gournal/dist/cli.js"
+  vc="$nodes/vC"
+  vc_bin="$vc/bin"
+  child_vc="$vc_bin"
+fi
+gournal_b() { "$vb_bin/$node_name" "$cli_b" "$@"; }
+
+install_b() {
+  mkdir -p "$vb_bin"
+  cp "$ci_node" "$vb_bin/$node_name"
+  chmod +x "$vb_bin/$node_name"
+  PATH="$vb_bin:$PATH" npm install --global --prefix "$vb" --no-audit --no-fund --loglevel=error "$tmp/pack/$tarball"
+  [ -f "$cli_b" ] || fail "the installed package has no entry file at $cli_b"
+  : >"$calls"
+  rm -f "$HOME/.claude.json"
+  setup_b_status=0
+  (PATH="$fakebin_path:$vb_path:$sys_path"; export PATH; gournal_b setup claude --yes --hook) </dev/null >"$tmp/setup-b.out" 2>&1 || setup_b_status=$?
+  [ "$setup_b_status" -eq 0 ] || fail "setup from version B exited with $setup_b_status: $(cat "$tmp/setup-b.out")"
+  node -e '
+    const fs = require("fs");
+    const line = fs.readFileSync(process.argv[1], "utf8").replace(/"/g, "").split(/\r?\n/).find((l) => l.includes("mcp add"));
+    const w = line.slice(line.indexOf(" -- ") + 4).trim().split(" ");
+    fs.writeFileSync(process.argv[2], JSON.stringify({ mcpServers: { gournal: { type: "stdio", command: w[0], args: w.slice(1) } } }));
+  ' "$calls" "$HOME/.claude.json"
+}
+
+# The hook must print nothing, and a run must leave no removed-at, unless a step says otherwise.
+expect_silent_hook() {
+  launch hook "$1" "{}"
+  [ "$launch_status" -eq 0 ] || fail "the hook exited with $launch_status: $(cat "$tmp/l.err")"
+  [ -z "$(cat "$tmp/l.out" "$tmp/l.err")" ] || fail "the hook printed: $(cat "$tmp/l.out") $(cat "$tmp/l.err")"
+}
+
+echo "launcher-smoke: npm-uninstall-without-uninstall"
+install_b
+PATH="$vb_bin:$PATH" npm uninstall --global --prefix "$vb" --loglevel=error gournal
+[ ! -e "$cli_b" ] || fail "npm uninstall left $cli_b"
+removed_at="$HOME/.gournal/runtime/removed-at"
+expect_silent_hook ""
+[ -f "$removed_at" ] || fail "the first hook after the uninstall did not write removed-at"
+# The grace window: the copy runs, and stderr holds exactly one notice line.
+launch reg "" "" --version
+[ "$launch_status" -eq 0 ] || fail "--version in the grace window exited with $launch_status: $(cat "$tmp/l.err")"
+[ "$(tr -d '\r\n' <"$tmp/l.out")" = "$expected" ] || fail "--version printed '$(cat "$tmp/l.out")', expected '$expected'"
+[ "$(wc -l <"$tmp/l.err" | tr -d ' ')" -eq 1 ] || fail "stderr in the grace window is not one line: $(cat "$tmp/l.err")"
+grep -q 'is missing. gournal runs from its copy in' "$tmp/l.err" || fail "the notice line is wrong: $(cat "$tmp/l.err")"
+# After 60 s the MCP server stops with one line. The hook stays silent and changes nothing.
+settings_before=$(cksum <"$HOME/.claude/settings.json")
+echo $(( $(date +%s) - 61 )) >"$removed_at"
+launch mcp "" "$mcp_in"
+[ "$launch_status" -eq 1 ] || fail "mcp after the grace window exited with $launch_status, expected 1"
+[ ! -s "$tmp/l.out" ] || fail "mcp wrote to stdout: $(cat "$tmp/l.out")"
+[ "$(wc -l <"$tmp/l.err" | tr -d ' ')" -eq 1 ] || fail "stderr after the grace window is not one line: $(cat "$tmp/l.err")"
+grep -q 'setup claude --uninstall' "$tmp/l.err" || fail "the no-longer-installed line is wrong: $(cat "$tmp/l.err")"
+expect_silent_hook ""
+[ "$(cksum <"$HOME/.claude/settings.json")" = "$settings_before" ] || fail "the hook changed settings.json before the cleanup time"
+[ -d "$HOME/.gournal/runtime" ] || fail "the hook removed the runtime before the cleanup time"
+# After 3600 s the hook removes the gournal setup. It finds the fake claude on its PATH.
+echo $(( $(date +%s) - 3600 )) >"$removed_at"
+expect_silent_hook "$child_rest"
+[ ! -f "$HOME/.claude/settings.json" ] || ! grep -q gournal "$HOME/.claude/settings.json" || fail "the cleanup left the gournal hook in settings.json"
+[ ! -e "$HOME/.claude/skills/gournal/SKILL.md" ] || fail "the cleanup left the skill file"
+grep -q 'mcp remove' "$calls" || fail "the cleanup did not run claude mcp remove: $(cat "$calls")"
+[ ! -e "$HOME/.gournal/bin/gournal" ] && [ ! -e "$HOME/.gournal/bin/gournal.cmd" ] || fail "the cleanup left the launcher"
+[ ! -e "$HOME/.gournal/runtime" ] || fail "the cleanup left the runtime folder"
+[ -f "$HOME/.gournal/gournal.db" ] || fail "the cleanup removed the journal file"
+
+echo "launcher-smoke: node-switch-and-removal-never-clean-up"
+mkdir -p "$vc_bin"
+cp "$ci_node" "$vc_bin/$node_name"
+chmod +x "$vc_bin/$node_name"
+install_b
+launch_both() {
+  expect_silent_hook "$1"
+  launch reg "$1" "" --version
+  [ "$launch_status" -eq 0 ] || fail "--version exited with $launch_status: $(cat "$tmp/l.err")"
+  [ "$(tr -d '\r\n' <"$tmp/l.out")" = "$expected" ] || fail "--version printed '$(cat "$tmp/l.out")', expected '$expected'"
+  [ -z "$(tr -d '\r\n' <"$tmp/l.err")" ] || fail "--version wrote to stderr: $(cat "$tmp/l.err")"
+  [ ! -e "$removed_at" ] || fail "removed-at exists after a Node.js change"
+  grep -q gournal "$HOME/.claude/settings.json" || fail "the gournal hook is gone from settings.json"
+}
+# A switch to version C (it holds no gournal): the recorded Node.js and the copy still work.
+launch_both "$child_vc$sep$child_sys"
+# A removal of version B, which holds the package: the anchor goes too, so this is not an uninstall.
+rm -rf "$vb"
+launch_both ""
+
 echo "launcher-smoke: OK (gournal $expected)"

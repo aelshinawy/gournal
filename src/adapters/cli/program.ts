@@ -1,8 +1,9 @@
+import path from 'path';
 import { Command, CommanderError } from 'commander';
 import { red } from '../../render';
 import { VERSION } from '../version';
-import { gournalHome } from '../../storage';
-import { refreshRuntime, shouldRefresh } from '../setup';
+import { gournalHome, userHomePath } from '../../storage';
+import { PACKAGE_ROOT, execFileRunner, homeAsSpelled, installGate, refreshRuntime, selfCleanup, shouldRefresh, type GateResult } from '../setup';
 import { createCliContext, type CliIo, type RegisterCommand } from './context';
 import { registerAdd, registerClear, registerUndo, registerRestore, registerResolve, registerTags, registerProjects, registerFind } from './entries';
 import { registerStandup, registerLog, registerStats, registerExport } from './reports';
@@ -65,6 +66,33 @@ export async function runCli(argv: string[], io: Partial<CliIo> = {}): Promise<n
     gh: io.gh,
     spinnerStream: io.spinnerStream,
   };
+  let gate: GateResult = { kind: 'run' };
+  try {
+    gate = installGate({
+      argv,
+      packageRoot: io.packageRoot ?? PACKAGE_ROOT,
+      gournalHome: full.home,
+      userHome: io.userHome ?? userHomePath(),
+      now: (io.now ?? (() => new Date()))(),
+      env: process.env,
+      platform: process.platform,
+      find: io.gateFind,
+    });
+  } catch {
+    // The gate never stops a command by failing. Run it.
+  }
+  // Both lines go to stderr as plain text. Stdout belongs to the MCP protocol.
+  if (gate.kind === 'exit') {
+    full.err(gate.message);
+    return gate.code;
+  }
+  if (gate.kind === 'cleanup') {
+    // The gate returns this only in copy mode: <copyHome>/runtime/<app>.
+    const copyHome = homeAsSpelled(path.dirname(path.dirname(io.packageRoot ?? PACKAGE_ROOT)), full.home);
+    await selfCleanup({ copyHome, userHome: io.userHome ?? userHomePath(), platform: process.platform, exec: io.exec ?? execFileRunner });
+    return 0;
+  }
+  if (gate.notice) full.err(gate.notice);
   if (shouldRefresh(argv)) {
     try {
       (io.runtimeRefresh ?? defaultRefresh)(full.home);

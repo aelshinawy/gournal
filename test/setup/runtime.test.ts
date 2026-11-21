@@ -150,18 +150,59 @@ test('refreshRuntime does nothing without a runtime and creates no files', () =>
 const installed = (name: string, version: string): string =>
   makeFakePackage(path.join(tmp(), 'node_modules', name === 'gournal' ? 'gournal' : name), version);
 
-test('refreshRuntime switches only to a newer version', () => {
+const setVersion = (pkg: string, version: string): void =>
+  fs.writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: 'gournal', version, dependencies: { dep: '1.0.0' } }));
+
+test('refreshRuntime switches only to a newer version of the recorded package', () => {
   const home = path.join(tmp(), 'h');
-  const old = installed('gournal', '0.9.0');
-  install(home, old);
-  expect(refreshRuntime(home, { packageRoot: installed('gournal', '0.9.0') })).toBe(false);
-  const newer = installed('gournal', '0.10.0');
-  expect(refreshRuntime(home, { packageRoot: newer })).toBe(true);
+  const pkg = installed('gournal', '0.9.0');
+  install(home, pkg);
+  expect(refreshRuntime(home, { packageRoot: pkg })).toBe(false);
+  setVersion(pkg, '0.10.0');
+  expect(refreshRuntime(home, { packageRoot: pkg })).toBe(true);
   const current = fs.readFileSync(runtimePaths(home, process.platform).currentFile, 'utf8');
   expect(current).toMatch(/^app-0\.10\.0-/);
   expect(fs.readFileSync(runtimePaths(home, process.platform).nodeFile, 'utf8')).toBe('/n/node\n');
-  expect(refreshRuntime(home, { packageRoot: old })).toBe(false);
-  expect(refreshRuntime(home, { packageRoot: newer })).toBe(false);
+  setVersion(pkg, '0.9.0');
+  expect(refreshRuntime(home, { packageRoot: pkg })).toBe(false);
+  setVersion(pkg, '0.10.0');
+  expect(refreshRuntime(home, { packageRoot: pkg })).toBe(false);
+});
+
+test('refreshRuntime skips a newer install that is not the recorded source', () => {
+  const home = path.join(tmp(), 'h');
+  const recorded = installed('gournal', '0.9.0');
+  install(home, recorded);
+  const before = fs.readFileSync(runtimePaths(home, process.platform).currentFile, 'utf8');
+  const records = ['source', 'anchor', 'rack'].map((n) => fs.readFileSync(path.join(home, 'runtime', n), 'utf8'));
+  expect(refreshRuntime(home, { packageRoot: installed('gournal', '0.10.0') })).toBe(false);
+  expect(fs.readFileSync(runtimePaths(home, process.platform).currentFile, 'utf8')).toBe(before);
+  expect(['source', 'anchor', 'rack'].map((n) => fs.readFileSync(path.join(home, 'runtime', n), 'utf8'))).toEqual(records);
+});
+
+test('installRuntime without records writes npm records from the package root', () => {
+  const home = path.join(tmp(), 'h');
+  const pkg = installed('gournal', '1.0.0');
+  install(home, pkg);
+  const read = (n: string): string => fs.readFileSync(path.join(home, 'runtime', n), 'utf8');
+  expect(read('source')).toBe(`${fs.realpathSync(pkg)}\n`);
+  expect(read('anchor')).toBe(`${path.dirname(fs.realpathSync(pkg))}\n`);
+  expect(read('rack')).toBe(`${fs.realpathSync(pkg)}\n`);
+});
+
+posixTest('installRuntime for a Homebrew package writes the opt source, Cellar anchor, and Cellar/gournal rack', () => {
+  const prefix = path.join(tmp(), 'brew');
+  const cellar = path.join(prefix, 'Cellar', 'gournal', '1.0.0', 'libexec', 'lib', 'node_modules', 'gournal');
+  makeFakePackage(cellar, '1.0.0');
+  fs.mkdirSync(path.join(prefix, 'opt', 'node', 'bin'), { recursive: true });
+  fs.writeFileSync(path.join(prefix, 'opt', 'node', 'bin', 'node'), '');
+  fs.symlinkSync(path.join(prefix, 'Cellar', 'gournal', '1.0.0'), path.join(prefix, 'opt', 'gournal'));
+  const home = path.join(tmp(), 'h');
+  install(home, cellar);
+  const read = (n: string): string => fs.readFileSync(path.join(home, 'runtime', n), 'utf8');
+  expect(read('source')).toBe(`${prefix}/opt/gournal/libexec/lib/node_modules/gournal\n`);
+  expect(read('anchor')).toBe(`${prefix}/Cellar\n`);
+  expect(read('rack')).toBe(`${prefix}/Cellar/gournal\n`);
 });
 
 test('refreshRuntime ignores a newer checkout outside node_modules', () => {

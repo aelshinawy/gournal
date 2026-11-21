@@ -23,6 +23,12 @@ export interface CliIo {
   spinnerStream?: SpinnerStream;
   /** Test seam for the runtime refresh after an upgrade. The default copies the installed package into the gournal home when it is newer. */
   runtimeRefresh?: (gournalHome: string) => void;
+  /** Test seam for the install gate. The default is the package that holds this code. */
+  packageRoot?: string;
+  /** Test seam for the install gate. The default is the clock. */
+  now?: () => Date;
+  /** Test seam for the install gate. The default reads the real file system. */
+  gateFind?: { exists(p: string): boolean; readdir(p: string): string[] };
 }
 
 export interface CliContext {

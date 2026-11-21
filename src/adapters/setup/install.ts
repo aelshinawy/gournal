@@ -1,9 +1,12 @@
 import fs from 'fs';
+import path from 'path';
 import { SKILL_MARKER, SKILL_MD } from './skill';
 import { addStopHook } from './settings';
 import { classifyRegistration } from './command';
 import { SERVER, writeAtomic, readSettings, readRegistration, writeSettingsFile } from './claude-files';
 import { makeLauncherStep, type LauncherStep } from './ensure-launcher';
+import { copyHomeOf } from './source';
+import { PACKAGE_ROOT } from './package-copy';
 import type { SetupCtx } from './claude';
 
 const NO_LAUNCHER_MCP = 'MCP server: skipped, because the launcher is not installed.';
@@ -118,6 +121,13 @@ async function hookStep(ctx: SetupCtx, launcher: LauncherStep): Promise<void> {
 }
 
 export async function installFlow(ctx: SetupCtx): Promise<void> {
+  const packageRoot = ctx.io.packageRoot ?? PACKAGE_ROOT;
+  if (copyHomeOf(packageRoot) !== null) {
+    // The copy has no package manager. A setup from it would record the copy as the source.
+    ctx.io.err(`Launcher: run setup from an installed gournal, not from the copy in ${path.dirname(packageRoot)}.`);
+    ctx.status = 1;
+    return;
+  }
   const launcher = makeLauncherStep(ctx);
   await mcpStep(ctx, launcher);
   await skillStep(ctx);

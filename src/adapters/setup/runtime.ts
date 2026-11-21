@@ -5,6 +5,8 @@ import { ensurePrivateDir, isDefaultHome, writeViaTemp } from '../../storage';
 import { renderPosixLauncher } from './launcher';
 import { renderWindowsLauncher } from './launcher-windows';
 import { PACKAGE_ROOT, copyPackage, packageFingerprint } from './package-copy';
+import { detectHomebrew } from './homebrew';
+import { sourceRecords, writeRecords, type SourceRecords } from './source';
 
 export interface RuntimePaths { home: string; binDir: string; launcher: string; runtimeDir: string; currentFile: string; nodeFile: string }
 export type InstallAction = 'installed' | 'updated' | 'unchanged';
@@ -79,7 +81,15 @@ function prune(runtimeDir: string, keep: Set<string>): void {
   }
 }
 
-export function installRuntime(o: { gournalHome: string; packageRoot: string; nodePath: string; platform: NodeJS.Platform; bakeHome: boolean }): { action: InstallAction; paths: RuntimePaths } {
+export function installRuntime(o: {
+  gournalHome: string;
+  packageRoot: string;
+  nodePath: string;
+  platform: NodeJS.Platform;
+  bakeHome: boolean;
+  /** Where the installed package lives. The default is read from `packageRoot`. */
+  records?: SourceRecords;
+}): { action: InstallAction; paths: RuntimePaths } {
   const paths = runtimePaths(o.gournalHome, o.platform);
   for (const dir of [paths.home, paths.binDir, paths.runtimeDir]) ensurePrivateDir(dir);
   const { version } = JSON.parse(fs.readFileSync(path.join(o.packageRoot, 'package.json'), 'utf8')) as { version: string };
@@ -90,6 +100,7 @@ export function installRuntime(o: { gournalHome: string; packageRoot: string; no
   let wrote = ensureApp(paths, appName, o.packageRoot);
   wrote = writeIfDiffers(paths.currentFile, `${appName}\n`) || wrote;
   wrote = writeIfDiffers(paths.nodeFile, `${o.nodePath}\n`) || wrote;
+  wrote = writeRecords(paths.runtimeDir, o.records ?? sourceRecords(o.packageRoot, detectHomebrew(o.packageRoot, o.platform))) || wrote;
   const launcher = o.platform === 'win32'
     ? renderWindowsLauncher({ bakeHome: o.bakeHome })
     : renderPosixLauncher({ home: o.gournalHome, bakeHome: o.bakeHome });
@@ -132,7 +143,18 @@ export function refreshRuntime(gournalHome: string, o: { packageRoot?: string; p
   const current = readText(paths.currentFile)?.trim();
   if (!current) return false;
   // Only an installed package refreshes the runtime. A checkout (also one linked by npm link) never does.
-  if (!fs.realpathSync(packageRoot).split(path.sep).includes('node_modules')) return false;
+  const real = fs.realpathSync(packageRoot);
+  if (!real.split(path.sep).includes('node_modules')) return false;
+  // A newer gournal of another channel or another Node.js version never changes the copy or the records.
+  // Only "gournal setup claude" changes the channel.
+  const recorded = readText(path.join(paths.runtimeDir, 'source'))?.trim();
+  if (recorded) {
+    try {
+      if (fs.realpathSync(recorded) !== real) return false;
+    } catch {
+      return false;
+    }
+  }
   const have = (JSON.parse(fs.readFileSync(path.join(paths.runtimeDir, current, 'package.json'), 'utf8')) as { version: string }).version;
   const source = (JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8')) as { version: string }).version;
   if (!newer(source, have)) return false;
