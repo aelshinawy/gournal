@@ -273,14 +273,15 @@ describe('launcher text', () => {
     }
   });
 
-  test('the Windows launcher uses CRLF, no delayed expansion, and ends the node line with & exit /b', () => {
+  test('the Windows launcher uses CRLF, no delayed expansion, and ends with the node line', () => {
     const text = renderWindowsLauncher({ bakeHome: true });
     expect(text.split('\r\n').length).toBeGreaterThan(20);
     expect(text.replace(/\r\n/g, '')).not.toMatch(/[\r\n]/);
     expect(text).toContain('setlocal EnableExtensions DisableDelayedExpansion');
     expect(text).not.toMatch(/EnableDelayedExpansion/);
     expect(text).toContain('if not defined GOURNAL_HOME set "GOURNAL_HOME=%GH%"');
-    expect(text).toContain('\r\n"%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %* & exit /b\r\n:quit\r\n');
+    expect(text.endsWith('\r\n:run\r\n"%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %*\r\n')).toBe(true);
+    expect(text).not.toMatch(/exit 0|exit 1/);
     expect(renderWindowsLauncher({ bakeHome: false })).not.toContain('GOURNAL_HOME');
   });
 
@@ -363,7 +364,12 @@ describe('Windows launcher', () => {
     fs.mkdirSync(path.join(cwd, 'bin'), { recursive: true });
     fs.copyFileSync(process.execPath, path.join(cwd, 'bin', 'node.exe'));
     const out = runWin(f, [], '0', { cwd, path: `bin;${sys}\\System32` });
-    const seen = { status: out.status, stdout: out.stdout, stderr: out.stderr };
+    const where = spawnSync(process.env.ComSpec ?? `${sys}\\System32\\cmd.exe`, ['/d', '/c', 'where node'], {
+      env: { SystemRoot: sys, USERPROFILE: f.root, PATH: `bin;${sys}\\System32` },
+      cwd,
+      encoding: 'utf8',
+    });
+    const seen = { status: out.status, stdout: out.stdout, stderr: out.stderr, cwd, where: where.stdout, whereErr: where.stderr };
     expect(seen).toMatchObject({ status: 1, stdout: '' });
     expect(seen.stderr).toContain('gournal: found no Node.js 22.13 or newer');
   });

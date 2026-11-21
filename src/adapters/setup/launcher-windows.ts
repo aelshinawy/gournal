@@ -62,11 +62,11 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     'if not defined PICK goto :quit',
     'if /i not "%PICK%"=="%REC%" <nul set /p "=%PICK%" >"%GH%\\runtime\\node.tmp"',
     'move /y "%GH%\\runtime\\node.tmp" "%GH%\\runtime\\node" >nul 2>&1',
-    '"%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %* & exit /b',
+    'goto :run',
     ':quit',
-    'if /i "%FIRST%"=="hook" exit 0',
+    'if /i "%FIRST%"=="hook" exit /b 0',
     '1>&2 echo gournal: %MSG%',
-    'exit 1',
+    'exit /b 1',
     ':trywhere',
     'if /i "%~dp1"=="%CDP%" exit /b',
     // At a drive root every path is under the current folder, so only the root folder itself is skipped.
@@ -88,6 +88,10 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     'if not exist "%~1" exit /b',
     probe('GPICK'),
     'exit /b',
+    // The node line is the last line. Nothing follows it, so cmd.exe returns its exit code and does
+    // not read the file again. An uninstall through the launcher deletes this file.
+    ':run',
+    '"%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %*',
     '',
   ].join('\r\n');
 }
