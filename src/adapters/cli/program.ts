@@ -5,7 +5,7 @@ import { gournalHome } from '../../storage';
 import { createCliContext, type CliIo, type RegisterCommand } from './context';
 import { registerAdd, registerClear, registerUndo, registerRestore, registerResolve, registerTags, registerProjects, registerFind } from './entries';
 import { registerStandup, registerLog, registerStats, registerExport } from './reports';
-import { registerImport, registerMigrate, registerIndex } from './journal';
+import { registerImport, registerIndex } from './journal';
 import { registerSync } from './sync';
 import { registerSetup, registerHook, registerMcp } from './setup';
 
@@ -25,7 +25,6 @@ const COMMANDS: RegisterCommand[] = [
   registerExport,
   registerImport,
   registerFind,
-  registerMigrate,
   registerIndex,
   registerSync,
   registerSetup,

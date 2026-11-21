@@ -337,31 +337,6 @@
       ]
     },
     {
-      "name": "migrate",
-      "hidden": false,
-      "args": [],
-      "options": [
-        {
-          "flags": "--plan <file>",
-          "negate": false,
-          "mandatory": false,
-          "defaultValue": null
-        },
-        {
-          "flags": "--dry-run",
-          "negate": false,
-          "mandatory": false,
-          "defaultValue": null
-        },
-        {
-          "flags": "--diff <file>",
-          "negate": false,
-          "mandatory": false,
-          "defaultValue": null
-        }
-      ]
-    },
-    {
       "name": "index",
       "hidden": false,
       "args": [],

@@ -38,7 +38,7 @@ async function mcpSurface() {
 test('the CLI and MCP surface matches the committed contract', async () => {
   const program = buildProgram({ out: () => undefined, err: () => undefined, cwd: '/', home: '/nonexistent/gournal-contract', isTTY: false });
   const surface = { cli: cliSurface(program), mcp: await mcpSurface() };
-  expect(surface.cli).toHaveLength(22);
+  expect(surface.cli).toHaveLength(21);
   expect(surface.mcp.tools).toHaveLength(12);
   expect(surface.mcp.instructions).not.toBeNull();
   const text = `${JSON.stringify(surface, null, 2)}\n`;

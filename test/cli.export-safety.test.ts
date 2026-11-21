@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { runIn } from './helpers/run-cli';
@@ -123,58 +122,5 @@ describe('gournal export -o safety', () => {
     const r = await run('export');
     expect(r.status).toBe(0);
     expect(r.stdout).toContain('Exported thing');
-  });
-});
-
-describe('gournal migrate --dry-run --diff output', () => {
-  let home: string;
-  const entry = { timestamp: '2026-07-28T14:35:23.997Z', message: 'Shipped it. More text here.', project: 'tcb', tags: [] as string[] };
-  beforeEach(() => {
-    home = makeTmp('gournal-diff-home-');
-    fs.writeFileSync(path.join(home, 'entries.json'), JSON.stringify([entry]));
-  });
-  afterEach(() => rmTmp(home));
-
-  const plan = () => {
-    const p = path.join(home, 'plan.json');
-    fs.writeFileSync(p, JSON.stringify({
-      format: 'gournal-migration-plan', version: 1,
-      items: [{ index: 0, timestamp: entry.timestamp, messageHash: crypto.createHash('sha256').update(entry.message).digest('hex'), summary: 'Reviewed summary' }],
-    }));
-    return p;
-  };
-
-  posix('the diff file is mode 0600 under umask 022', async () => {
-    const old = process.umask(0o022);
-    try {
-      const diff = path.join(home, 'd.md');
-      const r = await runIn(home, ['migrate', '--plan', plan(), '--dry-run', '--diff', diff]);
-      expect(r.status).toBe(0);
-      expect(mode(diff)).toBe('600');
-      expect(fs.readdirSync(home).filter((n) => n.endsWith('.tmp'))).toEqual([]);
-    } finally {
-      process.umask(old);
-    }
-  });
-
-  test('a missing diff folder gets the same plain message as export, with no temp path', async () => {
-    const dir = path.join(home, 'nodir');
-    const r = await runIn(home, ['migrate', '--plan', plan(), '--dry-run', '--diff', path.join(dir, 'd.md')]);
-    expect(r.status).toBe(1);
-    expect(r.stderr).toContain(`directory does not exist: ${dir}`);
-    expect(r.stderr).not.toContain('ENOENT');
-    expect(r.stderr).not.toContain('.tmp');
-  });
-
-  test('the diff temp file name is not predictable', async () => {
-    // The old name was .<file>.<pid>.tmp. A planted file or symlink at that name must not matter.
-    const diff = path.join(home, 'd.md');
-    const victim = path.join(home, 'victim.txt');
-    fs.writeFileSync(victim, 'precious');
-    if (process.platform !== 'win32') fs.symlinkSync(victim, path.join(home, `.d.md.${process.pid}.tmp`));
-    const r = await runIn(home, ['migrate', '--plan', plan(), '--dry-run', '--diff', diff]);
-    expect(r.status).toBe(0);
-    expect(fs.readFileSync(victim, 'utf8')).toBe('precious');
-    expect(fs.readFileSync(diff, 'utf8')).toContain('Reviewed summary');
   });
 });

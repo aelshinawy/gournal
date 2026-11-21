@@ -26,7 +26,7 @@ export interface CliIo {
 export interface CliContext {
   io: CliIo;
   /** Open the journal once for a command and close it when the command ends. */
-  withJournal<T>(fn: (journal: Journal) => T | Promise<T>, opts?: { legacyImport?: boolean }): Promise<T>;
+  withJournal<T>(fn: (journal: Journal) => T | Promise<T>): Promise<T>;
   /** A failed daily backup warns and never stops the command. */
   backupWithWarning(journal: Journal): void;
   writerFor(journal: Journal): EntryWriter;
@@ -38,8 +38,8 @@ export type RegisterCommand = (program: Command, ctx: CliContext) => void;
 export function createCliContext(io: CliIo): CliContext {
   return {
     io,
-    withJournal: async (fn, opts = {}) => {
-      const journal = openJournal(io.home, opts);
+    withJournal: async (fn) => {
+      const journal = openJournal(io.home);
       try {
         return await fn(journal);
       } finally {
