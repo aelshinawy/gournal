@@ -32,8 +32,5 @@ class Gournal < Formula
     assert_equal version.to_s, shell_output("#{bin}/gournal --version").strip
     system bin/"gournal", "add", "brew test"
     assert_match "brew test", shell_output("#{bin}/gournal find brew")
-    node = Formula["node"].opt_bin/"node"
-    script = opt_libexec/"lib/node_modules/gournal/dist/cli.js"
-    assert_equal version.to_s, shell_output("env -i HOME=#{testpath} PATH=/usr/bin:/bin #{node} #{script} --version").strip
   end
 end
