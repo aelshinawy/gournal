@@ -7,7 +7,7 @@ import type { Writer } from './writer';
 import { searchIndexLive } from './search-index';
 import { buildEntryWhere } from './search';
 import type { Config } from '../core';
-import { hydrateRows, replaceRefs as replaceRefRows, replaceTags as replaceTagRows } from './entry-rows';
+import { hydrateRows, parseTime, replaceRefs as replaceRefRows, replaceTags as replaceTagRows } from './entry-rows';
 import type { Row } from './entry-rows';
 
 export class AmbiguousIdError extends Error {
@@ -71,12 +71,6 @@ export function createRepository(db: DatabaseSync, config: Config, dbPath: strin
     db.prepare(`UPDATE entries SET status = 'resolved', resolved_at = ?, resolved_by_entry_id = ?, ${BUMP_UPDATED_AT} WHERE id = ?`)
       .run(now, byEntryId, now, id);
     return id;
-  }
-
-  function parseTime(value: string, what: string): number {
-    const ms = Date.parse(value);
-    if (Number.isNaN(ms)) throw new Error(`Invalid ${what}: "${value}"`);
-    return ms;
   }
 
   return {

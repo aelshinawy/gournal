@@ -27,7 +27,7 @@ export function registerImport(program: Command, ctx: CliContext): void {
           ctx.backupWithWarning(journal);
         }
         const r = importBundle(db, bundle, config);
-        ctx.io.out(green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged, ${r.deduplicated} duplicates merged.`));
+        ctx.io.out(green(`Imported: ${r.inserted} new, ${r.updated} updated, ${r.skipped} unchanged.`));
       });
     });
 }

@@ -3,7 +3,7 @@ import { BRANCH_WINDOW_MS, matchLinks, newId } from '../core';
 import type { Activity, ActivityQuery, ActivityRepository, Config, Entry, LinkCandidate, NewActivityInput } from '../core';
 import { BUMP_UPDATED_AT, createWriter } from './writer';
 import type { Writer } from './writer';
-import { chunks, hydrateRows, marks } from './entry-rows';
+import { chunks, hydrateRows, marks, parseTime } from './entry-rows';
 import type { Row } from './entry-rows';
 import { payloadText, rowToActivity } from './activity-rows';
 import type { ActivityRow } from './activity-rows';
@@ -14,12 +14,6 @@ const HEX = /^[0-9a-f]+$/;
 /** Pass the writer that the entry repository uses, so both share one transaction state per connection. */
 export function createActivityRepository(db: DatabaseSync, config: Config, dbPath: string | null, writer: Writer = createWriter(db, dbPath)): ActivityRepository {
   const write = <T>(fn: () => T, opts?: { backup?: boolean }): T => writer.write(fn, opts);
-
-  function parseTime(value: string, what: string): number {
-    const ms = Date.parse(value);
-    if (Number.isNaN(ms)) throw new Error(`Invalid ${what}: "${value}"`);
-    return ms;
-  }
 
   const liveActivity = (rows: ActivityRow[]): Activity[] => rows.map(rowToActivity);
 

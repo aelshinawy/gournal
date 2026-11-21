@@ -7,7 +7,7 @@ export type CommandRunner = (file: string, args: string[]) => Promise<{ code: nu
 
 interface ExecOptions { windowsHide: true; windowsVerbatimArguments?: true; env?: NodeJS.ProcessEnv }
 type RunResult = Awaited<ReturnType<CommandRunner>>;
-/** One process start, with no retry. ENOENT maps to code 127. */
+/** One process start, with no retry. */
 export type ExecOnce = (file: string, args: string[], options: ExecOptions) => Promise<RunResult>;
 
 /** Production: execFile, no shell. Never throws. */
@@ -27,10 +27,7 @@ const execOnce: ExecOnce = (file, args, options) =>
     }
   });
 
-/**
- * Characters that cmd.exe would act on, even inside double quotes, or that cannot be quoted.
- * The `!` is here because delayed expansion, when the registry turns it on, expands `!var!` in quotes.
- */
+/** Characters that cmd.exe acts on even inside double quotes, or that cannot be quoted. `!` is here because delayed expansion expands `!var!` in quotes. */
 const CMD_UNSAFE = /[%^&|<>!"\r\n\0]/;
 
 /**
@@ -65,11 +62,10 @@ interface RunnerDeps {
 }
 
 /**
- * Make the production runner. On Windows an npm install of `claude` is a `claude.cmd` shim.
- * `execFile` cannot find it and gives ENOENT. The runner then looks for the shim in the absolute
- * folders of PATH. It never uses the current folder, because cmd.exe would run a `claude.bat` there.
- * If it finds a shim, it runs the shim through cmd.exe, once. If not, the code is 127 and no
- * cmd.exe starts. There is never a shell option with an args array.
+ * Make the production runner. On Windows an npm install of `claude` is a `claude.cmd` shim, and
+ * `execFile` gives ENOENT for it. The runner then looks for the shim in the absolute folders of PATH.
+ * It never uses the current folder, because cmd.exe would run a `claude.bat` there.
+ * Without a shim, the code is 127 and no cmd.exe starts.
  */
 export function createExecFileRunner(deps: RunnerDeps = {}): CommandRunner {
   const platform = deps.platform ?? process.platform;

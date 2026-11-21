@@ -1,8 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
+import { immediate } from './transaction';
 
-// ---- Optional full-text index ----
-// entries_fts is an index over entries, not data. No feature reads it today. It exists only when this
-// node:sqlite build has FTS5. Databases made before this change already have it, and those stay valid.
+// entries_fts is an index over entries, not data. It exists only when this node:sqlite build has FTS5.
 
 // GOURNAL_DISABLE_FTS5=1 acts as a build without FTS5. Tests use it. Only hasFts5 reads it.
 const DISABLE_FTS5_ENV = 'GOURNAL_DISABLE_FTS5';
@@ -44,7 +43,7 @@ END;
 
 interface SearchIndexState { table: boolean; triggers: string[] }
 
-// Reads sqlite_master only, so it works without the fts5 module even when entries_fts exists.
+// Reads sqlite_master only, so it works without the fts5 module.
 function readSearchIndexState(db: DatabaseSync): SearchIndexState {
   const names = ['entries_fts', ...FTS_TRIGGERS];
   const rows = db.prepare(
@@ -75,70 +74,45 @@ let noticePrinted = false;
 export function resetSearchIndexNotice(): void { noticePrinted = false; }
 
 // Runs after migrateSchema.
-// With FTS5 it creates the index and its triggers only for a database that has neither the table nor
-// any trigger (new or never indexed), and builds the index from the existing rows.
+// With FTS5 it creates the index and triggers for a database that has neither (new or never indexed).
 // Without FTS5 it drops the triggers, so writes do not fail with "no such module". The table stays.
 //
-// The drop is one-way on purpose. A later opener WITH FTS5 must not recreate the triggers. Someone who
-// runs mixed Node builds can have a long-lived process on a build without FTS5. If an FTS5 opener put
-// the triggers back, every write in that process would fail with "no such module: fts5".
-// A table without triggers therefore means "dropped on purpose", and it is left alone.
-// The index is stale then, and text search uses LIKE instead. `gournal index rebuild` restores it.
+// The drop is one-way on purpose. A long-lived process on a build without FTS5 would fail every write
+// with "no such module: fts5" if a later FTS5 opener put the triggers back. A table without triggers
+// therefore means "dropped on purpose". Text search uses LIKE then. `gournal index rebuild` restores it.
 //
-// The one other state is stray: triggers without the table (for example, the table was dropped by hand).
-// Every write fails while it lasts, so both modes drop the triggers. With FTS5 the index is then
-// created as for a new database.
+// Stray triggers (no table, for example dropped by hand) make every write fail, so both modes drop them.
 //
-// Like migrateSchema, the up-to-date path takes no write lock. The check repeats inside the lock
-// because other processes may open the same database at the same time.
+// The up-to-date path takes no write lock. The check repeats inside the lock because other processes
+// may open the same database at the same time.
 export function ensureSearchIndex(db: DatabaseSync): void {
   const fts = hasFts5(db);
-  // With FTS5, a missing table needs work: no triggers means a new database (create the index), and
-  // triggers without the table are stray (drop them, then create the index).
   const needsWork = (s: SearchIndexState) => (fts ? !s.table : s.triggers.length > 0);
   if (!needsWork(readSearchIndexState(db))) return;
-  db.exec('BEGIN IMMEDIATE');
-  let dropped = false;
-  try {
+  const dropped = immediate(db, () => {
     const state = readSearchIndexState(db);
-    if (needsWork(state)) {
-      // Stray triggers (no table) make every write fail, in both modes. Drop them first.
-      for (const t of state.triggers) db.exec(`DROP TRIGGER IF EXISTS "${t}"`);
-      if (fts) {
-        db.exec(FTS_DDL);
-        db.exec("INSERT INTO entries_fts(entries_fts) VALUES('rebuild')");
-      } else {
-        dropped = true;
-      }
-    }
-    db.exec('COMMIT');
-  } catch (err) {
-    try { db.exec('ROLLBACK'); } catch { /* ignore */ }
-    throw err;
-  }
+    if (!needsWork(state)) return false;
+    for (const t of state.triggers) db.exec(`DROP TRIGGER IF EXISTS "${t}"`);
+    if (!fts) return true;
+    db.exec(FTS_DDL);
+    db.exec("INSERT INTO entries_fts(entries_fts) VALUES('rebuild')");
+    return false;
+  });
   if (dropped && !noticePrinted) {
     noticePrinted = true;
     process.stderr.write('gournal: full-text index disabled (this Node build has no FTS5)\n');
   }
 }
 
-/**
- * Drops and recreates the index and its triggers, then fills the index from all rows of entries.
- * It needs FTS5 and runs in one transaction. Callers take a backup first.
- */
+/** Drop and recreate the index and its triggers, then fill it from all entries. Callers take a backup first. */
 export function rebuildSearchIndex(db: DatabaseSync): { indexed: number } {
   if (!hasFts5(db)) throw new Error('This Node build has no FTS5; the search index cannot be rebuilt.');
-  db.exec('BEGIN IMMEDIATE');
-  try {
+  return immediate(db, () => {
     for (const t of FTS_TRIGGERS) db.exec(`DROP TRIGGER IF EXISTS "${t}"`);
     db.exec('DROP TABLE IF EXISTS entries_fts');
     db.exec(FTS_DDL);
     db.exec("INSERT INTO entries_fts(entries_fts) VALUES('rebuild')");
     const row = db.prepare('SELECT COUNT(*) AS n FROM entries').get() as { n: number };
-    db.exec('COMMIT');
     return { indexed: row.n };
-  } catch (err) {
-    try { db.exec('ROLLBACK'); } catch { /* ignore */ }
-    throw err;
-  }
+  });
 }

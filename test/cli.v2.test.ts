@@ -109,9 +109,9 @@ describe('gournal CLI on the SQLite journal', () => {
     try {
       const imp = await runIn(home2, ['import', file]);
       expect(imp.status).toBe(0);
-      expect(imp.stdout).toContain('Imported: 2 new, 0 updated, 0 unchanged, 0 duplicates merged.');
+      expect(imp.stdout).toContain('Imported: 2 new, 0 updated, 0 unchanged.');
       expect(rows(home2).map((r) => r.id)).toEqual(rows(home).map((r) => r.id));
-      expect((await runIn(home2, ['import', file])).stdout).toContain('Imported: 0 new, 0 updated, 2 unchanged, 0 duplicates merged.');
+      expect((await runIn(home2, ['import', file])).stdout).toContain('Imported: 0 new, 0 updated, 2 unchanged.');
       fs.writeFileSync(file, '{nope');
       const bad = await runIn(home2, ['import', file]);
       expect(bad.status).toBe(1);

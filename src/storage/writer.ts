@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { backupDbIfNeeded } from './backup';
+import { immediate } from './transaction';
 
 /**
  * SQL for every write that edits a live row. It takes the current time as its one parameter and keeps
@@ -38,15 +39,11 @@ export function createWriter(db: DatabaseSync, dbPath: string | null): Writer {
           }
         }
       }
-      db.exec('BEGIN IMMEDIATE');
-      inTransaction = true;
       try {
-        const result = fn();
-        db.exec('COMMIT');
-        return result;
-      } catch (err) {
-        try { db.exec('ROLLBACK'); } catch { /* ignore */ }
-        throw err;
+        return immediate(db, () => {
+          inTransaction = true;
+          return fn();
+        });
       } finally {
         inTransaction = false;
       }
