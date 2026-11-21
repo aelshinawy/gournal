@@ -6,7 +6,7 @@ import { renderPosixLauncher } from './launcher';
 import { renderWindowsLauncher } from './launcher-windows';
 import { PACKAGE_ROOT, copyPackage, packageFingerprint } from './package-copy';
 import { detectHomebrew } from './homebrew';
-import { readText, sourceRecords, writeRecords, type SourceRecords } from './source';
+import { readText, sourceRecords, writeRecords } from './source';
 
 export interface RuntimePaths { home: string; binDir: string; launcher: string; runtimeDir: string; currentFile: string; nodeFile: string }
 export type InstallAction = 'installed' | 'updated' | 'unchanged';
@@ -86,7 +86,6 @@ export function installRuntime(o: {
   nodePath: string;
   platform: NodeJS.Platform;
   bakeHome: boolean;
-  records?: SourceRecords;
 }): { action: InstallAction; paths: RuntimePaths } {
   const paths = runtimePaths(o.gournalHome, o.platform);
   for (const dir of [paths.home, paths.binDir, paths.runtimeDir]) ensurePrivateDir(dir);
@@ -98,7 +97,7 @@ export function installRuntime(o: {
   let wrote = ensureApp(paths, appName, o.packageRoot);
   wrote = writeIfDiffers(paths.currentFile, `${appName}\n`) || wrote;
   wrote = writeIfDiffers(paths.nodeFile, `${o.nodePath}\n`) || wrote;
-  wrote = writeRecords(paths.runtimeDir, o.records ?? sourceRecords(o.packageRoot, detectHomebrew(o.packageRoot, o.platform))) || wrote;
+  wrote = writeRecords(paths.runtimeDir, sourceRecords(o.packageRoot, detectHomebrew(o.packageRoot, o.platform))) || wrote;
   const launcher = o.platform === 'win32'
     ? renderWindowsLauncher({ bakeHome: o.bakeHome })
     : renderPosixLauncher({ home: o.gournalHome, bakeHome: o.bakeHome });
