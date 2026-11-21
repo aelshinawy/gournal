@@ -88,7 +88,7 @@ Gournal keeps its data in `~/.gournal`. On Windows, this is `%USERPROFILE%\.gour
 
 ## Upgrade
 
-With Homebrew, run `brew upgrade gournal`. Claude Code then uses the new version. You do not have to run setup again.
+With Homebrew, run `brew upgrade gournal`. Claude Code then runs the new version from the `opt` folder of Homebrew. You do not have to run setup again. The next gournal command also updates the copy that Claude Code uses when the package is missing.
 
 With npm, run `npm install -g gournal` again to get the newest version. The next gournal command also updates the copy that Claude Code uses. The `mcp` and `hook` commands do not update it. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal). If you upgrade from version 0.6 or older, see [Migrating from 0.x](/docs/guides/migrating-from-0x/).
 
@@ -98,7 +98,7 @@ With npm, run `npm install -g gournal` again to get the newest version. The next
 2. Remove the package: `npm uninstall -g gournal`. With Homebrew, run `brew uninstall gournal`.
 3. Optional: delete the data folder, `~/.gournal` (`%USERPROFILE%\.gournal` on Windows, or the folder in `GOURNAL_HOME`). This deletes your journal, your settings, and your backups. Export a bundle first if you want a copy. See [Data safety and backups](/docs/guides/data-safety-and-backups/#bundles).
 
-Steps 1 and 2 keep your journal. Run step 1 before step 2, because `gournal setup claude --uninstall` needs the `gournal` command.
+Steps 1 and 2 keep your journal. If you remove the package first, see [Claude Code cannot start gournal](/docs/resources/troubleshooting/#claude-code-cannot-start-gournal).
 
 ## Next step
 
