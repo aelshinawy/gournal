@@ -16,12 +16,20 @@ set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 
-if [ "${CI:-}" != "true" ] && [ "${GOURNAL_ALLOW_BREW:-}" != "1" ]; then
+if [ "${GITHUB_ACTIONS:-}" != "true" ] && [ "${GOURNAL_ALLOW_BREW:-}" != "1" ]; then
   echo "homebrew-smoke: this script installs a formula into your Homebrew." >&2
-  echo "homebrew-smoke: set GOURNAL_ALLOW_BREW=1 to run it, or run it in CI." >&2
+  echo "homebrew-smoke: set GOURNAL_ALLOW_BREW=1 to run it, or run it in GitHub Actions." >&2
   exit 2
 fi
 command -v brew >/dev/null 2>&1 || { echo "homebrew-smoke: FAIL: brew is not on PATH" >&2; exit 1; }
+# A real gournal formula must stay. Only a GitHub Actions runner may have one removed.
+if [ "${GITHUB_ACTIONS:-}" != "true" ]; then
+  if brew list --formula gournal >/dev/null 2>&1; then
+    echo "homebrew-smoke: gournal is installed in this Homebrew. Uninstall it first. The script will not touch it." >&2
+    exit 2
+  fi
+  echo "homebrew-smoke: this run installs node and a test tap formula into the real Homebrew prefix $(brew --prefix)." >&2
+fi
 
 real_home=$HOME
 # Keep the npm cache of the user. HOME changes below, and the cache would move with it.
@@ -37,12 +45,13 @@ export HOMEBREW_NO_ENV_HINTS=1
 
 tap=local/gournal-test
 tap_made=0
+installed=0
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/gournal-brew-smoke.XXXXXX")
 
 cleanup() {
   cd "$root" 2>/dev/null || cd / || true
-  # A scenario can have removed the formula already.
-  brew uninstall --formula gournal >/dev/null 2>&1 || true
+  # Remove only the formula of this run. A scenario can have removed it already.
+  if [ "$installed" -eq 1 ]; then brew uninstall --formula "$tap/gournal" >/dev/null 2>&1 || true; fi
   if [ "$tap_made" -eq 1 ]; then brew untap "$tap" >/dev/null 2>&1 || true; fi
   rm -rf "$tmp" || true
 }
@@ -92,6 +101,7 @@ grep -q -F "file://$tmp/pack/$tarball" "$formula_dir/gournal.rb" || fail "the fo
 
 echo "homebrew-smoke: brew install"
 brew install --formula "$tap/gournal"
+installed=1
 echo "homebrew-smoke: brew test"
 brew test "$tap/gournal"
 
@@ -121,6 +131,10 @@ try { data = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { data = {};
 data.mcpServers = data.mcpServers || {};
 if (argv[0] === 'mcp' && argv[1] === 'add') {
   const name = argv[argv.indexOf('--scope') + 2];
+  if (data.mcpServers[name]) {
+    process.stderr.write('MCP server ' + name + ' already exists in user config\\n');
+    process.exit(1);
+  }
   const rest = argv.slice(argv.indexOf('--') + 1);
   data.mcpServers[name] = { type: 'stdio', command: rest[0], args: rest.slice(1) };
 } else if (argv[0] === 'mcp' && argv[1] === 'remove') {
@@ -190,7 +204,21 @@ actual=$(gui "$launcher" --version)
 echo "$actual"
 [ "$actual" = "$expected" ] || fail "scenario 2: version is '$actual', expected '$expected'"
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"homebrew-smoke","version":"0.0.0"}}}' >"$tmp/mcp.in"
-gui "$launcher" mcp <"$tmp/mcp.in" >"$tmp/mcp.out" 2>"$tmp/mcp.err" || fail "scenario 2: mcp failed: $(cat "$tmp/mcp.err")"
+# Start the server directly. A watchdog stops the wait when the server does not exit.
+gui "$launcher" mcp <"$tmp/mcp.in" >"$tmp/mcp.out" 2>"$tmp/mcp.err" &
+mcp_pid=$!
+waited=0
+while kill -0 "$mcp_pid" 2>/dev/null; do
+  if [ "$waited" -ge 20 ]; then
+    kill "$mcp_pid" 2>/dev/null || true
+    fail "scenario 2: gournal mcp did not exit within 20 seconds after standard input closed"
+  fi
+  sleep 1
+  waited=$((waited + 1))
+done
+mcp_status=0
+wait "$mcp_pid" || mcp_status=$?
+[ "$mcp_status" -eq 0 ] || fail "scenario 2: mcp exited with status $mcp_status: $(cat "$tmp/mcp.err")"
 cat "$tmp/mcp.out"
 grep -q '"result"' "$tmp/mcp.out" || fail "scenario 2: the initialize response has no result"
 grep -q '"name":"gournal"' "$tmp/mcp.out" || fail "scenario 2: the initialize response does not name gournal"
@@ -212,9 +240,12 @@ step() {
   want_node=$3
   extra_path=$4
   status=0
+  adds_before=$(grep -c '^mcp add ' "$calls" || true)
   run_setup "$gbin" --yes --hook || status=$?
   cat "$tmp/setup.out"
   [ "$status" -eq 0 ] || fail "scenario 3 ($label): setup exited with status $status"
+  adds=$(( $(grep -c '^mcp add ' "$calls" || true) - adds_before ))
+  [ "$adds" -le 1 ] || fail "scenario 3 ($label): setup ran 'claude mcp add' $adds times"
   [ "$(count reg "$HOME/.claude.json")" = "1" ] || fail "scenario 3 ($label): the registration count is not 1"
   [ "$(count hook "$settings")" = "1" ] || fail "scenario 3 ($label): the hook count is not 1"
   [ "$(runtime_node)" = "$want_node" ] || fail "scenario 3 ($label): runtime/node holds '$(runtime_node)', expected '$want_node'"
