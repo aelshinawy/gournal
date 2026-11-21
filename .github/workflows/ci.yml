@@ -77,7 +77,7 @@ jobs:
       # Keep line endings as in the repository.
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      # The second setup-node step comes last, so Node 22.13 wins on PATH.
+      # Node 22.12.0 is the old Node of the guard check. The next setup-node step puts Node 22.13 first on PATH.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '22.12.0'
