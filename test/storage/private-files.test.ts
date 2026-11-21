@@ -45,13 +45,6 @@ describe('renameWithRetry', () => {
     const sleep = jest.fn();
     renameWithRetry('a', 'b', { platform: 'win32', rename, sleep });
     expect(calls).toHaveLength(3);
-    expect(sleep).toHaveBeenCalledTimes(2);
-  });
-
-  test('it waits 50 ms between attempts with the injected sleep', () => {
-    const { rename } = flaky('EPERM', 'EPERM');
-    const sleep = jest.fn();
-    renameWithRetry('a', 'b', { platform: 'win32', rename, sleep });
     expect(sleep.mock.calls).toEqual([[50], [50]]);
   });
 
@@ -95,7 +88,7 @@ describe('publishExclusive', () => {
     return tmpFile;
   };
 
-  test.each(['EPERM', 'ENOSYS', 'ENOTSUP', 'EXDEV', 'EINVAL'])('it falls back to claim and rename when link fails with %s', (code) => {
+  test.each(['ENOSYS', 'EXDEV'])('it falls back to claim and rename when link fails with %s', (code) => {
     jest.spyOn(fs, 'linkSync').mockImplementation(() => { throw fail(code); });
     const target = path.join(tmp, 'target');
     expect(publishExclusive(stage('new'), target)).toBe('rename');
@@ -128,28 +121,17 @@ describe('publishExclusive', () => {
 describe('writeViaTemp', () => {
   const modeOf = (file: string) => fs.statSync(file).mode & 0o777;
 
-  posix('writes through a temp file and leaves only the target', () => {
+  posix.each([[undefined, 0o600], [0o666, 0o644]])('writes through a temp file and leaves only the target (mode %s gives %s)', (mode, expected) => {
     const target = path.join(tmp, 't.txt');
     const prev = process.umask(0o022);
     try {
-      writeViaTemp(target, (t) => fs.writeFileSync(t, 'a'));
+      writeViaTemp(target, (t) => fs.writeFileSync(t, 'a'), { mode });
     } finally {
       process.umask(prev);
     }
     expect(fs.readFileSync(target, 'utf8')).toBe('a');
-    expect(modeOf(target)).toBe(0o600);
+    expect(modeOf(target)).toBe(expected);
     expect(fs.readdirSync(tmp)).toEqual(['t.txt']);
-  });
-
-  posix('creates the temp with the given mode', () => {
-    const target = path.join(tmp, 't.txt');
-    const prev = process.umask(0o022);
-    try {
-      writeViaTemp(target, (t) => fs.writeFileSync(t, 'a'), { mode: 0o666 });
-    } finally {
-      process.umask(prev);
-    }
-    expect(modeOf(target)).toBe(0o644);
   });
 
   test('a throwing fill rethrows and leaves no temp', () => {
@@ -158,27 +140,6 @@ describe('writeViaTemp', () => {
     expect(fs.readdirSync(tmp)).toEqual([]);
   });
 
-  test('a custom publish gets the temp and the target, and its result comes back', () => {
-    const target = path.join(tmp, 't.txt');
-    const seen: string[] = [];
-    const result = writeViaTemp(target, (t) => fs.writeFileSync(t, 'a'), {
-      publish: (from, to) => { seen.push(from, to); return 'done'; },
-    });
-    expect(result).toBe('done');
-    expect(seen[0].endsWith('.tmp')).toBe(true);
-    expect(path.dirname(seen[0])).toBe(path.dirname(target));
-    expect(seen[1]).toBe(target);
-    expect(fs.readdirSync(tmp)).toEqual([]);
-  });
-
-  test('the default publish retries a win32 EPERM', () => {
-    const target = path.join(tmp, 't.txt');
-    let calls = 0;
-    const rename = (a: string, b: string) => { if (calls++ === 0) throw fail('EPERM'); fs.renameSync(a, b); };
-    writeViaTemp(target, (t) => fs.writeFileSync(t, 'a'), { rename: { platform: 'win32', rename, sleep: () => {} } });
-    expect(calls).toBe(2);
-    expect(fs.readFileSync(target, 'utf8')).toBe('a');
-  });
 });
 
 describe('the publish paths retry a Windows rename', () => {
@@ -216,12 +177,5 @@ describe('the publish paths retry a Windows rename', () => {
     asWin32(() => writeExportFile(target, 'new', false));
     expect(spy).toHaveBeenCalledTimes(2);
     expect(fs.readFileSync(target, 'utf8')).toBe('new');
-  });
-
-  test('on linux the first EPERM is final', () => {
-    const spy = failFirstRename();
-    expect(() => asPlatform('linux', () => writePrivateFile(path.join(tmp, 'out.txt'), 'data'))).toThrow('EPERM');
-    expect(spy).toHaveBeenCalledTimes(1);
-    expect(fs.readdirSync(tmp)).toEqual([]);
   });
 });

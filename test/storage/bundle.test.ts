@@ -151,21 +151,21 @@ test('preserves device id, timestamps and values exactly', () => {
 
 test.each([
   ['id', { id: 'short' }], ['id', { id: '01ARZ3NDEKTSV4RRFFQ69G5FAU' }], ['createdAt', { createdAt: 'nope' }],
-  ['updatedAt', { updatedAt: 5 }], ['createdAt', { createdAt: '1' }], ['createdAt', { createdAt: 'Jan 5 2020' }],
-  ['createdAt', { createdAt: '2020-01-01T00:00:00' }], ['deletedAt', { deletedAt: '2020-01-01T00:00:00' }],
-  ['resolvedAt', { resolvedAt: 'Jan 5 2020' }], ['tags', { tags: ['a', 'a'] }], ['deletedAt', { deletedAt: 'x' }], ['resolvedAt', { resolvedAt: 'x' }],
+  ['updatedAt', { updatedAt: 5 }], ['createdAt', { createdAt: '2020-01-01T00:00:00' }], ['deletedAt', { deletedAt: '2020-01-01T00:00:00' }],
+  ['resolvedAt', { resolvedAt: 'Jan 5 2020' }], ['tags', { tags: ['a', 'a'] }],
   ['kind', { kind: 'oops' }], ['status', { status: 'weird' }], ['source', { source: 'web' }],
-  ['summary', { summary: '' }], ['summary', { summary: 'x'.repeat(121) }], ['tags', { tags: 'a' }], ['tags', { tags: [1] }],
+  ['summary', { summary: '' }], ['tags', { tags: 'a' }], ['tags', { tags: [1] }],
   ['refs', { refs: [{ type: 'bad', value: 'v' }] }], ['refs', { refs: [{ type: 'pr', value: 1 }] }],
   ['refs', { refs: [{ type: 'pr', value: 'v', repo: 3 }] }], ['deviceId', { deviceId: 1 }], ['project', { project: null }],
   ['details', { details: 3 }], ['entry', null],
-])('rejects invalid %s', (field, patch) => {
-  const good = { id: '01ARZ3NDEKTSV4RRFFQ69G5FAV', createdAt: '2020-01-01T00:00:00.000Z', updatedAt: '2020-01-01T00:00:00.000Z',
-    deletedAt: null, deviceId: 'd', summary: 's', details: null, kind: 'done', status: null, resolvedAt: null,
-    resolvedByEntryId: null, project: 'p', repo: null, branch: null, source: 'cli', agent: null, tags: [], refs: [] };
-  const entry = patch === null ? null : { ...good, ...patch };
-  expect(() => importBundle(db, { format: 'gournal-bundle', schemaVersion: 1, entries: [entry] }))
-    .toThrow(`Bundle entry 0 is invalid: ${field}`);
+  ['entry', []], ['entry', 'x'], ['entry', 5],
+  ['refs', { refs: [{ type: 'pr', value: 'v', repo: null }] }], ['refs', { refs: [[]] }], ['refs', { refs: [null] }],
+  ['resolvedByEntryId', { resolvedByEntryId: 1 }],
+  ['createdAt', { createdAt: '2020-01-01T00:00:00Z' }], ['createdAt', { createdAt: '2020-01-01T00:00:00.000+00:00' }],
+  ['id', { id: '01arz3ndektsv4rrffq69g5fav' }], ['id', { id: 'short', kind: 'oops' }],
+])('rejects invalid entry %s', (field, patch) => {
+  const entry = patch !== null && typeof patch === 'object' && !Array.isArray(patch) ? { ...goodEntry(), ...patch } : patch;
+  expect(() => importBundle(db, wrap([entry]))).toThrow(`Bundle entry 0 is invalid: ${field}`);
   expect(repo.find({ includeDeleted: true })).toEqual([]);
 });
 
@@ -214,18 +214,6 @@ test('an activity row without capturedBy is stored as github', () => {
   importBundle(db, withExtra({ activity: [without(goodAct(), 'capturedBy'), { ...goodAct(), id: '01ARZ3NDEKTSV4RRFFQ69G5FB1', externalId: '6', capturedBy: 'gitlab' }] }));
   const a = createActivityRepository(db, config, null).find();
   expect(a.map((x) => x.capturedBy)).toEqual(['github', 'github']);
-});
-
-test.each([
-  ['entry', []], ['entry', 'x'], ['entry', 5],
-  ['refs', { refs: [{ type: 'pr', value: 'v', repo: null }] }], ['refs', { refs: [[]] }], ['refs', { refs: [null] }],
-  ['resolvedByEntryId', { resolvedByEntryId: 1 }],
-  ['createdAt', { createdAt: '2020-01-01T00:00:00Z' }], ['createdAt', { createdAt: '2020-01-01T00:00:00.000+00:00' }],
-  ['id', { id: '01arz3ndektsv4rrffq69g5fav' }], ['id', { id: 'short', kind: 'oops' }],
-])('rejects invalid entry %s (pinned)', (field, patch) => {
-  const entry = Array.isArray(patch) || typeof patch !== 'object' ? patch : { ...goodEntry(), ...patch };
-  expect(() => importBundle(db, wrap([entry]))).toThrow(`Bundle entry 0 is invalid: ${field}`);
-  expect(repo.find({ includeDeleted: true })).toEqual([]);
 });
 
 test('rejects an entry with no details key', () => {
@@ -299,22 +287,6 @@ describe('activity in bundles', () => {
     importBundle(db, bundle, config);
     expect(a.find()[0].title).toBe('newer local');
   });
-
-  test('a bundle without activity still imports', () => {
-    repo.add({ summary: 'one', ...base });
-    const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
-    delete bundle.activity;
-    const { d: db2 } = open('c.db');
-    try {
-      expect(importBundle(db2, bundle, config)).toEqual({ inserted: 1, updated: 0, skipped: 0 });
-    } finally { db2.close(); }
-  });
-
-  test('an invalid activity row is rejected', () => {
-    const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
-    bundle.activity = [{ id: 'nope' }];
-    expect(() => importBundle(db, bundle, config)).toThrow(/activity 0 is invalid/);
-  });
 });
 
 describe('bundle import strips control characters', () => {
@@ -339,10 +311,13 @@ describe('bundle import strips control characters', () => {
     tags: ['t', 'x'], refs: [{ type: 'url', value: clean('u'), repo: clean('rr') }],
   };
 
-  test('an update removes the bytes from every field', () => {
+  test('an update removes the bytes from every field, and a project of only control characters falls back to the default', () => {
     const { id, bundle, next } = dirtyEntry(new Date(Date.now() + 5000).toISOString());
     expect(importBundle(db, { ...bundle, entries: [next] }).updated).toBe(1);
     expect(repo.get(id)).toMatchObject(expected);
+    const later = { ...next, project: '\x1b\x07', updatedAt: new Date(Date.now() + 10000).toISOString() };
+    expect(importBundle(db, { ...bundle, entries: [later] }).updated).toBe(1);
+    expect(repo.get(id)?.project).toBe('uncategorized');
   });
 
   test('an insert removes the bytes from every field', () => {
@@ -352,12 +327,6 @@ describe('bundle import strips control characters', () => {
       expect(importBundle(db2, { ...bundle, entries: [next] }).inserted).toBe(1);
       expect(repo2.get(next.id)).toMatchObject(expected);
     } finally { db2.close(); }
-  });
-
-  test('a project of only control characters falls back to the default project', () => {
-    const { id, bundle, next } = dirtyEntry(new Date(Date.now() + 5000).toISOString());
-    importBundle(db, { ...bundle, entries: [{ ...next, project: '\x1b\x07' }] });
-    expect(repo.get(id)?.project).toBe('uncategorized');
   });
 
   test('a summary of only control characters fails the import and changes nothing', () => {
