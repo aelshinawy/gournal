@@ -1,5 +1,5 @@
-import { buildStandup, buildWorkLog, projectFor, resolvePeriod, resolveQuery } from '../core';
-import type { Activity, Query, StandupModel, WorkLogModel } from '../core';
+import { buildStandup, buildWorkLog, filterActivity, resolvePeriod } from '../core';
+import type { Query, StandupModel, WorkLogModel } from '../core';
 import type { Journal } from '../storage';
 
 export interface ReportOptions {
@@ -13,17 +13,6 @@ type ReportJournal = Pick<Journal, 'repo' | 'activity' | 'config'>;
 /** The filters that do not depend on the period. The period owns the date bounds. */
 function baseQuery(opts: ReportOptions): Query {
   return { project: opts.project, repo: opts.repo, tags: opts.tags };
-}
-
-/**
- * Activity has no tags, so a tags filter hides it. A project filter keeps the activity whose repo maps
- * to that project through the aliases. A repo filter is applied by the activity query, without case.
- */
-function filterActivity(list: Activity[], opts: ReportOptions, aliases: Record<string, string>): Activity[] {
-  if (opts.tags && opts.tags.length > 0) return [];
-  if (!opts.project) return list;
-  const wanted = (resolveQuery({ project: opts.project }, aliases).projects ?? []).map((p) => p.toLowerCase());
-  return list.filter((a) => wanted.includes(projectFor({ repo: a.repo, folder: null }, aliases).toLowerCase()));
 }
 
 /**

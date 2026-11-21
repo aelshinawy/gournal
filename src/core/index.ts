@@ -15,7 +15,7 @@ export {
 export { resolvePeriod } from './reports/periods';
 export { groupBy } from './reports/group';
 export { parseRemoteUrl, projectFor, resolveProjectAlias, type RepoIdentity } from './labels/project';
-export { buildStandup, isEmptyStandup, type StandupModel } from './reports/standup';
+export { buildStandup, filterActivity, isEmptyStandup, type StandupModel } from './reports/standup';
 export { buildWorkLog, type WorkLogModel } from './reports/worklog';
 export { buildStats, type StatsModel } from './reports/stats';
 export { EntrySchema, type EntryJson } from './entries/entry-schema';

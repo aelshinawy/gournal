@@ -25,6 +25,13 @@ const act = (over: Partial<NewActivityInput>): NewActivityInput => ({
 const entry = (over: Record<string, unknown>) => journal.repo.add({ summary: 'work', project: 'p', source: 'cli', ...over } as never);
 const also = (m: ReturnType<typeof standupModel>) => (m.also?.activity ?? []).map((a) => `${a.type}:${a.pr}`);
 
+test('open blockers carry forward from before the period and skip those created after its end', () => {
+  entry({ summary: 'old blocker', kind: 'blocker', createdAt: '2026-11-05T09:00:00.000Z' });
+  entry({ summary: 'logged after', kind: 'blocker', createdAt: YESTERDAY });
+  const m = standupModel(journal, { from: '2026-11-10', to: '2026-11-12' }, NOW);
+  expect(m.blockers.map((e) => e.summary)).toEqual(['old blocker']);
+});
+
 test('activity linked only to a next entry shows in Also', () => {
   const next = entry({ summary: 'review PR 5', kind: 'next', refs: [{ type: 'pr', value: '5' }], createdAt: YESTERDAY });
   const up = journal.activity.upsert([act({ type: 'review', externalId: '9001' })]);
