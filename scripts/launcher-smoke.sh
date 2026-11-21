@@ -40,6 +40,8 @@ if [ "$windows" -eq 1 ]; then
 fi
 
 cleanup() {
+  # Leave the temporary folder first. A process must not delete its own current folder.
+  cd "$root" 2>/dev/null || cd / || true
   rm -rf "$tmp" || true
 }
 trap cleanup EXIT
@@ -50,9 +52,17 @@ fail() {
   exit 1
 }
 
-[ "$tmp" != "$real_home" ] || fail "the temporary folder is the real home"
-case "$tmp" in
-  "$real_home/.gournal" | "$real_home/.gournal/"*) fail "the temporary folder is inside the real ~/.gournal" ;;
+# Compare canonical forms: the mixed form on Windows, the physical path on POSIX (macOS /var is a symlink).
+if [ "$windows" -eq 1 ]; then
+  canon_tmp=$tmp
+  canon_home=$(cygpath -m "$real_home")
+else
+  canon_tmp=$(cd -P "$tmp" && pwd -P)
+  canon_home=$(cd -P "$real_home" && pwd -P)
+fi
+[ "$canon_tmp" != "$canon_home" ] || fail "the temporary folder is the real home"
+case "$canon_tmp" in
+  "$canon_home/.gournal" | "$canon_home/.gournal/"*) fail "the temporary folder is inside the real ~/.gournal" ;;
 esac
 
 mkdir "$tmp/pack" "$tmp/home" "$tmp/work"
@@ -60,7 +70,7 @@ export npm_config_cache="$npm_cache"
 export HOME="$tmp/home"
 export USERPROFILE="$tmp/home"
 export GOURNAL_NO_AUTOSYNC=1
-unset GOURNAL_HOME
+unset GOURNAL_HOME NVM_DIR FNM_DIR VOLTA_HOME XDG_DATA_HOME XDG_CONFIG_HOME ASDF_DATA_DIR MISE_DATA_DIR NODENV_ROOT N_PREFIX
 if [ "$windows" -eq 1 ]; then
   mkdir -p "$tmp/home/AppData/Local" "$tmp/home/AppData/Roaming"
   export LOCALAPPDATA="$tmp/home/AppData/Local"
@@ -199,7 +209,7 @@ echo "launcher-smoke: registered command: $registered"
 first=$(echo "$registered" | cut -d' ' -f1)
 if [ "$windows" -eq 1 ]; then
   case "$first" in *[cC][mM][dD].[eE][xX][eE]) ;; *) fail "the registered command does not start with cmd.exe: $registered" ;; esac
-  third=$(echo "$registered" | cut -d' ' -f3)
+  third=$(echo "$registered" | cut -d' ' -f4)
   case "$third" in *'\.gournal\bin\gournal.cmd') ;; *) fail "the registered launcher is not under .gournal\\bin: $registered" ;; esac
 else
   case "$first" in
@@ -221,8 +231,13 @@ launch mcp "" "$mcp_in"
 [ "$launch_status" -eq 0 ] || fail "mcp through the launcher exited with $launch_status: $(cat "$tmp/l.err")"
 grep -q '"result"' "$tmp/l.out" || fail "the initialize response has no result: $(cat "$tmp/l.out")"
 grep -q '"name":"gournal"' "$tmp/l.out" || fail "the initialize response does not name gournal"
-launch hook "" "{}"
+# A hook that never ran Node exits 0 and prints nothing. A transcript with an edit and no add_entry
+# makes the real hook print its reason, so the output proves that Node ran gournal.
+printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{}}]}}' >"$tmp/transcript.jsonl"
+hook_in=$(node -e 'console.log(JSON.stringify({ session_id: "launcher-smoke", transcript_path: process.argv[1] }))' "$tmp/transcript.jsonl")
+launch hook "" "$hook_in"
 [ "$launch_status" -eq 0 ] || fail "the registered hook exited with $launch_status: $(cat "$tmp/l.err")"
+grep -q 'logged no work' "$tmp/l.out" || fail "the registered hook did not print its reason: $(cat "$tmp/l.out") $(cat "$tmp/l.err")"
 
 echo "launcher-smoke: default-version-switch"
 launch reg "$child_vb$sep$child_sys" "" --version
@@ -234,10 +249,17 @@ rm -rf "$va"
 launch reg "" "" --version
 [ "$launch_status" -eq 0 ] || fail "--version after the removal of version A exited with $launch_status: $(cat "$tmp/l.err")"
 [ "$(tr -d '\r\n' <"$tmp/l.out")" = "$expected" ] || fail "--version printed '$(cat "$tmp/l.out")', expected '$expected'"
-recorded=$(tr -d '\r\n' <"$HOME/.gournal/runtime/node")
+[ -f "$HOME/.gournal/runtime/node" ] || fail "the launcher did not write runtime/node"
+recorded=$(tr -d '\r\n' <"$HOME/.gournal/runtime/node" | tr '\\' '/')
 case "$recorded" in
   "$va"/*) fail "runtime/node still names version A: $recorded" ;;
 esac
+if [ "$windows" -eq 0 ]; then
+  case "$recorded" in
+    "$vb"/*) ;;
+    *) fail "runtime/node does not name version B: $recorded" ;;
+  esac
+fi
 echo "launcher-smoke: runtime/node is now $recorded"
 
 echo "launcher-smoke: node-below-22.13"
