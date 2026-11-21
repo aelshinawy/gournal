@@ -37,6 +37,7 @@ function planDependencies(root: string): Placement[] {
     const manifest = readManifest(realDir);
     const names = new Set([...Object.keys(manifest.dependencies ?? {}), ...Object.keys(manifest.optionalDependencies ?? {})]);
     const optional = new Set(Object.keys(manifest.optionalDependencies ?? {}));
+    const level: Placement[] = [];
     for (const name of names) {
       const found = findDependency(realDir, name);
       if (!found) {
@@ -50,9 +51,10 @@ function planDependencies(root: string): Placement[] {
       else if (hoisted.get(slot) !== real) rel = path.join(destRel, 'node_modules', name);
       if (placed.get(rel) === real) continue;
       placed.set(rel, real);
-      out.push({ rel, real, name, version: readManifest(real).version ?? '0.0.0' });
-      visit(real, rel);
+      level.push({ rel, real, name, version: readManifest(real).version ?? '0.0.0' });
     }
+    out.push(...level);
+    for (const { real, rel } of level) visit(real, rel);
   };
   visit(fs.realpathSync(root), '');
   return out;

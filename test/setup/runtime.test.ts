@@ -64,3 +64,15 @@ test('copyPackage nests a dependency whose version differs from the hoisted one'
   copyPackage(root, dest);
   expect(fs.existsSync(path.join(dest, 'node_modules', 'b', 'node_modules', 'shared'))).toBe(true);
 });
+
+test('copyPackage gives a root dependency the hoisted slot before a nested one of the same name', () => {
+  const root = makeFakePackage(path.join(tmp(), 'pkg'), '1.0.0', { a: '1.0.0', z: '1.0.0' });
+  fs.mkdirSync(path.join(root, 'node_modules', 'a', 'node_modules', 'z'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'node_modules', 'a', 'package.json'), JSON.stringify({ name: 'a', version: '1.0.0', dependencies: { z: '2.0.0' } }));
+  fs.writeFileSync(path.join(root, 'node_modules', 'a', 'node_modules', 'z', 'package.json'), JSON.stringify({ name: 'z', version: '2.0.0' }));
+  const dest = path.join(tmp(), 'out');
+  copyPackage(root, dest);
+  const version = (rel: string): string => (JSON.parse(fs.readFileSync(path.join(dest, rel, 'package.json'), 'utf8')) as { version: string }).version;
+  expect(version('node_modules/z')).toBe('1.0.0');
+  expect(version('node_modules/a/node_modules/z')).toBe('2.0.0');
+});
