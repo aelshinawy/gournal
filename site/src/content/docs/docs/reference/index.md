@@ -49,7 +49,6 @@ The CLI has no edit command. The MCP `update_entry` tool fills that gap. Use it 
 | [Export entries](/docs/reference/export/) | [`gournal export`](/docs/reference/export/#cli-gournal-export) | [`export_entries`](/docs/reference/export/#mcp-tool-export_entries) |
 | [Import entries](/docs/reference/import/) | [`gournal import`](/docs/reference/import/#cli-gournal-import) | None |
 | [Clear the journal](/docs/reference/clear/) | [`gournal clear`](/docs/reference/clear/#cli-gournal-clear) | None |
-| [Migrate from 0.x](/docs/reference/migrate/) | [`gournal migrate`](/docs/reference/migrate/#cli-gournal-migrate) | None |
 | [Rebuild the search index](/docs/reference/index-rebuild/) | [`gournal index rebuild`](/docs/reference/index-rebuild/#cli-gournal-index-rebuild) | None |
 
 ## More reference

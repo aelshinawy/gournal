@@ -19,7 +19,6 @@ const SINGLE_PAGES = [
   'guides/claude-code-setup',
   'guides/configuration',
   'guides/data-safety-and-backups',
-  'guides/migrating-from-0x',
   'reference/configuration',
   'reference/environment',
   'resources/changelog',

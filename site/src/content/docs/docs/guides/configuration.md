@@ -27,7 +27,7 @@ The `deviceId` is a stable id for this machine. Gournal makes it. Do not change 
 
 ## Project aliases
 
-An alias renames a project when gournal writes an entry and when you filter by `--project`. Existing entries keep the project name that gournal stored. A migration plan applies your current aliases again, but only to entries that came from `entries.json`. The key is the name that gournal finds. The value is the name to use.
+An alias renames a project when gournal writes an entry and when you filter by `--project`. Existing entries keep the project name that gournal stored. The key is the name that gournal finds. The value is the name to use.
 
 ```json
 { "projectAliases": { "billing-api": "billing" } }

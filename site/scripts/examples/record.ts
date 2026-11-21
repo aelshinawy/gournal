@@ -131,15 +131,6 @@ function main() {
   const i3 = disp(`$ GOURNAL_HOME=~/other-journal gournal import backup.json\n${sh(h, `GOURNAL_HOME=${S}/other gournal import backup.json`)}`);
   w('cli/import.md', `Make a bundle file, then load it into another journal. Set \`GOURNAL_HOME\` to the folder of the other journal. This example imports into an empty journal.\n\n${block('console', `${i1}\n\n${i2}`)}\n\nImport the same file again into that journal. Gournal finds the same entries and changes nothing.\n\n${block('console', i3)}`);
 
-  fs.rmSync(`${S}/migrate`, { recursive: true, force: true }); fs.mkdirSync(`${S}/migrate`);
-  fs.writeFileSync(`${S}/migrate/entries.json`, JSON.stringify([
-    { timestamp: '2026-07-29T10:00:00.000Z', message: 'Fix rounding error in invoice totals', project: 'billing-api', tags: ['review'] },
-    { timestamp: '2026-07-30T10:00:00.000Z', message: 'Document the invoice export endpoint', project: 'billing-api', tags: ['docs'] },
-  ]));
-  const m1 = cli(`${S}/migrate`, 'gournal migrate');
-  const m2 = cli(`${S}/migrate`, 'gournal migrate');
-  w('cli/migrate.md', `Import the old \`entries.json\` file. This example ran in a journal folder that holds a 0.x \`entries.json\` with two entries. The first line is a note that gournal prints when it opens the folder. The second line is the result of the command.\n\n${block('console', m1)}\n\nRun the command again. The entries are already in the database.\n\n${block('console', m2)}`);
-
   h = fresh('sync');
   const s1 = cli(h, 'gournal sync --since 2026-11-01', { GOURNAL_GH: FAKE_GH });
   const s2 = `$ gournal sync\n${sh(h, 'gournal sync', { GOURNAL_GH: '/nonexistent/gh' })}`;

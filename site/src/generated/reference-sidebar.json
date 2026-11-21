@@ -44,7 +44,6 @@
       "docs/reference/export",
       "docs/reference/import",
       "docs/reference/clear",
-      "docs/reference/migrate",
       "docs/reference/index-rebuild"
     ]
   }

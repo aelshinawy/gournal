@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { openJournal } from '../../src/storage/journal';
-import { backupDbIfNeeded, snapshotDb } from '../../src/storage/backup';
+import { backupDbIfNeeded } from '../../src/storage/backup';
 import { stopHook } from '../../src/adapters/setup/hook';
 import { ensurePrivateFile, tightenFile } from '../../src/storage/private-files';
 import { makeTmp, rmTmp } from '../helpers/tmp';
@@ -33,7 +33,6 @@ posix('file modes in a new home', () => {
     try {
       addRow(j.db);
       backupDbIfNeeded(j.db, path.join(home, 'gournal.db'), new Date(2026, 10, 15));
-      snapshotDb(j.db, path.join(home, 'gournal.db'), new Date(2026, 10, 15, 10, 0, 0));
       expect({
         home: oct(home),
         db: oct(path.join(home, 'gournal.db')),
@@ -43,7 +42,7 @@ posix('file modes in a new home', () => {
         backups: oct(path.join(home, 'backups')),
       }).toEqual({ home: '700', db: '600', wal: '600', shm: '600', config: '600', backups: '700' });
       const files = fs.readdirSync(path.join(home, 'backups'));
-      expect(files.length).toBe(2);
+      expect(files.length).toBe(1);
       for (const f of files) expect(oct(path.join(home, 'backups', f))).toBe('600');
     } finally {
       j.close();

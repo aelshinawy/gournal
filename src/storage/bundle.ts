@@ -16,8 +16,6 @@ export interface Bundle {
   exportedAt: string;
   deviceId: string;
   entries: Entry[];
-  /** Which legacy line each migrated entry came from. Optional on import, so older bundles still load. */
-  legacyMap?: LegacyMapRow[];
   /** GitHub activity, live and deleted. Optional on import, so bundles from before Phase 3 still load. Links are not exported. */
   activity?: Activity[];
 }
@@ -41,10 +39,6 @@ export function exportBundle(db: DatabaseSync, config: Config): Bundle {
       deviceId: config.deviceId,
       entries: hydrateRows(db, rows),
       activity,
-      legacyMap: (db.prepare('SELECT legacy_index, timestamp, message_hash, occurrence, entry_id, imported_at FROM legacy_map ORDER BY legacy_index, timestamp, occurrence').all() as
-        { legacy_index: number; timestamp: string; message_hash: string; occurrence: number; entry_id: string; imported_at: number | null }[])
-        .map((r) => ({ legacyIndex: r.legacy_index, timestamp: r.timestamp, messageHash: r.message_hash, occurrence: r.occurrence, entryId: r.entry_id,
-          importedAt: r.imported_at === null ? null : new Date(r.imported_at).toISOString() })),
     };
   } finally {
     try { db.exec('COMMIT'); } catch { /* ignore */ }
@@ -56,7 +50,6 @@ const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const Iso = z.string().refine((v) => { const t = Date.parse(v); return !Number.isNaN(t) && new Date(t).toISOString() === v; });
 // Number.isInteger, not .int(): .int() also rejects unsafe integers, which the format accepts.
 const Int = z.number().refine(Number.isInteger);
-const Count = Int.refine((n) => n >= 0);
 
 // The bundle schemas extend the core schemas. test/fixtures/bundles pins what import accepts.
 const BundleEntrySchema = EntrySchema.extend({
@@ -79,17 +72,6 @@ const BundleActivitySchema = ActivitySchema.omit({ capturedBy: true }).extend({
   pr: Int.nullable(),
 });
 type BundleActivity = z.infer<typeof BundleActivitySchema>;
-
-const LegacyMapRowSchema = z.object({
-  legacyIndex: Count,
-  timestamp: z.string(),
-  messageHash: z.string(),
-  occurrence: Count,
-  entryId: z.string(),
-  /** When the legacy import made the entry (ISO), or null when unknown. Optional on import. */
-  importedAt: Iso.nullable().optional(),
-});
-type LegacyMapRow = z.infer<typeof LegacyMapRowSchema>;
 
 /** Parse each item. A failure names the first bad field, or `top` when the item is not an object. */
 function parseItems<T>(items: unknown[], schema: z.ZodType<T>, fail: (i: number, field: string) => Error, top: string): T[] {
@@ -121,9 +103,7 @@ const ms = (v: string | null): number | null => (v === null ? null : Date.parse(
 
 /**
  * Merge a bundle into the database by id. The later updatedAt wins. Values are written as given.
- * Then merge its legacy map. If one legacy line points to two entries (one made by the local
- * import, one from the bundle), one copy wins and the other is soft deleted. The user's version
- * wins over a raw re-import (see mergeLegacyMap).
+ * An old bundle can carry a legacyMap key. Import ignores it.
  */
 export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config): ImportResult {
   const b = bundle as Partial<Bundle> | null;
@@ -132,9 +112,6 @@ export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config)
   }
   // Strip control characters on write, the same as the repository does. A stripped field is never rejected.
   const entries = parseItems(b.entries, BundleEntrySchema, (i, f) => new Error(`Bundle entry ${i} is invalid: ${f}`), 'entry').map((e, i) => cleanEntry(e, i));
-
-  if (b.legacyMap !== undefined && !Array.isArray(b.legacyMap)) throw new Error('Bundle legacyMap is invalid');
-  const map = parseItems(b.legacyMap ?? [],LegacyMapRowSchema, (i) => new Error(`Bundle legacyMap row ${i} is invalid`), 'legacyMap');
 
   if (b.activity !== undefined && !Array.isArray(b.activity)) throw new Error('Bundle activity is invalid');
   const acts = parseItems(b.activity ?? [],BundleActivitySchema, (i, f) => new Error(`Bundle activity ${i} is invalid: ${f}`), 'activity');
@@ -160,7 +137,6 @@ export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config)
       replaceTags(db, e.id, e.tags);
       replaceRefs(db, e.id, e.refs);
     }
-    mergeLegacyMap(db, map, result);
     if (acts.length > 0) result.activity = mergeActivity(db, acts, changedActivity);
     db.exec('COMMIT');
   } catch (err) {
@@ -211,40 +187,4 @@ function mergeActivity(db: DatabaseSync, list: BundleActivity[], changed: string
     }
   }
   return counts;
-}
-
-function mergeLegacyMap(db: DatabaseSync, map: LegacyMapRow[], result: ImportResult): void {
-  const entry = db.prepare('SELECT updated_at, deleted_at FROM entries WHERE id = ?');
-  const local = db.prepare('SELECT entry_id, imported_at FROM legacy_map WHERE timestamp = ? AND message_hash = ? AND occurrence = ?');
-  const insert = db.prepare('INSERT INTO legacy_map (legacy_index, timestamp, message_hash, occurrence, entry_id, imported_at) VALUES (?, ?, ?, ?, ?, ?)');
-  const repoint = db.prepare('UPDATE legacy_map SET entry_id = ?, imported_at = ? WHERE timestamp = ? AND message_hash = ? AND occurrence = ?');
-  const hide = db.prepare('UPDATE entries SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL');
-  type E = { updated_at: number; deleted_at: number | null };
-  // Pristine: live, and unchanged since the legacy import made it. An unknown import time is not pristine.
-  const pristine = (e: E, importedAt: number | null): boolean => e.deleted_at === null && importedAt !== null && e.updated_at === importedAt;
-  for (const r of map) {
-    const theirs = entry.get(r.entryId) as E | undefined;
-    if (!theirs) continue;
-    const theirImported = r.importedAt == null ? null : Date.parse(r.importedAt);
-    const known = local.get(r.timestamp, r.messageHash, r.occurrence) as { entry_id: string; imported_at: number | null } | undefined;
-    if (!known) { insert.run(r.legacyIndex, r.timestamp, r.messageHash, r.occurrence, r.entryId, theirImported); continue; }
-    if (known.entry_id === r.entryId) continue;
-    const mine = entry.get(known.entry_id) as E | undefined;
-    if (!mine) { repoint.run(r.entryId, theirImported, r.timestamp, r.messageHash, r.occurrence); continue; }
-    // A raw re-import never hides the user's edited or deleted copy. When both copies are
-    // alike (both pristine, or neither), the later updatedAt wins, then the smaller id, so every device picks the same one.
-    const minePristine = pristine(mine, known.imported_at);
-    const theirsPristine = pristine(theirs, theirImported);
-    const smallerTheirs = r.entryId < known.entry_id;
-    let keepTheirs: boolean;
-    if (minePristine !== theirsPristine) keepTheirs = minePristine;
-    else if (minePristine) keepTheirs = smallerTheirs;
-    else keepTheirs = theirs.updated_at > mine.updated_at || (theirs.updated_at === mine.updated_at && smallerTheirs);
-    const [winner, loser] = keepTheirs ? [r.entryId, known.entry_id] : [known.entry_id, r.entryId];
-    // The winner keeps its state, live or deleted. A live loser is soft deleted, never erased.
-    const now = Date.now();
-    hide.run(now, now, loser);
-    if (keepTheirs) repoint.run(winner, theirImported, r.timestamp, r.messageHash, r.occurrence);
-    result.deduplicated++;
-  }
 }

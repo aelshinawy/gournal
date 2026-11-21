@@ -186,70 +186,23 @@ describe('gournal CLI on the SQLite journal', () => {
   });
 });
 
-describe('bundle restore with migrated entries', () => {
-  const legacy = [
-    { timestamp: '2026-07-29T10:00:00.000Z', message: 'One', project: 'a', tags: [] as string[] },
-    { timestamp: '2026-07-30T10:00:00.000Z', message: 'Two', project: 'a', tags: [] as string[] },
-  ];
-  let home: string;
-  beforeEach(() => {
-    home = mkHome();
-    fs.writeFileSync(path.join(home, 'entries.json'), JSON.stringify(legacy));
-  });
-  afterEach(() => rmTmp(home));
-  const live = () => rows(home, 'SELECT id FROM entries WHERE deleted_at IS NULL').length;
-
-  test('export, delete the database, import: still 2 live entries', async () => {
-    expect((await runIn(home, ['stats'])).status).toBe(0);
-    const file = path.join(home, 'b.json');
-    expect((await runIn(home, ['export', '--format', 'bundle', '-o', file])).status).toBe(0);
-    for (const f of ['gournal.db', 'gournal.db-wal', 'gournal.db-shm']) fs.rmSync(path.join(home, f), { force: true });
-    const imp = await runIn(home, ['import', file]);
-    expect(imp.status).toBe(0);
-    expect(imp.stdout).toContain('Imported: 2 new, 0 updated, 0 unchanged, 0 duplicates merged.');
-    expect(live()).toBe(2);
-    expect(rows(home, 'SELECT id FROM entries').length).toBe(2);
-  });
-
-  test('import into an empty database takes no daily backup, a non-empty one does', async () => {
-    const other = mkHome();
-    try {
-      fs.writeFileSync(path.join(other, 'entries.json'), JSON.stringify(legacy));
-      expect((await runIn(other, ['stats'])).status).toBe(0);
-      const file = path.join(other, 'b.json');
-      expect((await runIn(other, ['export', '--format', 'bundle', '-o', file])).status).toBe(0);
-      const fresh = mkHome();
-      try {
-        expect((await runIn(fresh, ['import', file])).status).toBe(0);
-        expect(fs.existsSync(path.join(fresh, 'backups'))).toBe(false);
-        // The second import finds entries, so the day's backup is taken now.
-        expect((await runIn(fresh, ['import', file])).status).toBe(0);
-        expect(fs.readdirSync(path.join(fresh, 'backups')).filter((n) => /^gournal-\d{4}-\d{2}-\d{2}\.db$/.test(n))).toHaveLength(1);
-      } finally {
-        rmTmp(fresh);
-      }
-    } finally {
-      rmTmp(other);
-    }
-  });
-
-  test('an already migrated database merges the duplicates of a bundle of the same lines', async () => {
-    const other = mkHome();
-    try {
-      fs.writeFileSync(path.join(other, 'entries.json'), JSON.stringify(legacy));
-      expect((await runIn(other, ['stats'])).status).toBe(0);
-      const file = path.join(other, 'b.json');
-      expect((await runIn(other, ['export', '--format', 'bundle', '-o', file])).status).toBe(0);
-      expect((await runIn(home, ['stats'])).status).toBe(0);
-      const imp = await runIn(home, ['import', file]);
-      expect(imp.status).toBe(0);
-      expect(imp.stdout).toContain('Imported: 2 new, 0 updated, 0 unchanged, 2 duplicates merged.');
-      expect(live()).toBe(2);
-      expect(rows(home, 'SELECT id FROM entries WHERE deleted_at IS NOT NULL').length).toBe(2);
-    } finally {
-      rmTmp(other);
-    }
-  });
+test('import into an empty database takes no daily backup, a non-empty one does', async () => {
+  const other = mkHome();
+  const fresh = mkHome();
+  try {
+    const j = openJournal(other);
+    try { j.repo.add({ summary: 'One', project: 'a', source: 'cli' }); } finally { j.close(); }
+    const file = path.join(other, 'b.json');
+    expect((await runIn(other, ['export', '--format', 'bundle', '-o', file])).status).toBe(0);
+    expect((await runIn(fresh, ['import', file])).status).toBe(0);
+    expect(fs.existsSync(path.join(fresh, 'backups'))).toBe(false);
+    // The second import finds entries, so the day's backup is taken now.
+    expect((await runIn(fresh, ['import', file])).status).toBe(0);
+    expect(fs.readdirSync(path.join(fresh, 'backups')).filter((n) => /^gournal-\d{4}-\d{2}-\d{2}\.db$/.test(n))).toHaveLength(1);
+  } finally {
+    rmTmp(other);
+    rmTmp(fresh);
+  }
 });
 
 describe('gournal CLI reads on Query and renderers', () => {

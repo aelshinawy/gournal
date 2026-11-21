@@ -74,7 +74,7 @@ Gournal keeps its data in `~/.gournal`. On Windows, this is `%USERPROFILE%\.gour
 
 ## Upgrade
 
-Run `npm install -g gournal` again to get the newest version. If you upgrade from version 0.6 or older, see [Migrating from 0.x](/docs/guides/migrating-from-0x/).
+Run `npm install -g gournal` again to get the newest version. The import of the 0.x `entries.json` file was removed. To migrate from 0.x, install gournal 0.10 first.
 
 ## Uninstall
 

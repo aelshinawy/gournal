@@ -61,8 +61,7 @@ export default defineConfig({
             'docs/guides/github-activity',
             'docs/guides/claude-code-setup',
             'docs/guides/configuration',
-            'docs/guides/data-safety-and-backups',
-            'docs/guides/migrating-from-0x'
+            'docs/guides/data-safety-and-backups'
           ]
         },
         {

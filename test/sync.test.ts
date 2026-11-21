@@ -361,26 +361,3 @@ describe('relinkAfterWrite', () => {
     expect(warnings.length).toBeLessThanOrEqual(1);
   });
 });
-
-test('a legacy-imported entry with a pr ref links to existing activity', async () => {
-  await runSync(journal, fakeGh(routes(new Date(NOW.getTime() - 30 * DAY))), { auto: false, now: NOW });
-  const legacyHome = makeTmp('gournal-sync-legacy-');
-  try {
-    const first = openJournal(legacyHome);
-    first.activity.upsert(journal.activity.find());
-    first.close();
-    fs.writeFileSync(path.join(legacyHome, 'entries.json'), JSON.stringify([
-      { timestamp: '2026-11-05T10:00:00.000Z', message: 'Merged https://github.com/acme/widgets/pull/5 after review', project: 'widgets', tags: [] },
-    ]));
-    const reopened = openJournal(legacyHome); // imports entries.json on open
-    try {
-      const entry = reopened.repo.find()[0];
-      expect(entry.refs).toContainEqual(expect.objectContaining({ type: 'pr', value: '5' }));
-      expect(reopened.activity.linkedTo([entry.id])[entry.id]?.length).toBeGreaterThan(0);
-    } finally {
-      reopened.close();
-    }
-  } finally {
-    rmTmp(legacyHome);
-  }
-});

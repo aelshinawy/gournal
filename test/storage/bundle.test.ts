@@ -173,7 +173,6 @@ test.each([
 const goodAct = () => ({ id: '01ARZ3NDEKTSV4RRFFQ69G5FB0', createdAt: '2026-11-10T10:00:00.000Z', updatedAt: '2026-11-10T10:00:00.000Z',
   deletedAt: null, deviceId: 'd', type: 'pr_opened', occurredAt: '2026-11-10T10:00:00.000Z', repo: 'acme/widgets', branch: null,
   externalId: '5', title: null, url: null, capturedBy: 'github', pr: 5, payload: {} });
-const goodRow = () => ({ legacyIndex: 0, timestamp: '2026-07-01T00:00:00.000Z', messageHash: 'h0', occurrence: 0, entryId: '01ARZ3NDEKTSV4RRFFQ69G5FAV', importedAt: null });
 const withExtra = (extra: Record<string, unknown>) => ({ ...wrap([goodEntry()]), ...extra });
 const without = <T extends object>(o: T, key: string): Partial<T> => { const { [key]: _drop, ...rest } = o as Record<string, unknown>; return rest as Partial<T>; };
 
@@ -182,15 +181,11 @@ test.each([
   ['an extra entry key', wrap([{ ...goodEntry(), extra: 'x' }])],
   ['an extra ref key', wrap([{ ...goodEntry(), refs: [{ type: 'pr', value: '1', extra: true }] }])],
   ['an extra activity key', withExtra({ activity: [{ ...goodAct(), extra: 1 }] })],
-  ['an extra legacyMap key', withExtra({ legacyMap: [{ ...goodRow(), extra: 1 }] })],
   ['an activity row without capturedBy', withExtra({ activity: [without(goodAct(), 'capturedBy')] })],
   ["capturedBy 'gitlab'", withExtra({ activity: [{ ...goodAct(), capturedBy: 'gitlab' }] })],
   ['an activity pr of 2 ** 53 + 2', withExtra({ activity: [{ ...goodAct(), pr: 2 ** 53 + 2 }] })],
-  ['a legacyIndex of 2 ** 53 + 2', withExtra({ legacyMap: [{ ...goodRow(), legacyIndex: 2 ** 53 + 2 }] })],
   ['a six-digit year in createdAt', wrap([{ ...goodEntry(), createdAt: '+020000-01-01T00:00:00.000Z' }])],
   ["status 'open' on a done entry", wrap([{ ...goodEntry(), status: 'open' }])],
-  ['a legacyMap row without importedAt', withExtra({ legacyMap: [without(goodRow(), 'importedAt')] })],
-  ['a legacyMap row with a null importedAt', withExtra({ legacyMap: [goodRow()] })],
 ])('accepts %s', (_name, bundle) => {
   expect(importBundle(db, bundle).inserted).toBe(1);
   expect(repo.find({ includeDeleted: true })).toHaveLength(1);
@@ -201,9 +196,11 @@ test('the big-integer activity pr row is stored', () => {
   expect(db.prepare('SELECT COUNT(*) AS n FROM activity').get()).toEqual({ n: 1 });
 });
 
-test('the big-integer legacyIndex row is stored', () => {
-  importBundle(db, withExtra({ legacyMap: [{ ...goodRow(), legacyIndex: 2 ** 53 + 2 }] }));
-  expect(db.prepare('SELECT COUNT(*) AS n FROM legacy_map').get()).toEqual({ n: 1 });
+test('a bundle that still carries a legacyMap key imports, and the key is ignored', () => {
+  const legacyMap = [{ legacyIndex: 'x' }];
+  expect(importBundle(db, withExtra({ legacyMap })).inserted).toBe(1);
+  expect(db.prepare('SELECT COUNT(*) AS n FROM legacy_map').get()).toEqual({ n: 0 });
+  expect(exportBundle(db, config)).not.toHaveProperty('legacyMap');
 });
 
 test('an accepted extra key is never written to the database', () => {
@@ -242,92 +239,6 @@ test.each([
   const row = Array.isArray(patch) ? patch : { ...goodAct(), ...patch };
   expect(() => importBundle(db, withExtra({ activity: [row] }))).toThrow(`Bundle activity 0 is invalid: ${field}`);
   expect(repo.find({ includeDeleted: true })).toEqual([]);
-});
-
-test.each([
-  ['a negative legacyIndex', { ...goodRow(), legacyIndex: -1 }], ['a fractional legacyIndex', { ...goodRow(), legacyIndex: 0.5 }],
-  ['a negative occurrence', { ...goodRow(), occurrence: -1 }], ['a fractional occurrence', { ...goodRow(), occurrence: 0.5 }],
-  ["importedAt 'x'", { ...goodRow(), importedAt: 'x' }], ['a null row', null], ['an array row', []],
-])('rejects a legacyMap row with %s (pinned)', (_name, row) => {
-  expect(() => importBundle(db, withExtra({ legacyMap: [row] }))).toThrow('Bundle legacyMap row 0 is invalid');
-  expect(repo.find({ includeDeleted: true })).toEqual([]);
-});
-
-describe('legacy map in bundles', () => {
-  const addLegacy = (d: DatabaseSync, r: EntryRepository, n: number, hash = 'h') => {
-    const e = r.add({ summary: `legacy ${n}`, ...base, source: 'migration' });
-    d.prepare('INSERT INTO legacy_map (legacy_index, timestamp, message_hash, occurrence, entry_id) VALUES (?, ?, ?, 0, ?)')
-      .run(n, `2026-07-0${n + 1}T00:00:00.000Z`, `${hash}${n}`, e.id);
-    return e;
-  };
-  const mapRows = (d: DatabaseSync) => d.prepare('SELECT legacy_index, entry_id FROM legacy_map ORDER BY legacy_index').all() as { legacy_index: number; entry_id: string }[];
-
-  test('export carries every legacy_map row', () => {
-    const e = addLegacy(db, repo, 0);
-    const bundle = exportBundle(db, config);
-    expect(bundle.schemaVersion).toBe(1);
-    expect(bundle.legacyMap).toEqual([{ legacyIndex: 0, timestamp: '2026-07-01T00:00:00.000Z', messageHash: 'h0', occurrence: 0, entryId: e.id, importedAt: null }]);
-  });
-
-  test('a new key is inserted into legacy_map on import', () => {
-    const e = addLegacy(db, repo, 0);
-    const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
-    const { d: db2 } = open('b.db');
-    try {
-      expect(importBundle(db2, bundle)).toEqual({ inserted: 1, updated: 0, skipped: 0, deduplicated: 0 });
-      expect(mapRows(db2)).toEqual([{ legacy_index: 0, entry_id: e.id }]);
-    } finally { db2.close(); }
-  });
-
-  test('the same legacy line under two ids keeps the later one live and soft-deletes the other', () => {
-    const { d: db2, r: repo2 } = open('b.db');
-    try {
-      const mine = addLegacy(db, repo, 0);
-      const theirs = addLegacy(db2, repo2, 0);
-      db2.prepare('UPDATE entries SET updated_at = ? WHERE id = ?').run(Date.parse(mine.updatedAt) + 5000, theirs.id);
-      const bundle = JSON.parse(JSON.stringify(exportBundle(db2, config)));
-      expect(importBundle(db, bundle)).toEqual({ inserted: 1, updated: 0, skipped: 0, deduplicated: 1 });
-      expect(repo.get(theirs.id)!.deletedAt).toBeNull();
-      expect(repo.get(mine.id)!.deletedAt).not.toBeNull();
-      expect(mapRows(db)).toEqual([{ legacy_index: 0, entry_id: theirs.id }]);
-      // The loser is kept, never erased.
-      expect(repo.find({ includeDeleted: true })).toHaveLength(2);
-    } finally { db2.close(); }
-  });
-
-  test('when the local entry is later, it survives', () => {
-    const { d: db2, r: repo2 } = open('b.db');
-    try {
-      const theirs = addLegacy(db2, repo2, 0);
-      const mine = addLegacy(db, repo, 0);
-      db.prepare('UPDATE entries SET updated_at = ? WHERE id = ?').run(Date.parse(theirs.updatedAt) + 5000, mine.id);
-      const bundle = JSON.parse(JSON.stringify(exportBundle(db2, config)));
-      expect(importBundle(db, bundle).deduplicated).toBe(1);
-      expect(repo.get(mine.id)!.deletedAt).toBeNull();
-      expect(repo.get(theirs.id)!.deletedAt).not.toBeNull();
-      expect(mapRows(db)).toEqual([{ legacy_index: 0, entry_id: mine.id }]);
-    } finally { db2.close(); }
-  });
-
-  test('an old bundle without legacyMap still imports', () => {
-    repo.add({ summary: 'plain', ...base });
-    const { legacyMap: _drop, ...old } = exportBundle(db, config);
-    const { d: db2 } = open('b.db');
-    try {
-      expect(importBundle(db2, JSON.parse(JSON.stringify(old)))).toEqual({ inserted: 1, updated: 0, skipped: 0, deduplicated: 0 });
-    } finally { db2.close(); }
-  });
-
-  test('a bad legacyMap row is rejected and nothing is written', () => {
-    repo.add({ summary: 'plain', ...base });
-    const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
-    bundle.legacyMap = [{ legacyIndex: 'x' }];
-    const { d: db2 } = open('b.db');
-    try {
-      expect(() => importBundle(db2, bundle)).toThrow('Bundle legacyMap row 0 is invalid');
-      expect(db2.prepare('SELECT count(*) AS n FROM entries').get()).toEqual({ n: 0 });
-    } finally { db2.close(); }
-  });
 });
 
 describe('activity in bundles', () => {

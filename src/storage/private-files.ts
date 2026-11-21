@@ -202,7 +202,7 @@ export function writePrivateFile(target: string, data: string, opts: { exclusive
 }
 
 /** Check that the folder of an output file exists and is a folder. It throws a plain message for each refusal. */
-export function assertTargetDir(target: string): void {
+function assertTargetDir(target: string): void {
   const dir = path.dirname(path.resolve(target));
   let dirStat: fs.Stats | undefined;
   try {
