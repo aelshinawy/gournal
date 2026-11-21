@@ -13,7 +13,7 @@ The command has three steps and a check. It shows each change before it applies 
 2. **Skill.** It writes `~/.claude/skills/gournal/SKILL.md`. The skill tells Claude when to log work.
 3. **Stop hook.** It adds a hook to `~/.claude/settings.json`. This step is off by default.
 
-After the three steps, the command runs a check. The check asks nothing and changes nothing. It runs the launcher with a short `PATH`, as Claude Code does. It prints `Check: Claude Code can start gournal without your shell PATH.` when gournal starts.
+When the launcher is installed, the command runs a check after the three steps. If setup cannot install the launcher, it runs no check. The check asks nothing and changes nothing. It runs the launcher with a short `PATH`, as Claude Code does. It prints `Check: Claude Code can start gournal without your shell PATH.` when gournal starts.
 
 ## Run it
 
@@ -82,7 +82,7 @@ Claude Code starts a server with the `PATH` of the app that started it. A deskto
 2. Setup writes the launcher `~/.gournal/bin/gournal`. On Windows, the launcher is `%USERPROFILE%\.gournal\bin\gournal.cmd`.
 3. Claude Code starts the launcher. It does not start the `gournal` command on your `PATH`.
 4. The launcher runs the installed package when it is there. It runs the copy in `~/.gournal/runtime` only when the installed package is missing. The package is missing after you remove a Node.js version, or while `brew upgrade` replaces it.
-5. The launcher looks for Node.js 22.13 or newer each time it runs. On macOS and Linux, it uses only absolute folders of the `PATH`. On Windows, it runs `where node` and skips every result under the current folder.
+5. The launcher looks for Node.js 22.13 or newer each time it runs. On macOS and Linux, it uses only absolute folders of the `PATH`. On Windows, it runs `where node`. It keeps only `node.exe` results and skips every result under the current folder. When the current folder is a drive root, it skips only a result in the root folder itself.
 
 The launcher tries these places in order on macOS and Linux. Each step uses the first Node.js that works. In step 4, the first folder with a Node.js that works wins, and the last name in that folder wins.
 
@@ -95,7 +95,7 @@ The launcher tries these places in order on macOS and Linux. Each step uses the 
 On Windows, the launcher uses this order:
 
 1. The Node.js that worked last.
-2. `node` from `where node`.
+2. `node.exe` from `where node`.
 3. `%NVM_SYMLINK%`, then `%ProgramFiles%\nodejs`, then the default alias of fnm, then Volta, then Scoop. The first one that works wins.
 4. The folders of versions: nvm-windows, fnm, Volta. The first folder that holds a Node.js that works wins. Inside that folder, the last name in text sort order wins.
 
@@ -112,7 +112,7 @@ A Homebrew install also uses the launcher. The launcher runs gournal from `/opt/
 
 If you set `GOURNAL_HOME` when you run setup, the gournal home is that folder, and the launcher keeps it. A `GOURNAL_HOME` that Claude Code passes at run time overrides it. Run undo with the same `GOURNAL_HOME` as the install. Undo removes the two launcher files and the `runtime` folder. It removes the `bin` folder only when the folder is empty.
 
-If you remove the package with `npm uninstall -g gournal` or `brew uninstall gournal` before you run `gournal setup claude --uninstall`, gournal runs from its copy for one minute. Then the MCP server stops with a message. The Stop hook stays silent and removes the setup about one hour later. See [You removed gournal before you ran the uninstall](/docs/resources/troubleshooting/#you-removed-gournal-before-you-ran-the-uninstall).
+If you remove the package with `npm uninstall -g gournal` or `brew uninstall gournal` before you run `gournal setup claude --uninstall`, gournal runs from its copy for one minute after it first notices the removal. Then the MCP server stops with a message. The Stop hook stays silent and removes the setup about one hour after it first notices the removal. See [You removed gournal before you ran the uninstall](/docs/resources/troubleshooting/#you-removed-gournal-before-you-ran-the-uninstall).
 
 If Claude Code cannot start gournal, see [Claude Code cannot start gournal](/docs/resources/troubleshooting/#claude-code-cannot-start-gournal).
 
