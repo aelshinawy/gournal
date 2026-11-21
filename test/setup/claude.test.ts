@@ -350,7 +350,7 @@ test('isGournalHook recognizes only the shapes that setup writes', () => {
   expect(isGournalHook('gournal hook stop')).toBe(true);
   expect(isGournalHook('/usr/local/bin/node /usr/lib/gournal/dist/cli.js hook stop')).toBe(true);
   expect(isGournalHook('node /x/gournal/cli.js hook stop')).toBe(true);
-  expect(isGournalHook('C:\\nodejs\\node.exe C:\\app\\cli.js hook stop')).toBe(false);
+  expect(isGournalHook('C:\\nodejs\\node.exe C:\\gournal\\cli.js hook stop')).toBe(false);
   expect(isGournalHook(`'C:\\Program Files\\nodejs\\node.exe' 'C:\\gournal\\cli.js' hook stop`)).toBe(true);
   expect(isGournalHook(`/opt/node/bin/node '/my lib/it's here/cli.js' hook stop`)).toBe(false);
   expect(isGournalHook(`/opt/node/bin/node '/my lib/gournal/it'\\''s here/cli.js' hook stop`)).toBe(true);
@@ -790,20 +790,20 @@ describe('isGournalHook exec form', () => {
   test('compares the program name without regard to case', () => {
     expect(recognized('C:\\Program Files\\nodejs\\Node.exe', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(true);
     expect(recognized('NODE', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(true);
-    expect(recognized('Nodejs.exe', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(false);
+    expect(recognized('Nodejs.exe', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(false);
   });
 
   test('rejects look-alikes', () => {
     expect(recognized('node.exe', ['other.js', 'hook', 'stop'])).toBe(false);
     expect(recognized('C:\\tools\\gournal-notes\\run.exe', ['hook', 'stop'])).toBe(false);
-    expect(recognized('C:\\tools\\gournal-notes\\run.exe', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(false);
-    expect(recognized('python.exe', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(false);
-    expect(recognized('node.exe', ['C:\\app\\cli.js', 'hook', 'stop', 'extra'])).toBe(false);
-    expect(recognized('node.exe', ['C:\\app\\cli.js', 'hook'])).toBe(false);
-    expect(recognized('node.exe', ['C:\\app\\cli.js', 'hook', 'start'])).toBe(false);
-    expect(recognized('node.exe', ['--inspect', 'C:\\app\\cli.js', 'hook', 'stop'])).toBe(false);
-    expect(recognized('node.exe', 'C:\\app\\cli.js hook stop')).toBe(false);
-    expect(recognized('node.exe', ['C:\\app\\cli.js', 7, 'stop'])).toBe(false);
+    expect(recognized('C:\\tools\\gournal-notes\\run.exe', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(false);
+    expect(recognized('python.exe', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(false);
+    expect(recognized('node.exe', ['C:\\gournal\\cli.js', 'hook', 'stop', 'extra'])).toBe(false);
+    expect(recognized('node.exe', ['C:\\gournal\\cli.js', 'hook'])).toBe(false);
+    expect(recognized('node.exe', ['C:\\gournal\\cli.js', 'hook', 'start'])).toBe(false);
+    expect(recognized('node.exe', ['--inspect', 'C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(false);
+    expect(recognized('node.exe', 'C:\\gournal\\cli.js hook stop')).toBe(false);
+    expect(recognized('node.exe', ['C:\\gournal\\cli.js', 7, 'stop'])).toBe(false);
     expect(recognized('gournal hook stop', ['x'])).toBe(false);
   });
 
@@ -883,6 +883,8 @@ describe('the launcher registration', () => {
     expect(await run({ yes: false }, makeIo())).toBe(0);
     expect(confirmAnswers).toContainEqual(['Move the gournal MCP registration to the launcher?', true]);
     expect(calls.map((c) => c[2])).toEqual(['remove', 'add']);
+    expect(calls[1]!.slice(-2)).toEqual([LAUNCHER(), 'mcp']);
+    expect(fs.existsSync(LAUNCHER())).toBe(true);
   });
 
   test('declining the move keeps the old registration and installs no launcher for it', async () => {
@@ -890,6 +892,8 @@ describe('the launcher registration', () => {
     expect(await run({ yes: false }, makeIo({ answer: false }))).toBe(0);
     expect(calls).toEqual([]);
     expect(out).toContain('MCP server: kept the existing registration.');
+    expect(fs.existsSync(path.join(h.gh, 'bin'))).toBe(false);
+    expect(fs.existsSync(path.join(h.gh, 'runtime'))).toBe(false);
   });
 
   test('a foreign registration is still kept under --yes', async () => {

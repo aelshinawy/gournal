@@ -42,3 +42,11 @@ test('a missing launcher gives code 127', async () => {
   const r = await createLauncherCheck('linux', dir)(path.join(dir, 'nope'), []);
   expect(r.code).toBe(127);
 });
+
+posixTest('a launcher that exits non-zero gives its code and stderr', async () => {
+  const script = path.join(dir, 'fail');
+  fs.writeFileSync(script, '#!/bin/sh\necho nope >&2\nexit 7\n', { mode: 0o755 });
+  const r = await createLauncherCheck('linux', dir)(script, []);
+  expect(r.code).toBe(7);
+  expect(r.stderr.trim()).toBe('nope');
+});

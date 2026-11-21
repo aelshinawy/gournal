@@ -39,11 +39,26 @@ posixTest('detectHomebrew is null for an npm global install, on win32, and witho
   expect(detectHomebrew(packageRoot, 'darwin')).toBeNull();
 });
 
+posixTest('detectHomebrew is null for an npm global package on a Homebrew prefix with opt/node', () => {
+  const { prefix } = makeFakeBrew(root, '0.9.0');
+  const npmRoot = makeFakePackage(path.join(prefix, 'lib', 'node_modules', 'gournal'), '0.9.0');
+  expect(fs.existsSync(path.join(prefix, 'opt', 'node', 'bin', 'node'))).toBe(true);
+  expect(detectHomebrew(npmRoot, 'darwin')).toBeNull();
+});
+
+posixTest('detectHomebrew is null when the opt package has no dist/cli.js', () => {
+  const { prefix, packageRoot } = makeFakeBrew(root, '0.9.0');
+  fs.rmSync(path.join(prefix, 'opt', 'gournal', 'libexec', 'lib', 'node_modules', 'gournal', 'dist', 'cli.js'));
+  expect(detectHomebrew(packageRoot, 'darwin')).toBeNull();
+});
+
 posixTest('a Homebrew setup registers the launcher and records the opt node', async () => {
   const { prefix, packageRoot } = makeFakeBrew(root, VERSION);
   expect(await h.run({ hook: true }, h.makeIo({ packageRoot }))).toBe(0);
   expect(h.calls).toEqual([['claude', 'mcp', 'add', '--scope', 'user', 'gournal', '--', LAUNCHER(), 'mcp']]);
   expect(recordedNode()).toBe(`${prefix}/opt/node/bin/node\n`);
+  expect(fs.readFileSync(LAUNCHER(), 'utf8')).not.toContain('Cellar');
+  expect(recordedNode()).not.toContain('Cellar');
   expect(h.out).toContain(`Homebrew: the launcher runs gournal from ${prefix}/opt/gournal with ${prefix}/opt/node/bin/node.`);
   expect(h.stopCommands(h.readSettings())).toHaveLength(1);
 });

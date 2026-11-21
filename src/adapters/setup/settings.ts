@@ -37,7 +37,8 @@ function tokenize(command: string): string[] | null {
  * A hook is gournal's only when its command has a shape that setup writes:
  *   gournal hook stop   (`gournal` may be a path: the launcher, quoted when needed)
  *   <node> <cli.js|gournal> hook stop   (each part quoted by shellQuote when needed)
- * The script is `cli.js`, or `gournal` when setup ran through a bin symlink such as node_modules/.bin/gournal.
+ * The script is a `cli.js` under a folder named `gournal`, or a file named `gournal` when setup ran
+ * through a bin symlink such as node_modules/.bin/gournal.
  * `current` is the command setup resolves now. It always counts, whatever the script is named.
  * This function reads the shell form only. The exec form is recognized when setup reads the settings.
  */
@@ -73,7 +74,7 @@ function sameHook(h: Json, hook: StopHook): boolean {
 
 /**
  * The exec forms that setup writes on Windows: `<node|node.exe>` with the args
- * `[<cli.js|gournal>, 'hook', 'stop']`, and `cmd.exe` with `['/d', '/c', <gournal.cmd>, 'hook', 'stop']`.
+ * `[<cli.js under a gournal folder|gournal>, 'hook', 'stop']`, and `cmd.exe` with `['/d', '/c', <gournal.cmd>, 'hook', 'stop']`.
  * Each path is one arg, so it needs no quoting.
  */
 function isGournalExecHook(command: string, args: unknown): boolean {

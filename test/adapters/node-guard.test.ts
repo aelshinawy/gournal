@@ -40,7 +40,7 @@ test('enforceNodeFloor: hook exits 0 with no output, other commands exit 1 with 
   expect([ok.mock.calls, okWrite.mock.calls]).toEqual([[], []]);
 });
 test('the guard files use only syntax that Node 14 parses', () => {
-  for (const f of ['src/adapters/node-guard.ts', 'src/adapters/check-node.ts']) {
+  for (const f of ['src/cli.ts', 'src/adapters/suppress-warnings.ts', 'src/adapters/node-guard.ts', 'src/adapters/check-node.ts']) {
     expect(fs.readFileSync(path.join(root, f), 'utf8')).not.toMatch(/\?\?=|\|\|=|&&=|static\s*\{|#[A-Za-z_]\w*\s*[=(;]|^\s*await\b/m);
   }
 });

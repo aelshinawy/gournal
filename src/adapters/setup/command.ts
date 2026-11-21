@@ -45,6 +45,7 @@ export function classifyRegistration(reg: GournalCommand, current: GournalComman
   if (reg.command === current.command && JSON.stringify(reg.args) === JSON.stringify(current.args)) return 'current';
   const { args } = reg;
   const cmd = baseName(reg.command);
+  // This match is case-sensitive on purpose: setup writes `gournal` in lower case. The branches below lower the case, because Windows names have any case.
   if (cmd === 'gournal') return args.length === 1 && args[0] === 'mcp' ? 'gournal' : 'foreign';
   const lower = cmd.toLowerCase();
   if (lower === 'node' || lower === 'node.exe') {
