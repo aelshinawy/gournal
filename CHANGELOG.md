@@ -8,6 +8,28 @@ The last version on npm before this release is 0.5.0.
 Versions 0.6.0 to 0.8.0 were internal steps and were not published to npm.
 Their changes are in this file so that you can see how 0.9.0 grew from 0.5.0.
 
+## [0.11.0](https://github.com/aelshinawy/gournal/compare/v0.10.0...v0.11.0) (2026-11-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* **storage:** the 0.x entries.json import and the migrate command are removed.
+
+### Features
+
+* **mcp:** deprecate list_entries and the message alias ([#40](https://github.com/aelshinawy/gournal/issues/40)) ([927e439](https://github.com/aelshinawy/gournal/commit/927e4397229a78dff4a4f49bab426a979aa98c94))
+
+
+### Bug Fixes
+
+* **cli:** drop the always-zero duplicates count from the import line ([#38](https://github.com/aelshinawy/gournal/issues/38)) ([c52c9ff](https://github.com/aelshinawy/gournal/commit/c52c9ffc493bd99f37adcb020863bc9e2a6ab0e0))
+* **cli:** warn when an old entries.json is present and the journal is empty ([#43](https://github.com/aelshinawy/gournal/issues/43)) ([4772a3c](https://github.com/aelshinawy/gournal/commit/4772a3c911d1e6edbbf082695e563e379a118703))
+
+
+### Refactoring
+
+* **storage:** remove the 0.x entries.json import and the migrate command ([#37](https://github.com/aelshinawy/gournal/issues/37)) ([45ff2f1](https://github.com/aelshinawy/gournal/commit/45ff2f184d249fee29e5372de44814a5b3dc6743))
+
 ## [0.10.0](https://github.com/aelshinawy/gournal/compare/v0.9.0...v0.10.0) (2026-11-20)
 
 
