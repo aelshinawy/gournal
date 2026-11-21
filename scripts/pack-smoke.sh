@@ -209,11 +209,23 @@ if [ "$windows" -eq 1 ]; then
 else
   if grep -q -F '"args"' "$settings"; then fail "settings.json has an exec form hook on a POSIX system"; fi
 fi
-# Check the shape of hooks.Stop[0].hooks[0]. The first argument is the file. The second is 1 on Windows.
+# The launcher is a file in $GOURNAL_HOME/bin. The hook holds its path in the form of the platform.
+if [ "$windows" -eq 1 ]; then
+  launcher="$GOURNAL_HOME/bin/gournal.cmd"
+  launcher_native=$(cygpath -w "$launcher")
+else
+  # A TMPDIR with a trailing slash gives a double slash. Setup joins paths, so it writes one slash.
+  launcher=$(printf '%s' "$GOURNAL_HOME/bin/gournal" | sed 's|//*|/|g')
+  launcher_native="$launcher"
+fi
+[ -f "$launcher" ] || fail "setup did not write the launcher $launcher"
+# Check the shape of hooks.Stop[0].hooks[0]. The arguments are the file, 1 on Windows, and the
+# expected launcher path. The launcher is in $GOURNAL_HOME/bin, not in the real home.
 node -e '
 const fs = require("fs");
 const settings = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
 const windows = process.argv[2] === "1";
+const launcher = process.argv[3];
 const stop = settings.hooks && settings.hooks.Stop;
 const group = Array.isArray(stop) ? stop[0] : undefined;
 const hook = group && Array.isArray(group.hooks) ? group.hooks[0] : undefined;
@@ -221,15 +233,18 @@ const fail = (m) => { console.error("pack-smoke: FAIL: " + m); process.exit(1); 
 if (!hook) fail("settings.json has no hooks.Stop[0].hooks[0]");
 if (typeof hook.command !== "string") fail("the hook command is not a string");
 if (windows) {
-  if (!/node\.exe$/i.test(hook.command)) fail("the hook command does not end with node.exe: " + hook.command);
+  if (!/cmd\.exe$/i.test(hook.command)) fail("the hook command does not end with cmd.exe: " + hook.command);
   const a = hook.args;
-  if (!Array.isArray(a) || a.length < 2) fail("the hook args are not an array of two or more items");
-  if (a[a.length - 2] !== "hook" || a[a.length - 1] !== "stop") fail("the hook args do not end with hook, stop: " + JSON.stringify(a));
+  const want = ["/d", "/c", launcher, "hook", "stop"];
+  if (!Array.isArray(a) || a.length !== want.length || a.some((x, i) => x !== want[i])) fail("the hook args are " + JSON.stringify(a) + ", expected " + JSON.stringify(want));
 } else {
   if (hook.args !== undefined) fail("the hook has args on a POSIX system");
-  if (!hook.command.includes("hook stop")) fail("the hook command does not hold the words hook stop: " + hook.command);
+  // The same quoting as shellQuote in src/adapters/setup/command.ts. \x27 is a single quote.
+  const q = /^[\w@%+=:,.\/-]+$/.test(launcher) ? launcher : "\x27" + launcher.replace(/\x27/g, "\x27\\\x27\x27") + "\x27";
+  const want = q + " hook stop";
+  if (hook.command !== want) fail("the hook command is " + hook.command + ", expected " + want);
 }
-' "$settings" "$windows" || fail "the Stop hook in settings.json has the wrong shape"
+' "$settings" "$windows" "$launcher_native" || fail "the Stop hook in settings.json has the wrong shape"
 [ -f "$skill" ] || fail "setup did not write $skill"
 
 # Uninstall. The fake claude never writes ~/.claude.json, so setup finds no MCP registration
@@ -239,6 +254,7 @@ run_setup --uninstall --yes || uninstall_status=$?
 cat "$tmp/setup.out"
 [ "$uninstall_status" -eq 0 ] || fail "gournal setup claude --uninstall --yes exited with status $uninstall_status"
 [ ! -e "$skill" ] || fail "uninstall did not remove $skill"
+[ ! -e "$launcher" ] || fail "uninstall did not remove the launcher $launcher"
 if [ -f "$settings" ]; then
   # No hook entry may keep a command or args that mention hook or stop.
   node -e '
