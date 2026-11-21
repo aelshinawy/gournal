@@ -85,13 +85,13 @@ If gournal prints `gournal: relink after write failed (...)` on stderr, the entr
 
 ## Claude Code cannot start gournal
 
-Claude Code starts gournal through a launcher. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal). When the launcher or Node.js fails, gournal prints one line. `VERSION`, `PATH`, and `HOME` in the table stand for the values on your machine.
+Claude Code starts gournal through a launcher. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal). When the launcher or Node.js fails, gournal prints one line. In the table, `VERSION` is the Node.js version, `NODE_PATH` is the path of the Node.js program, and `GOURNAL_HOME` is your gournal home folder (`~/.gournal` by default).
 
 | Message | What to do |
 | --- | --- |
-| `gournal needs Node.js 22.13 or newer. This is Node.js VERSION at PATH. Switch to Node.js 22.13 or newer and run the command again.` | Switch to Node.js 22.13 or newer. Then run the command again. |
-| `gournal needs the node:sqlite module. The Node.js VERSION build at PATH does not have it. Install an official Node.js build.` | Install Node.js from nodejs.org or from a version manager. Some distribution builds lack `node:sqlite`. |
-| `gournal: the launcher cannot find its copy of gournal in HOME/runtime. Run "gournal setup claude" in a terminal.` | Run `gournal setup claude`. Setup copies gournal into the `runtime` folder again. |
+| `gournal needs Node.js 22.13 or newer. This is Node.js VERSION at NODE_PATH. Switch to Node.js 22.13 or newer and run the command again.` | Switch to Node.js 22.13 or newer. Then run the command again. |
+| `gournal needs the node:sqlite module. The Node.js VERSION build at NODE_PATH does not have it. Install an official Node.js build.` | Install Node.js from nodejs.org or from a version manager. Some distribution builds lack `node:sqlite`. |
+| `gournal: the launcher cannot find its copy of gournal in GOURNAL_HOME/runtime. Run "gournal setup claude" in a terminal.` | Run `gournal setup claude`. Setup copies gournal into the `runtime` folder again. |
 | `gournal: found no Node.js 22.13 or newer with the node:sqlite module. Install Node.js 22.13 or newer. Then run "gournal setup claude" in a terminal.` | Install Node.js 22.13 or newer. Then run `gournal setup claude`. |
 | `Check: the launcher did not start gournal (exit N).` | Read the text after the message. It holds the first line that the launcher printed. Fix that error, and run `gournal setup claude` again. |
 

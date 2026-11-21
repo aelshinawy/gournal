@@ -54,9 +54,9 @@ Run this command to connect gournal to Claude Code.
 gournal setup claude
 ```
 
-The command asks before each of three steps:
+The command asks before each of three steps. Then it checks that Claude Code can start gournal:
 
-1. **MCP server.** It registers a launcher at `~/.gournal/bin/gournal` that starts `gournal mcp` for Claude Code.
+1. **MCP server.** It registers a launcher at `~/.gournal/bin/gournal` that starts `gournal mcp` for Claude Code. The launcher lives in the gournal home, `~/.gournal` by default.
 2. **Skill.** It writes `~/.claude/skills/gournal/SKILL.md`. The skill tells Claude when to log work.
 3. **Stop hook.** It adds a hook to `~/.claude/settings.json`. This step is off by default. Add `--hook` to turn it on.
 
