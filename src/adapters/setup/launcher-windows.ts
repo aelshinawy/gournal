@@ -88,10 +88,11 @@ export function renderWindowsLauncher(o: { bakeHome: boolean; candidates?: NodeC
     'if not exist "%~1" exit /b',
     probe('GPICK'),
     'exit /b',
-    // The node line is the last line. Nothing follows it, so cmd.exe returns its exit code and does
-    // not read the file again. An uninstall through the launcher deletes this file.
+    // The node line is the last line. "(goto) 2>nul" makes cmd.exe leave the batch context first, so
+    // cmd does not read this file again after node exits. An uninstall through the launcher deletes
+    // this file and its folder. The line status is the node exit code.
     ':run',
-    '"%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %*',
+    '(goto) 2>nul & "%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %*',
     '',
   ].join('\r\n');
 }

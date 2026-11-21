@@ -52,7 +52,7 @@ describe('built pages', () => {
       }
     }
     // Exact count: add a table to a page and update this number.
-    expect(tables).toBe(43);
+    expect(tables).toBe(44);
     expect(bad).toEqual([]);
   });
 

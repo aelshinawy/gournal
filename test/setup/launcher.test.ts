@@ -280,7 +280,7 @@ describe('launcher text', () => {
     expect(text).toContain('setlocal EnableExtensions DisableDelayedExpansion');
     expect(text).not.toMatch(/EnableDelayedExpansion/);
     expect(text).toContain('if not defined GOURNAL_HOME set "GOURNAL_HOME=%GH%"');
-    expect(text.endsWith('\r\n:run\r\n"%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %*\r\n')).toBe(true);
+    expect(text.endsWith('\r\n:run\r\n(goto) 2>nul & "%PICK%" "%GH%\\runtime\\%APP%\\dist\\cli.js" %*\r\n')).toBe(true);
     expect(text).not.toMatch(/exit 0|exit 1/);
     expect(renderWindowsLauncher({ bakeHome: false })).not.toContain('GOURNAL_HOME');
   });
@@ -363,15 +363,32 @@ describe('Windows launcher', () => {
     const cwd = path.join(f.root, 'proj');
     fs.mkdirSync(path.join(cwd, 'bin'), { recursive: true });
     fs.copyFileSync(process.execPath, path.join(cwd, 'bin', 'node.exe'));
-    const out = runWin(f, [], '0', { cwd, path: `bin;${sys}\\System32` });
-    const where = spawnSync(process.env.ComSpec ?? `${sys}\\System32\\cmd.exe`, ['/d', '/c', 'where node'], {
+    fs.writeFileSync(path.join(f.home, 'runtime', 'app-x', 'dist', 'cli.js'), 'process.stdout.write(process.execPath)');
+    const where = spawnSync(process.env.ComSpec ?? `${sys}\\System32\\cmd.exe`, ['/d', '/c', 'cd & where node'], {
       env: { SystemRoot: sys, USERPROFILE: f.root, PATH: `bin;${sys}\\System32` },
       cwd,
       encoding: 'utf8',
     });
-    const seen = { status: out.status, stdout: out.stdout, stderr: out.stderr, cwd, where: where.stdout, whereErr: where.stderr };
-    expect(seen).toMatchObject({ status: 1, stdout: '' });
-    expect(seen.stderr).toContain('gournal: found no Node.js 22.13 or newer');
+    const out = runWin(f, [], '0', { cwd, path: `bin;${sys}\\System32` });
+    if (out.status !== 1 || out.stdout !== '' || !out.stderr.includes('gournal: found no Node.js 22.13 or newer')) {
+      throw new Error(
+        JSON.stringify({ status: out.status, stdout: out.stdout, stderr: out.stderr, cwd, cdAndWhere: where.stdout, whereErr: where.stderr }, null, 2),
+      );
+    }
+  });
+
+  windowsTest('the launcher folder can be deleted by the app and the app exit code still comes back', () => {
+    const f = winFixture();
+    fs.writeFileSync(path.join(f.home, 'runtime', 'node'), `${f.node}\r\n`);
+    const bin = path.dirname(f.launcher);
+    fs.writeFileSync(
+      path.join(f.home, 'runtime', 'app-x', 'dist', 'cli.js'),
+      `require('fs').rmSync(${JSON.stringify(bin)}, { recursive: true, force: true }); process.exit(3)`,
+    );
+    const out = runWin(f, []);
+    expect(fs.existsSync(bin)).toBe(false);
+    expect({ status: out.status, stdout: out.stdout, stderr: out.stderr }).toMatchObject({ status: 3 });
+    expect(out.stderr).not.toMatch(/cannot find/i);
   });
 
   windowsTest('a node path with an ampersand is recorded whole', () => {
