@@ -35,6 +35,11 @@ export function isGournalNodeLaunch(nodeCommand: string, script: string): boolea
 }
 
 /** How a registered command relates to the one setup writes now. */
+/** True for `/d /c <gournal.cmd> ...tail`, the way setup runs the Windows launcher through cmd.exe. */
+export function isLauncherCmd(args: string[], tail: string[]): boolean {
+  return args.length === 3 + tail.length && args[0] === '/d' && args[1] === '/c' && baseName(args[2]!).toLowerCase() === 'gournal.cmd' && tail.every((t, i) => args[3 + i] === t);
+}
+
 export type RegistrationKind = 'current' | 'gournal' | 'foreign';
 
 /**
@@ -52,8 +57,7 @@ export function classifyRegistration(reg: GournalCommand, current: GournalComman
     return args.length === 2 && args[1] === 'mcp' && isGournalNodeLaunch(reg.command, args[0]!) ? 'gournal' : 'foreign';
   }
   if (lower === 'cmd.exe') {
-    const ok = args.length === 4 && args[0] === '/d' && args[1] === '/c' && baseName(args[2]!).toLowerCase() === 'gournal.cmd' && args[3] === 'mcp';
-    return ok ? 'gournal' : 'foreign';
+    return isLauncherCmd(args, ['mcp']) ? 'gournal' : 'foreign';
   }
   return 'foreign';
 }

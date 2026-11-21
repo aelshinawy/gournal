@@ -1,4 +1,4 @@
-import { baseName, isGournalNodeLaunch } from './command';
+import { baseName, isGournalNodeLaunch, isLauncherCmd } from './command';
 
 type Json = Record<string, unknown>;
 
@@ -81,7 +81,7 @@ function isGournalExecHook(command: string, args: unknown): boolean {
   if (!isStrings(args)) return false;
   const node = baseName(command).toLowerCase();
   if (node === 'cmd.exe') {
-    return args.length === 5 && args[0] === '/d' && args[1] === '/c' && baseName(args[2]!).toLowerCase() === 'gournal.cmd' && args[3] === 'hook' && args[4] === 'stop';
+    return isLauncherCmd(args, ['hook', 'stop']);
   }
   if (args.length !== 3) return false;
   return isGournalNodeLaunch(command, args[0]!) && args[1] === 'hook' && args[2] === 'stop';

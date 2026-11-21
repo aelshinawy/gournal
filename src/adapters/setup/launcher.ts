@@ -1,4 +1,4 @@
-import { NODE_FLOOR } from '../node-guard';
+import { NODE_FLOOR } from '../check-node';
 import { shellQuote } from './command';
 
 /**
