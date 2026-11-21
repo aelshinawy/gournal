@@ -3,6 +3,7 @@ import path from 'path';
 import { makeRealTmp, rmTmp } from '../helpers/tmp';
 import { makeHarness, type Harness } from '../helpers/setup-harness';
 import { selfCleanup } from '../../src/adapters/setup/cleanup';
+import { runtimePaths } from '../../src/adapters/setup/runtime';
 import type { CommandRunner } from '../../src/adapters/setup';
 
 const roots: string[] = [];
@@ -26,7 +27,7 @@ async function installed(): Promise<Harness> {
 const clean = (h: Harness, exec: CommandRunner): Promise<void> =>
   selfCleanup({ copyHome: h.gh, userHome: h.home, platform: 'linux', exec });
 const registered = (h: Harness): unknown => JSON.parse(fs.readFileSync(path.join(h.home, '.claude.json'), 'utf8')).mcpServers?.gournal;
-const launcher = (h: Harness): string => path.join(h.gh, 'bin', 'gournal');
+const launcher = (h: Harness): string => runtimePaths(h.gh, process.platform).launcher;
 
 test('it removes the current registration, the hook, the skill, the launcher, and the runtime, and keeps gournal.db and foreign hooks', async () => {
   const h = await installed();

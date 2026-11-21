@@ -6,6 +6,7 @@ import { INSTALL_FAMILIES } from '../../src/adapters/setup/launcher';
 import { CLEANUP_AFTER_S, MCP_GRACE_S, installGate } from '../../src/adapters/setup/install-gate';
 import { findOtherInstall, readRecords, sourceRecords, writeRecords, type SourceRecords } from '../../src/adapters/setup/source';
 import { canSymlink } from '../helpers/symlink';
+import { runtimePaths } from '../../src/adapters/setup/runtime';
 import { runCli } from '../../src/adapters/cli/program';
 
 const roots: string[] = [];
@@ -104,7 +105,7 @@ test('a Homebrew upgrade window is not an uninstall', () => {
 describe('npm uninstall', () => {
   const notice = (f: Fx): string => `gournal: the installed package ${f.source} is missing. gournal runs from its copy in ${f.home}/runtime.`;
   const gone = (f: Fx): string =>
-    `gournal: gournal is no longer installed: ${f.source} is gone. To remove gournal from Claude Code, run: ${path.join(f.home, 'bin', 'gournal')} setup claude --uninstall`;
+    `gournal: gournal is no longer installed: ${f.source} is gone. To remove gournal from Claude Code, run: ${runtimePaths(f.home, process.platform).launcher} setup claude --uninstall`;
 
   test('the first run writes removed-at and mcp runs from the copy with the notice', () => {
     const f = setup();
@@ -191,7 +192,7 @@ describe('npm uninstall', () => {
     expect(gateFor(f)(MCP)).toEqual({
       kind: 'exit',
       code: 1,
-      message: `gournal: gournal is no longer installed: ${f.prefix}/opt/gournal/libexec/lib/node_modules/gournal is gone. To remove gournal from Claude Code, run: ${path.join(f.home, 'bin', 'gournal')} setup claude --uninstall`,
+      message: `gournal: gournal is no longer installed: ${f.prefix}/opt/gournal/libexec/lib/node_modules/gournal is gone. To remove gournal from Claude Code, run: ${runtimePaths(f.home, process.platform).launcher} setup claude --uninstall`,
     });
   });
 });
@@ -327,7 +328,7 @@ describe('runCli', () => {
     expect(exited.status).toBe(1);
     expect(exited.out).toEqual([]);
     expect(exited.err).toEqual([
-      `gournal: gournal is no longer installed: ${f.source} is gone. To remove gournal from Claude Code, run: ${path.join(f.home, 'bin', 'gournal')} setup claude --uninstall`,
+      `gournal: gournal is no longer installed: ${f.source} is gone. To remove gournal from Claude Code, run: ${runtimePaths(f.home, process.platform).launcher} setup claude --uninstall`,
     ]);
     expect(exited.err[0]).not.toContain('\u001b');
     const cleaned = await runGate(f, ['hook', 'stop'], new Date(now.getTime() + 3600_000));
