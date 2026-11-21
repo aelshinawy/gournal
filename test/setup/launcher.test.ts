@@ -494,11 +494,30 @@ describe('Windows launcher', () => {
 
   windowsTest('a relative PATH node is never run when the current folder is given in its 8.3 form', () => relativePathCase('short'));
 
+  // The a%b and a^b cases fail closed through call mangling of the where result, not through the walk.
+  // The other names reach the walk and prove the quoted compares.
   // The current folder name holds a character that cmd.exe reads as syntax. The node.exe in it must still be skipped.
   windowsTest.each([['a=b'], ['a^b'], ['a%b'], ['a&b'], ['a!b'], ['a~1b'], ['a b']])(
     'a relative PATH node is never run when the current folder is named %s',
     (name) => relativePathCase('plain', name),
   );
+
+  // A legitimate node.exe on an absolute PATH entry that is not under the current folder must be picked.
+  function pickedFromPath(nodeRel: string): void {
+    const f = winFixture();
+    const cwd = path.join(f.root, 'proj');
+    fs.mkdirSync(cwd, { recursive: true });
+    const node = path.join(f.root, nodeRel, 'node.exe');
+    fs.mkdirSync(path.dirname(node), { recursive: true });
+    fs.copyFileSync(process.execPath, node);
+    const out = runWin(f, [], '0', { cwd, path: `${path.dirname(node)};${sys}\\System32` });
+    expect({ status: out.status, stderr: out.stderr }).toMatchObject({ status: 0 });
+    expect(fs.readFileSync(path.join(f.home, 'runtime', 'node'), 'utf8').trim().toLowerCase()).toBe(node.toLowerCase());
+  }
+
+  windowsTest('a node.exe in a sibling folder that shares a name prefix with the current folder is picked', () => pickedFromPath('proj2'));
+
+  windowsTest('a node.exe in a parent folder of the current folder is picked', () => pickedFromPath(''));
 
   windowsTest('a node.cmd found by where is never run', () => {
     const f = winFixture();

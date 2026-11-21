@@ -350,7 +350,7 @@ test('isGournalHook recognizes only the shapes that setup writes', () => {
   expect(isGournalHook('gournal hook stop')).toBe(true);
   expect(isGournalHook('/usr/local/bin/node /usr/lib/gournal/dist/cli.js hook stop')).toBe(true);
   expect(isGournalHook('node /x/gournal/cli.js hook stop')).toBe(true);
-  expect(isGournalHook('C:\\nodejs\\node.exe C:\\gournal\\cli.js hook stop')).toBe(false);
+  expect(isGournalHook(`'C:\\nodejs\\node.exe' 'C:\\app\\cli.js' hook stop`)).toBe(false);
   expect(isGournalHook(`'C:\\Program Files\\nodejs\\node.exe' 'C:\\gournal\\cli.js' hook stop`)).toBe(true);
   expect(isGournalHook(`/opt/node/bin/node '/my lib/it's here/cli.js' hook stop`)).toBe(false);
   expect(isGournalHook(`/opt/node/bin/node '/my lib/gournal/it'\\''s here/cli.js' hook stop`)).toBe(true);

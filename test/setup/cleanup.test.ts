@@ -27,11 +27,12 @@ async function installed(): Promise<Harness> {
 const clean = (h: Harness, exec: CommandRunner): Promise<void> =>
   selfCleanup({ copyHome: h.gh, userHome: h.home, platform: 'linux', exec });
 const registered = (h: Harness): unknown => JSON.parse(fs.readFileSync(path.join(h.home, '.claude.json'), 'utf8')).mcpServers?.gournal;
-const launcher = (h: Harness): string => runtimePaths(h.gh, process.platform).launcher;
+const launcher = (h: Harness): string => runtimePaths(h.gh, 'linux').launcher;
 
 test('it removes the current registration, the hook, the skill, the launcher, and the runtime, and keeps gournal.db and foreign hooks', async () => {
   const h = await installed();
   expect(registered(h)).toBeDefined();
+  expect(fs.existsSync(launcher(h))).toBe(true);
   await clean(h, h.fakeExec());
   expect(registered(h)).toBeUndefined();
   expect(h.stopCommands(h.readSettings())).toEqual([FOREIGN_HOOK.command]);
