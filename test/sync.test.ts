@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { GhError, type GhRunner } from '../src/sources';
 import { openJournal, type Journal } from '../src/storage/journal';
-import { AUTO_SYNC_BUDGET_MS, SYNC_LEASE, SYNC_STATE, maybeAutoSync, relinkAfterWrite, runSync } from '../src/adapters/sync';
+import { AUTO_SYNC_BUDGET_MS, SYNC_LEASE, SYNC_STATE, maybeAutoSync, nextCursor, runSync } from '../src/adapters/sync';
 import { fakeGh } from './helpers/fake-gh';
 import { makeTmp, rmTmp } from './helpers/tmp';
 
@@ -296,13 +296,26 @@ describe('auto sync gate', () => {
   });
 });
 
-describe('relinkAfterWrite', () => {
-  test('it never throws and warns once per process', () => {
-    const write = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    const broken = { activity: { relinkEntries: () => { throw new Error('boom'); } } } as unknown as Journal;
-    expect(() => relinkAfterWrite(broken, ['a'])).not.toThrow();
-    expect(() => relinkAfterWrite(broken, ['b'])).not.toThrow();
-    const warnings = write.mock.calls.filter((c) => String(c[0]).includes('relink'));
-    expect(warnings.length).toBeLessThanOrEqual(1);
+describe('nextCursor', () => {
+  const d = (iso: string) => new Date(iso);
+  const NOW_ISO = NOW.toISOString();
+  const OLD = d('2026-11-01T00:00:00.000Z');
+  const MID = '2026-11-05T00:00:00.000Z';
+  const LATER = d('2026-11-20T00:00:00.000Z');
+  // [name, cursor, since, complete, progressAt, expected]
+  const table: [string, Date | null, Date, boolean, string | null, string | null][] = [
+    ['null cursor, complete: now', null, OLD, true, null, NOW_ISO],
+    ['later --since, complete: leave it', OLD, d(MID), true, null, null],
+    ['later --since, partial: leave it', OLD, d(MID), false, '2026-11-10T00:00:00.000Z', null],
+    ['earlier cursor, complete: now', OLD, OLD, true, null, NOW_ISO],
+    ['cursor later than now, complete: keep the cursor', LATER, OLD, true, null, LATER.toISOString()],
+    ['partial, progress after cursor: progress', OLD, OLD, false, MID, MID],
+    ['partial, progress before cursor: leave it', d(MID), OLD, false, '2026-11-02T00:00:00.000Z', null],
+    ['partial, progress at cursor: leave it', OLD, OLD, false, OLD.toISOString(), null],
+    ['partial, no progress: leave it', OLD, OLD, false, null, null],
+    ['partial, null cursor, progress: progress', null, OLD, false, MID, MID],
+  ];
+  test.each(table)('%s', (_name, cursor, since, complete, progressAt, expected) => {
+    expect(nextCursor(cursor, since, complete, progressAt, NOW)).toBe(expected);
   });
 });

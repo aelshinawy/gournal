@@ -4,7 +4,7 @@ export {
 } from './entries/entry';
 export { newId, shortId } from './ids';
 export { MAX_SUMMARY, summaryLength, splitSummary, checkSummary, hasLineBreak } from './entries/summary';
-export { stripControl, cleanProject, cleanOpt, cleanDetails, cleanRefs, DEFAULT_PROJECT } from './entries/sanitize';
+export { stripControl, firstLine, cleanProject, cleanOpt, cleanDetails, cleanRefs, DEFAULT_PROJECT } from './entries/sanitize';
 export { REF_TYPES, mergeRefs, extractRefs, type Ref } from './labels/refs';
 export { normalizeTags, closeTags } from './labels/tags';
 export { CONFIG_DEFAULTS, normalizeConfig, invalidConfig, isPlainObject, type Config } from './config';
