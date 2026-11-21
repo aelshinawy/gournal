@@ -1,0 +1,125 @@
+name: Homebrew bump
+
+# Open a PR in the Homebrew tap when a new gournal version is on npm.
+# This workflow cannot hang off release.yml. The release stages the npm
+# package, and it becomes public only after a manual 2FA approval.
+# The workflow never pushes to the tap main branch. It opens a PR only.
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'gournal version to bump to. Empty means the npm latest tag.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homebrew-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    env:
+      TAP: aelshinawy/tap
+      HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+    steps:
+      - name: Check the tap token
+        id: gate
+        run: |
+          if [ "$HAS_TAP_TOKEN" != "true" ]; then
+            echo "::notice::The secret HOMEBREW_TAP_TOKEN is not set. Skipping the Homebrew bump."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Choose the version
+        id: version
+        if: steps.gate.outputs.run == 'true'
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -eu
+          version="${INPUT_VERSION:-}"
+          if [ -z "$version" ]; then
+            version="$(npm view gournal dist-tags.latest)"
+          fi
+          case "$version" in
+            *[!0-9A-Za-z.+-]*|"")
+              echo "::error::The version value is not valid."
+              exit 1
+              ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          case "$version" in
+            *-*)
+              echo "::notice::Version $version is a prerelease. Nothing to do."
+              echo "proceed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          # Homebrew installs with --min-release-age=1. Wait until the version is 1 day old.
+          published="$(npm view gournal time --json | jq -r --arg v "$version" '.[$v] // empty')"
+          if [ -z "$published" ]; then
+            echo "::error::Version $version is not on npm."
+            exit 1
+          fi
+          age=$(( $(date -u +%s) - $(date -u -d "$published" +%s) ))
+          if [ "$age" -lt 86400 ]; then
+            echo "::notice::Version $version is less than 24 hours old. Waiting for the next run."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Compare with the tap
+        id: tap
+        if: steps.gate.outputs.run == 'true' && steps.version.outputs.proceed == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -eu
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew tap "$TAP"
+          current="$(brew info --json=v2 "$TAP/gournal" | jq -r '.formulae[0].versions.stable')"
+          if [ "$current" = "$VERSION" ]; then
+            echo "::notice::The tap formula is already at $VERSION. Nothing to do."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Drift guard. Compare the tap formula with the template, without url and sha256.
+          tapfile="$(brew --repository "$TAP")/Formula/gournal.rb"
+          grep -Ev '^[[:space:]]*(url|sha256)[[:space:]]' "$tapfile" > "$RUNNER_TEMP/tap.rb"
+          grep -Ev '^[[:space:]]*(url|sha256)[[:space:]]' packaging/homebrew/gournal.rb > "$RUNNER_TEMP/template.rb"
+          if ! diff -u "$RUNNER_TEMP/template.rb" "$RUNNER_TEMP/tap.rb"; then
+            echo "::error::The tap formula differs from packaging/homebrew/gournal.rb. Update the tap by hand."
+            exit 1
+          fi
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open the tap PR
+        if: steps.gate.outputs.run == 'true' && steps.version.outputs.proceed == 'true' && steps.tap.outputs.proceed == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -eu
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          open="$(gh pr list --repo "$TAP" --state open --search "gournal $VERSION in:title" --json number --jq 'length')"
+          if [ "$open" != "0" ]; then
+            echo "::notice::A PR for gournal $VERSION is already open in the tap."
+            exit 0
+          fi
+          brew bump-formula-pr --no-browse --no-fork \
+            --url="https://registry.npmjs.org/gournal/-/gournal-${VERSION}.tgz" \
+            "$TAP/gournal"
