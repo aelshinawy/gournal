@@ -44,8 +44,6 @@ gournal --version
 
 Gournal prints its version number. Gournal supports macOS, Linux, and Windows (x64). Keep your journal on a local disk. See [Install](https://gournal.aelshinawy.com/docs/start-here/install/) for the requirements and the limits on each system.
 
-With Homebrew (macOS and Linux), run `brew install aelshinawy/tap/gournal`. The Homebrew tap is not published yet. Use npm until it is. Do not use npm and Homebrew together.
-
 Stuck? If your shell says `command not found`, your global npm folder is not on your `PATH`. Run `npm config get prefix` and add its `bin` folder to your `PATH`. See [Troubleshooting](https://gournal.aelshinawy.com/docs/resources/troubleshooting/) for more.
 
 ## Connect your AI agent
@@ -143,7 +141,7 @@ Sign in to the GitHub CLI once with `gh auth login`. Then run `gournal sync`. Go
 
 ## Update and uninstall
 
-To update, run `npm install -g gournal` again. With Homebrew, run `brew upgrade gournal`.
+To update, run `npm install -g gournal` again.
 
 To uninstall, run these commands in this order:
 
@@ -152,7 +150,7 @@ gournal setup claude --uninstall
 npm uninstall -g gournal
 ```
 
-With Homebrew, run `brew uninstall gournal` as the second command. If you remove the package first, see [You removed gournal before you ran the uninstall](https://gournal.aelshinawy.com/docs/resources/troubleshooting/#you-removed-gournal-before-you-ran-the-uninstall).
+If you remove the package first, see [You removed gournal before you ran the uninstall](https://gournal.aelshinawy.com/docs/resources/troubleshooting/#you-removed-gournal-before-you-ran-the-uninstall).
 
 Both commands keep your journal. It lives in `~/.gournal`. See [Data safety and backups](https://gournal.aelshinawy.com/docs/guides/data-safety-and-backups/) before you delete that folder.
 

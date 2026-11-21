@@ -9,7 +9,7 @@ description: Connect gournal to Claude Code with one command, and learn what the
 
 The command has three steps and a check. It shows each change before it applies the change.
 
-1. **MCP server and launcher.** It registers `~/.gournal/bin/gournal mcp` with `claude mcp add --scope user`. On Windows, it registers the full path of `cmd.exe`, then `/d /c`, then the full path of `gournal.cmd`, then `mcp`. The launcher and a copy of gournal go into the gournal home, `~/.gournal` by default (`%USERPROFILE%\.gournal` on Windows). See [How Claude Code starts gournal](#how-claude-code-starts-gournal).
+1. **MCP server and launcher.** It registers `~/.gournal/bin/gournal mcp` with `claude mcp add --scope user`. On Windows, it registers `gournal.cmd` through `cmd.exe`. See [Install](/docs/start-here/install/#windows). The launcher and a copy of gournal go into the gournal home, `~/.gournal` by default (`%USERPROFILE%\.gournal` on Windows). See [How Claude Code starts gournal](#how-claude-code-starts-gournal).
 2. **Skill.** It writes `~/.claude/skills/gournal/SKILL.md`. The skill tells Claude when to log work.
 3. **Stop hook.** It adds a hook to `~/.claude/settings.json`. This step is off by default.
 
@@ -82,22 +82,7 @@ Claude Code starts a server with the `PATH` of the app that started it. A deskto
 2. Setup writes the launcher `~/.gournal/bin/gournal`. On Windows, the launcher is `%USERPROFILE%\.gournal\bin\gournal.cmd`.
 3. Claude Code starts the launcher. It does not start the `gournal` command on your `PATH`.
 4. The launcher runs the installed package when it is there. It runs the copy in `~/.gournal/runtime` only when the installed package is missing. The package is missing after you remove a Node.js version, or while `brew upgrade` replaces it.
-5. The launcher looks for Node.js 22.13 or newer each time it runs. On macOS and Linux, it uses only absolute folders of the `PATH`. On Windows, it runs `where node`. It keeps only `node.exe` results and skips every result under the current folder. When the current folder is a drive root, it skips only a result in the root folder itself.
-
-The launcher tries these places in order on macOS and Linux. Each step uses the first Node.js that works. In step 4, the first folder with a Node.js that works wins, and the last name in that folder wins.
-
-1. The Node.js that worked last. Setup records the Node.js that ran it, and the launcher updates the record when it picks another one.
-2. `node` on the `PATH` of Claude Code.
-3. The `aliases/default` folder of fnm, then the `bin` folder of Volta.
-4. The folders of versions, in this order: nvm, fnm, Volta, asdf, mise, nodenv, n, and the Homebrew `node@NN` formulas. The launcher goes through them in this order. The first folder that holds a Node.js that works wins. Inside that folder, the last name in text sort order wins, so `v24.9.0` wins over `v24.10.0`.
-5. The Homebrew `opt/node` and `bin` folders of `/opt/homebrew`, `/usr/local`, and `/home/linuxbrew/.linuxbrew`, then `/usr/bin`, then `/snap/bin`.
-
-On Windows, the launcher uses this order:
-
-1. The Node.js that worked last.
-2. `node.exe` from `where node`.
-3. `%NVM_SYMLINK%`, then `%ProgramFiles%\nodejs`, then the default alias of fnm, then Volta, then Scoop. The first one that works wins.
-4. The folders of versions: nvm-windows, fnm, Volta. The first folder that holds a Node.js that works wins. Inside that folder, the last name in text sort order wins.
+5. The launcher looks for Node.js 22.13 or newer each time it runs. It tries the Node.js that worked last, then `node` on the `PATH` of Claude Code, then the usual folders of Node.js version managers and Homebrew. On macOS and Linux, it uses only absolute folders of the `PATH`.
 
 These changes do not break the launcher:
 
@@ -106,13 +91,11 @@ These changes do not break the launcher:
 - The removal of a Node.js version.
 - A start from the desktop app.
 
-Setup records one install of gournal. After you install a newer gournal the same way (the same Node.js version and the same tool), the next `gournal` command updates the copy in `~/.gournal/runtime`. Only a package under `node_modules` updates the copy. The `mcp` and `hook` commands never update it. If you install under another Node.js version or with another tool, run `gournal setup claude` again so that Claude Code uses it.
-
-A Homebrew install also uses the launcher. The launcher runs gournal from `/opt/homebrew/opt/gournal` with `/opt/homebrew/opt/node/bin/node`. It runs the copy only when that folder is missing. On Intel Macs, the folder is `/usr/local`. On Linux, it is `/home/linuxbrew/.linuxbrew`. These paths follow `brew upgrade` and do not need your `PATH`. If you switch from npm to Homebrew, see [Install](/docs/start-here/install/#install-gournal).
+The copy in `~/.gournal/runtime` changes only when you run `gournal setup claude`. Setup records one install of gournal. If you install under another Node.js version or with another tool, run `gournal setup claude` again so that Claude Code uses the new install.
 
 If you set `GOURNAL_HOME` when you run setup, the gournal home is that folder, and the launcher keeps it. A `GOURNAL_HOME` that Claude Code passes at run time overrides it. Run undo with the same `GOURNAL_HOME` as the install. Undo removes the two launcher files and the `runtime` folder. It removes the `bin` folder only when the folder is empty.
 
-If you remove the package with `npm uninstall -g gournal` or `brew uninstall gournal` before you run `gournal setup claude --uninstall`, gournal runs from its copy for one minute after it first notices the removal. Then the MCP server stops with a message. The Stop hook stays silent and removes the setup about one hour after it first notices the removal. See [You removed gournal before you ran the uninstall](/docs/resources/troubleshooting/#you-removed-gournal-before-you-ran-the-uninstall).
+If you remove the package before you run `gournal setup claude --uninstall`, see [You removed gournal before you ran the uninstall](/docs/resources/troubleshooting/#you-removed-gournal-before-you-ran-the-uninstall).
 
 If Claude Code cannot start gournal, see [Claude Code cannot start gournal](/docs/resources/troubleshooting/#claude-code-cannot-start-gournal).
 
