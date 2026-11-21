@@ -1,4 +1,5 @@
 import { PACKAGE_ROOT } from './package-copy';
+import { detectHomebrew } from './homebrew';
 import { installRuntime } from './runtime';
 import { checkLauncherPath } from './launcher';
 import { createLauncherCheck } from './launcher-check';
@@ -31,14 +32,18 @@ export function makeLauncherStep(ctx: SetupCtx): LauncherStep {
       const bad = checkLauncherPath(paths.launcher, platform);
       if (bad !== null) return fail(bad);
       try {
+        const packageRoot = io.packageRoot ?? PACKAGE_ROOT;
+        // The Node.js of a Homebrew run is a Cellar path. A brew upgrade removes it. Record the opt path.
+        const brew = detectHomebrew(packageRoot, platform);
         const { action } = installRuntime({
           gournalHome: io.gournalHome,
-          packageRoot: io.packageRoot ?? PACKAGE_ROOT,
-          nodePath: ctx.env.execPath,
+          packageRoot,
+          nodePath: brew?.node ?? ctx.env.execPath,
           platform,
           bakeHome: ctx.bakeHome,
         });
         io.out(action === 'unchanged' ? 'Launcher: already set up.' : `Launcher: ${LABELS[action]} ${paths.runtimeDir}.`);
+        if (brew) io.out(`Homebrew: the launcher runs gournal from ${brew.prefix}/opt/gournal with ${brew.node}.`);
         state = 'ok';
         return true;
       } catch (error) {
