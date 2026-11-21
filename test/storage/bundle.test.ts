@@ -279,6 +279,20 @@ describe('activity in bundles', () => {
     } finally { db2.close(); }
   });
 
+  test('a relink failure sets a warning and the entries are still imported', () => {
+    const entry = repo.add({ summary: 'ship x', refs: entryRefs, ...base });
+    const bundle = JSON.parse(JSON.stringify(exportBundle(db, config)));
+    const { d: db2, r: repo2 } = open('b.db');
+    // matchScope reads weekStartsOn, so a throwing getter fails the relink step only.
+    const broken = Object.defineProperty({ ...config }, 'weekStartsOn', { get: () => { throw new Error('boom'); } });
+    try {
+      const r = importBundle(db2, bundle, broken);
+      expect(r).toMatchObject({ inserted: 1, updated: 0, skipped: 0 });
+      expect(r.warning).toContain('relink after import failed');
+      expect(repo2.get(entry.id)).toBeTruthy();
+    } finally { db2.close(); }
+  });
+
   test('an older bundle activity row does not overwrite a newer local one', () => {
     const a = createActivityRepository(db, config, path.join(home, 'a.db'));
     a.upsert([act()]);
