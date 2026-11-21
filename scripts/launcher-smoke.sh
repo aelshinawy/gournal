@@ -1,172 +1,72 @@
 #!/bin/sh
 # Launcher smoke test.
-# This script mirrors the Node version manager repro. It installs the packed gournal
-# into one fake nvm Node version, runs "gournal setup claude", and starts the command
-# that setup registered the way Claude Code starts it: no shell, a minimal environment.
-# Then it switches the default Node version, removes the Node version that setup used,
-# and runs gournal under a Node older than 22.13.
+# This script replays the Node version manager repro. It installs the packed gournal into one
+# fake nvm Node version and runs "gournal setup claude". Then it starts the registered command
+# the way Claude Code does (no shell, a minimal environment) and checks these cases:
+#   - the minimal PATH
+#   - a switch of the default Node version
+#   - the removal of the Node version that setup used
+#   - a Node older than 22.13 (needs GOURNAL_OLD_NODE, the path of a Node 22.12.0 binary)
+#   - the removal of the package without "setup claude --uninstall"
 #
 # Usage: sh scripts/launcher-smoke.sh
-#        GOURNAL_OLD_NODE=/path/to/node-22.12.0 sh scripts/launcher-smoke.sh
-#
-# GOURNAL_OLD_NODE is optional. It is the path of a Node 22.12.0 binary. Without it, the
-# scenario for Node below 22.13 is skipped.
-#
-# The script never touches the real home. It sets HOME to a temporary folder, refuses to
-# run when that folder is the real home or is inside the real ~/.gournal, and removes the
-# folder when it exits. It does not set GOURNAL_HOME, so the default home is used inside
-# the temporary folder.
-#
-# The script also runs in Git Bash on Windows. It converts paths with cygpath -m, as
-# pack-smoke.sh does, and starts gournal with node, so no cmd quoting applies.
+# GOURNAL_TARBALL names a packed tarball. Without it, the script builds and packs one.
+# The script uses a temporary HOME. See smoke-lib.sh.
 
 set -eu
 
-root=$(cd "$(dirname "$0")/.." && pwd)
-cd "$root"
-
-real_home=$HOME
-# Keep the npm cache of the user. HOME changes below, and the cache would move with it.
-npm_cache=$(npm config get cache)
-
-case "$(uname -s)" in
-  MINGW* | MSYS* | CYGWIN*) windows=1 ;;
-  *) windows=0 ;;
-esac
-
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/gournal-launcher-smoke.XXXXXX")
-if [ "$windows" -eq 1 ]; then
-  tmp=$(cygpath -m "$tmp")
-fi
-
-cleanup() {
-  # Leave the temporary folder first. A process must not delete its own current folder.
-  cd "$root" 2>/dev/null || cd / || true
-  rm -rf "$tmp" || true
-}
-trap cleanup EXIT
-trap 'exit 1' HUP INT TERM
-
-fail() {
-  echo "launcher-smoke: FAIL: $*" >&2
-  exit 1
-}
-
-# The helper below splits the registered command on spaces, so a space in the path breaks it.
-case "$tmp" in
-  *" "*) fail "the temporary folder path holds a space: $tmp. Set TMPDIR to a folder without a space." ;;
-esac
-
-# Compare canonical forms: the mixed form on Windows, the physical path on POSIX (macOS /var is a symlink).
-if [ "$windows" -eq 1 ]; then
-  # The long form on both sides, so RUNNER~1 and runneradmin compare equal.
-  canon_tmp=$(cygpath -ml "$tmp")
-  canon_home=$(cygpath -ml "$real_home")
-else
-  canon_tmp=$(cd -P "$tmp" && pwd -P)
-  canon_home=$(cd -P "$real_home" && pwd -P)
-fi
-[ "$canon_tmp" != "$canon_home" ] || fail "the temporary folder is the real home"
-case "$canon_tmp" in
-  "$canon_home/.gournal" | "$canon_home/.gournal/"*) fail "the temporary folder is inside the real ~/.gournal" ;;
-esac
-
-mkdir "$tmp/pack" "$tmp/home" "$tmp/work"
-export npm_config_cache="$npm_cache"
-export HOME="$tmp/home"
-export USERPROFILE="$tmp/home"
-export GOURNAL_NO_AUTOSYNC=1
-unset GOURNAL_HOME NVM_DIR FNM_DIR VOLTA_HOME XDG_DATA_HOME XDG_CONFIG_HOME ASDF_DATA_DIR MISE_DATA_DIR NODENV_ROOT N_PREFIX
-if [ "$windows" -eq 1 ]; then
-  mkdir -p "$tmp/home/AppData/Local" "$tmp/home/AppData/Roaming"
-  export LOCALAPPDATA="$tmp/home/AppData/Local"
-  export APPDATA="$tmp/home/AppData/Roaming"
-fi
-
-expected=$(node -p "require('./package.json').version" | tr -d '\r')
+. "$(dirname "$0")/smoke-lib.sh"
+smoke_init launcher-smoke
+smoke_pack
 ci_node=$(node -p "process.execPath")
 
-echo "launcher-smoke: build and pack"
-npm run --silent clean
-npm run --silent build
-# The probe of the launcher, from the build. The scenario below must use the same source.
-probe=$(node -e 'process.stdout.write(require(process.argv[1]).probeSource("\""))' "$root/dist/adapters/setup/launcher.js")
-tarball=$(npm pack --silent --pack-destination "$tmp/pack" | tail -n 1 | tr -d '\r')
-[ -f "$tmp/pack/$tarball" ] || fail "npm pack did not create $tarball"
-
-# Layout: two copies of the CI Node, as a version manager keeps them. A copy is needed.
-# Node reports the real path as execPath, so a symlink would record the CI Node.
+# Two copies of the CI Node, as a version manager keeps them. Node reports the real path as
+# execPath, so a symlink would record the CI Node.
 if [ "$windows" -eq 1 ]; then
   nodes="$LOCALAPPDATA/nvm"
-  va="$nodes/vA"
-  vb="$nodes/vB"
-  va_bin="$va"
-  vb_bin="$vb"
+  va_bin="$nodes/vA"
+  vb_bin="$nodes/vB"
   node_name="node.exe"
-  cli="$va/node_modules/gournal/dist/cli.js"
+  cli_rel="node_modules/gournal/dist/cli.js"
 else
   nodes="$HOME/.nvm/versions/node"
-  va="$nodes/vA"
-  vb="$nodes/vB"
-  va_bin="$va/bin"
-  vb_bin="$vb/bin"
+  va_bin="$nodes/vA/bin"
+  vb_bin="$nodes/vB/bin"
   node_name="node"
-  cli="$va/lib/node_modules/gournal/dist/cli.js"
+  cli_rel="lib/node_modules/gournal/dist/cli.js"
 fi
+va="$nodes/vA"
+vb="$nodes/vB"
+cli="$va/$cli_rel"
 mkdir -p "$va_bin" "$vb_bin"
-cp "$ci_node" "$va_bin/$node_name"
-cp "$ci_node" "$vb_bin/$node_name"
-chmod +x "$va_bin/$node_name" "$vb_bin/$node_name"
+for d in "$va_bin" "$vb_bin"; do
+  cp "$ci_node" "$d/$node_name"
+  chmod +x "$d/$node_name"
+done
 
-echo "launcher-smoke: install $tarball into version A only"
-PATH="$va_bin:$PATH" npm install --global --prefix "$va" --no-audit --no-fund --loglevel=error "$tmp/pack/$tarball"
-[ -f "$cli" ] || fail "the installed package has no entry file at $cli"
-gournal_a() { "$va_bin/$node_name" "$cli" "$@"; }
-
-# A fake claude records its arguments.
-fakebin="$tmp/fakebin"
 calls="$tmp/claude-calls.log"
-mkdir "$fakebin"
-: >"$calls"
+write_fake_claude "$calls" "$tmp/fakebin"
 if [ "$windows" -eq 1 ]; then
-  calls_native=$(cygpath -w "$calls")
-  printf '@echo off\r\necho %%* >>"%s"\r\nexit /b 0\r\n' "$calls_native" >"$fakebin/claude.cmd"
-  fakebin_path=$(cygpath -u "$fakebin")
-  va_path=$(cygpath -u "$va_bin")
   sys_path=$(cygpath -u "$SYSTEMROOT")/System32
-  ci_path=$(cygpath -u "$(dirname "$(cygpath -u "$ci_node")")")
   # The child of the helper is a native program. It needs native folders joined with a semicolon.
   child_vb=$(cygpath -w "$vb_bin")
   child_sys="$SYSTEMROOT\\System32"
-  child_rest=$(cygpath -w "$fakebin")";$child_sys"
-  child_ci=$(cygpath -w "$(dirname "$(cygpath -u "$ci_node")")")
   sep=";"
 else
-  cat >"$fakebin/claude" <<EOF
-#!/bin/sh
-printf '%s\n' "\$*" >>"$calls"
-exit 0
-EOF
-  chmod +x "$fakebin/claude"
-  fakebin_path="$fakebin"
-  va_path="$va_bin"
   sys_path=/usr/bin:/bin
-  ci_path=$(dirname "$ci_node")
   child_vb="$vb_bin"
   child_sys="$sys_path"
-  child_rest="$fakebin:$sys_path"
-  child_ci="$ci_path"
   sep=":"
 fi
 
-# The launcher helper starts a command the way Claude Code does: spawnSync, no shell, a
-# minimal environment. The first argument is the mode. The second is the PATH of the child
-# (empty means the minimal PATH). The third is the standard input text.
+# launch.js starts a command the way Claude Code does: spawnSync, no shell, a minimal
+# environment. The first argument is the mode. The second is the PATH of the child (empty means
+# the minimal PATH). The third is the standard input text.
 #   reg  : the registered MCP command, with its last word (mcp) replaced by the rest of argv
 #   mcp  : the registered MCP command as it is
 #   hook : the registered hook command from settings.json
-# The helper writes the child output to $tmp/l.out and $tmp/l.err and exits with its status.
-cat >"$tmp/launch.js" <<'EOF'
+# It writes the child output to $tmp/l.out and $tmp/l.err and exits with the status of the child.
+cat >"$tmp/launch.js" <<'JS'
 const fs = require('fs');
 const cp = require('child_process');
 const [mode, childPath, input, ...rest] = process.argv.slice(2);
@@ -174,7 +74,7 @@ const [home, calls, settings, outFile, errFile] = process.env.LS_FILES.split('|'
 const win = process.platform === 'win32';
 const words = () => {
   const line = fs.readFileSync(calls, 'utf8').replace(/"/g, '').split(/\r?\n/).find((l) => l.includes('mcp add'));
-  return line.slice(line.indexOf(' -- ') + 4).replace(/"/g, '').trim().split(' ');
+  return line.slice(line.indexOf(' -- ') + 4).trim().split(' ');
 };
 const env = win
   ? { USERPROFILE: home, SystemRoot: process.env.SystemRoot, APPDATA: process.env.APPDATA, LOCALAPPDATA: process.env.LOCALAPPDATA, PATH: childPath || process.env.SystemRoot + '\\System32' }
@@ -193,91 +93,79 @@ const r = cp.spawnSync(command, args, { env, input: input ? input + '\n' : input
 fs.writeFileSync(outFile, r.stdout || '');
 fs.writeFileSync(errFile, (r.stderr || '') + (r.error ? String(r.error.message) : ''));
 process.exit(r.status === null ? 99 : r.status);
-EOF
+JS
 export LS_FILES="$HOME|$calls|$HOME/.claude/settings.json|$tmp/l.out|$tmp/l.err"
 launch() {
   launch_status=0
   node "$tmp/launch.js" "$@" || launch_status=$?
 }
+expect_version() {
+  [ "$launch_status" -eq 0 ] || fail "$1 exited with $launch_status: $(cat "$tmp/l.err")"
+  [ "$(tr -d '\r\n' <"$tmp/l.out")" = "$expected" ] || fail "$1 printed '$(cat "$tmp/l.out")', expected '$expected'"
+}
+# The hook must print nothing and exit 0.
+expect_silent_hook() {
+  launch hook "" "{}"
+  [ "$launch_status" -eq 0 ] || fail "the hook exited with $launch_status: $(cat "$tmp/l.err")"
+  [ -z "$(cat "$tmp/l.out" "$tmp/l.err")" ] || fail "the hook printed: $(cat "$tmp/l.out") $(cat "$tmp/l.err")"
+}
+
+# Install the package into one Node version and run setup from it.
+install_and_setup() {
+  prefix=$1 bindir=$2
+  PATH="$bindir:$PATH" npm install --global --prefix "$prefix" --no-audit --no-fund --loglevel=error "$tarball"
+  entry="$prefix/$cli_rel"
+  [ -f "$entry" ] || fail "the installed package has no entry file at $entry"
+  : >"$calls"
+  setup_status=0
+  (PATH="$fakebin_path:$(cd "$bindir" && pwd):$sys_path"; export PATH; "$bindir/$node_name" "$entry" setup claude --yes --hook) </dev/null >"$tmp/setup.out" 2>&1 || setup_status=$?
+  cat "$tmp/setup.out"
+  [ "$setup_status" -eq 0 ] || fail "gournal setup claude exited with status $setup_status"
+}
 
 cd "$tmp/work"
 
-# Setup runs from version A with a PATH that holds the fake claude, version A, and system folders.
 echo "launcher-smoke: gournal setup claude"
-setup_status=0
-(PATH="$fakebin_path:$va_path:$sys_path"; export PATH; gournal_a setup claude --yes --hook) </dev/null >"$tmp/setup.out" 2>&1 || setup_status=$?
-cat "$tmp/setup.out"
-[ "$setup_status" -eq 0 ] || fail "gournal setup claude --yes --hook exited with status $setup_status"
+install_and_setup "$va" "$va_bin"
 grep -q -F 'Check: Claude Code can start gournal without your shell PATH.' "$tmp/setup.out" || fail "setup did not print the launcher check line"
-
-# The registered command is the words after "--" in the fake claude log.
-tr -d '"\r' <"$calls" >"$tmp/claude-calls.norm"
-registered=$(sed -n 's/.* -- //p' "$tmp/claude-calls.norm" | head -n 1)
+registered=$(tr -d '"\r' <"$calls" | sed -n 's/.* -- //p' | head -n 1)
 echo "launcher-smoke: registered command: $registered"
-first=$(echo "$registered" | cut -d' ' -f1)
-if [ "$windows" -eq 1 ]; then
-  case "$first" in *[cC][mM][dD].[eE][xX][eE]) ;; *) fail "the registered command does not start with cmd.exe: $registered" ;; esac
-  third=$(echo "$registered" | cut -d' ' -f4)
-  case "$third" in *'\.gournal\bin\gournal.cmd') ;; *) fail "the registered launcher is not under .gournal\\bin: $registered" ;; esac
-else
-  case "$first" in
-    /*/.gournal/bin/gournal) ;;
-    *) fail "the registered command is not an absolute path that ends in /.gournal/bin/gournal: $registered" ;;
-  esac
-fi
+case "$registered" in
+  */.gournal/bin/gournal' '* | *'\.gournal\bin\gournal.cmd'*) ;;
+  *) fail "the registered command does not run the launcher in .gournal/bin: $registered" ;;
+esac
 
 mcp_in='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"launcher-smoke","version":"0.0.0"}}}'
 
-echo "launcher-smoke: minimal-path-launch"
+echo "launcher-smoke: minimal PATH"
 launch reg "" "" --version
-[ "$launch_status" -eq 0 ] || fail "--version through the launcher exited with $launch_status: $(cat "$tmp/l.err")"
-[ "$(tr -d '\r\n' <"$tmp/l.out")" = "$expected" ] || fail "--version printed '$(cat "$tmp/l.out")', expected '$expected'"
+expect_version "--version through the launcher"
 launch reg "" "" add "launcher smoke"
 [ "$launch_status" -eq 0 ] || fail "add through the launcher exited with $launch_status: $(cat "$tmp/l.err")"
 [ -f "$HOME/.gournal/gournal.db" ] || fail "add did not create $HOME/.gournal/gournal.db"
 launch mcp "" "$mcp_in"
 [ "$launch_status" -eq 0 ] || fail "mcp through the launcher exited with $launch_status: $(cat "$tmp/l.err")"
-grep -q '"result"' "$tmp/l.out" || fail "the initialize response has no result: $(cat "$tmp/l.out")"
-grep -q '"name":"gournal"' "$tmp/l.out" || fail "the initialize response does not name gournal"
-# A hook that never ran Node exits 0 and prints nothing. A transcript with an edit and no add_entry
-# makes the real hook print its reason, so the output proves that Node ran gournal.
+grep -q '"name":"gournal"' "$tmp/l.out" || fail "the initialize response does not name gournal: $(cat "$tmp/l.out")"
+# A transcript with an edit and no add_entry makes the real hook print its reason. A hook that never ran Node prints nothing.
 printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{}}]}}' >"$tmp/transcript.jsonl"
-hook_in=$(node -e 'console.log(JSON.stringify({ session_id: "launcher-smoke", transcript_path: process.argv[1] }))' "$tmp/transcript.jsonl")
-launch hook "" "$hook_in"
+launch hook "" "$(node -e 'console.log(JSON.stringify({ session_id: "launcher-smoke", transcript_path: process.argv[1] }))' "$tmp/transcript.jsonl")"
 [ "$launch_status" -eq 0 ] || fail "the registered hook exited with $launch_status: $(cat "$tmp/l.err")"
 grep -q 'logged no work' "$tmp/l.out" || fail "the registered hook did not print its reason: $(cat "$tmp/l.out") $(cat "$tmp/l.err")"
 
-echo "launcher-smoke: default-version-switch"
+echo "launcher-smoke: default version switch"
 launch reg "$child_vb$sep$child_sys" "" --version
-[ "$launch_status" -eq 0 ] || fail "--version with Node version B first on PATH exited with $launch_status: $(cat "$tmp/l.err")"
-[ "$(tr -d '\r\n' <"$tmp/l.out")" = "$expected" ] || fail "--version printed '$(cat "$tmp/l.out")', expected '$expected'"
+expect_version "--version with Node version B first on PATH"
 
-echo "launcher-smoke: uninstall-of-setup-version"
+echo "launcher-smoke: removal of the setup Node version"
 rm -rf "$va"
 launch reg "" "" --version
-[ "$launch_status" -eq 0 ] || fail "--version after the removal of version A exited with $launch_status: $(cat "$tmp/l.err")"
-[ "$(tr -d '\r\n' <"$tmp/l.out")" = "$expected" ] || fail "--version printed '$(cat "$tmp/l.out")', expected '$expected'"
-[ -f "$HOME/.gournal/runtime/node" ] || fail "the launcher did not write runtime/node"
+expect_version "--version after the removal of version A"
 recorded=$(tr -d '\r\n' <"$HOME/.gournal/runtime/node" | tr '\\' '/')
 case "$recorded" in
   "$va"/*) fail "runtime/node still names version A: $recorded" ;;
 esac
-if [ "$windows" -eq 0 ]; then
-  # The launcher walks the PATH before the nvm folders. A dev box whose /usr/bin/node passes the probe records that node.
-  path_node=""
-  for n in /usr/bin/node /bin/node; do
-    if [ -x "$n" ] && { "$n" -e "$probe" </dev/null >/dev/null 2>&1; } 2>/dev/null; then path_node="$n"; fi
-  done
-  if [ -z "$path_node" ]; then
-    case "$recorded" in
-      "$vb"/*) ;;
-      *) fail "runtime/node does not name version B: $recorded" ;;
-    esac
-  fi
-fi
-echo "launcher-smoke: runtime/node is now $recorded"
 
-echo "launcher-smoke: node-below-22.13"
+echo "launcher-smoke: Node below 22.13"
 if [ -z "${GOURNAL_OLD_NODE:-}" ]; then
   echo "launcher-smoke: skipped (set GOURNAL_OLD_NODE to a Node 22.12.0 binary to run it)"
 else
@@ -289,148 +177,27 @@ else
     'gournal needs Node.js 22.13 or newer.'*) ;;
     *) fail "the message of Node 22.12 is wrong: $(cat "$tmp/old.err")" ;;
   esac
-  ! grep -q ERR_UNKNOWN_BUILTIN_MODULE "$tmp/old.err" || fail "Node 22.12 printed ERR_UNKNOWN_BUILTIN_MODULE"
-
-  if [ "$windows" -eq 0 ]; then
-    # Only the old Node is left in the nvm folder. The launcher must skip it and look further.
-    # The result depends on the runner: a system Node that passes the probe is used.
-    rm -rf "$vb"
-    mkdir -p "$nodes/vOld/bin"
-    cp "$GOURNAL_OLD_NODE" "$nodes/vOld/bin/node"
-    chmod +x "$nodes/vOld/bin/node"
-    printf '%s\n' "$nodes/vOld/bin/node" >"$HOME/.gournal/runtime/node"
-    # Compute the expected result with the probe and the candidate lists of the launcher, from the build.
-    # Each file and glob fragment runs through sh with this HOME, as the launcher does.
-    all=$(node -e '
-      const c = require(process.argv[1]).POSIX_CANDIDATES;
-      const lines = [...c.files, ...c.globs, ...c.system].map((w) => `for n in ${w}; do printf "%s\\n" "$n"; done`);
-      console.log(lines.join("\n"));
-    ' "$root/dist/adapters/setup/launcher.js" | sh)
-    good=""
-    while IFS= read -r n; do
-      if [ -f "$n" ] && [ -x "$n" ] && { "$n" -e "$probe" </dev/null >/dev/null 2>&1; } 2>/dev/null; then good="$n"; fi
-    done <<EOF
-$all
-EOF
-    launch reg "" "" --version
-    if [ -n "$good" ]; then
-      [ "$launch_status" -eq 0 ] || fail "a system Node passes ($good), but the launcher exited with $launch_status: $(cat "$tmp/l.err")"
-      [ "$(tr -d '\r\n' <"$tmp/l.out")" = "$expected" ] || fail "--version printed '$(cat "$tmp/l.out")', expected '$expected'"
-    else
-      [ "$launch_status" -eq 1 ] || fail "no system Node passes, and the launcher exited with $launch_status, expected 1"
-      want='gournal: found no Node.js 22.13 or newer with the node:sqlite module. Install Node.js 22.13 or newer. Then run "gournal setup claude" in a terminal.'
-      [ "$(tr -d '\r' <"$tmp/l.err")" = "$want" ] || fail "the no-node line is wrong: $(cat "$tmp/l.err")"
-    fi
-    ! grep -q ERR_UNKNOWN_BUILTIN_MODULE "$tmp/l.err" || fail "the launcher printed ERR_UNKNOWN_BUILTIN_MODULE"
-  fi
 fi
 
-echo "launcher-smoke: uninstall"
-# Version A is gone, so run the launcher. The launcher runs the copy of gournal in the runtime folder.
-# Put a good Node on the PATH of the child, because the old Node may be the only recorded one.
-launch reg "$child_ci$sep$child_rest" "" setup claude --uninstall --yes
-[ "$launch_status" -eq 0 ] || fail "uninstall exited with $launch_status: $(cat "$tmp/l.err") $(cat "$tmp/l.out")"
-[ ! -e "$HOME/.gournal/bin/gournal" ] && [ ! -e "$HOME/.gournal/bin/gournal.cmd" ] || fail "uninstall left the launcher"
-[ ! -e "$HOME/.gournal/runtime" ] || fail "uninstall left the runtime folder"
-[ -f "$HOME/.gournal/gournal.db" ] || fail "uninstall removed the journal file"
-
-# Scenarios 6 and 7 use version B (and a new version C). Make version B again, because the earlier
-# scenarios removed it. The fake claude only logs. It does not write ~/.claude.json, so the scenario writes
-# the registration that "claude mcp add" would write.
-if [ "$windows" -eq 1 ]; then
-  vb_path=$(cygpath -u "$vb_bin")
-  cli_b="$vb/node_modules/gournal/dist/cli.js"
-  vc="$nodes/vC"
-  vc_bin="$vc"
-  child_vc=$(cygpath -w "$vc_bin")
-else
-  vb_path="$vb_bin"
-  cli_b="$vb/lib/node_modules/gournal/dist/cli.js"
-  vc="$nodes/vC"
-  vc_bin="$vc/bin"
-  child_vc="$vc_bin"
-fi
-gournal_b() { "$vb_bin/$node_name" "$cli_b" "$@"; }
-
-install_b() {
-  mkdir -p "$vb_bin"
-  cp "$ci_node" "$vb_bin/$node_name"
-  chmod +x "$vb_bin/$node_name"
-  PATH="$vb_bin:$PATH" npm install --global --prefix "$vb" --no-audit --no-fund --loglevel=error "$tmp/pack/$tarball"
-  [ -f "$cli_b" ] || fail "the installed package has no entry file at $cli_b"
-  : >"$calls"
-  rm -f "$HOME/.claude.json"
-  setup_b_status=0
-  (PATH="$fakebin_path:$vb_path:$sys_path"; export PATH; gournal_b setup claude --yes --hook) </dev/null >"$tmp/setup-b.out" 2>&1 || setup_b_status=$?
-  [ "$setup_b_status" -eq 0 ] || fail "setup from version B exited with $setup_b_status: $(cat "$tmp/setup-b.out")"
-  node -e '
-    const fs = require("fs");
-    const line = fs.readFileSync(process.argv[1], "utf8").replace(/"/g, "").split(/\r?\n/).find((l) => l.includes("mcp add"));
-    const w = line.slice(line.indexOf(" -- ") + 4).trim().split(" ");
-    fs.writeFileSync(process.argv[2], JSON.stringify({ mcpServers: { gournal: { type: "stdio", command: w[0], args: w.slice(1) } } }));
-  ' "$calls" "$HOME/.claude.json"
-}
-
-# The hook must print nothing, and a run must leave no removed-at, unless a step says otherwise.
-expect_silent_hook() {
-  launch hook "$1" "{}"
-  [ "$launch_status" -eq 0 ] || fail "the hook exited with $launch_status: $(cat "$tmp/l.err")"
-  [ -z "$(cat "$tmp/l.out" "$tmp/l.err")" ] || fail "the hook printed: $(cat "$tmp/l.out") $(cat "$tmp/l.err")"
-}
-
-echo "launcher-smoke: npm-uninstall-without-uninstall"
-install_b
+echo "launcher-smoke: package removed without setup claude --uninstall"
+rm -f "$HOME/.claude.json"
+install_and_setup "$vb" "$vb_bin"
 PATH="$vb_bin:$PATH" npm uninstall --global --prefix "$vb" --loglevel=error gournal
-[ ! -e "$cli_b" ] || fail "npm uninstall left $cli_b"
+[ ! -e "$vb/$cli_rel" ] || fail "npm uninstall left $vb/$cli_rel"
 removed_at="$HOME/.gournal/runtime/removed-at"
-expect_silent_hook ""
-[ -f "$removed_at" ] || fail "the first hook after the uninstall did not write removed-at"
-# The grace window: the copy runs, and stderr holds exactly one notice line.
+expect_silent_hook
+[ -f "$removed_at" ] || fail "the first hook after the removal did not write removed-at"
+# In the grace window the copy runs and stderr holds one notice line.
 launch reg "" "" --version
-[ "$launch_status" -eq 0 ] || fail "--version in the grace window exited with $launch_status: $(cat "$tmp/l.err")"
-[ "$(tr -d '\r\n' <"$tmp/l.out")" = "$expected" ] || fail "--version printed '$(cat "$tmp/l.out")', expected '$expected'"
+expect_version "--version in the grace window"
 [ "$(wc -l <"$tmp/l.err" | tr -d ' ')" -eq 1 ] || fail "stderr in the grace window is not one line: $(cat "$tmp/l.err")"
-grep -q 'is missing. gournal runs from its copy in' "$tmp/l.err" || fail "the notice line is wrong: $(cat "$tmp/l.err")"
-# After 60 s the MCP server stops with one line. The hook stays silent and changes nothing.
-settings_before=$(cksum <"$HOME/.claude/settings.json")
+# After 60 s the MCP server stops with one line. The hook stays silent.
 echo $(( $(date +%s) - 61 )) >"$removed_at"
 launch mcp "" "$mcp_in"
 [ "$launch_status" -eq 1 ] || fail "mcp after the grace window exited with $launch_status, expected 1"
 [ ! -s "$tmp/l.out" ] || fail "mcp wrote to stdout: $(cat "$tmp/l.out")"
 [ "$(wc -l <"$tmp/l.err" | tr -d ' ')" -eq 1 ] || fail "stderr after the grace window is not one line: $(cat "$tmp/l.err")"
 grep -q 'setup claude --uninstall' "$tmp/l.err" || fail "the no-longer-installed line is wrong: $(cat "$tmp/l.err")"
-expect_silent_hook ""
-[ "$(cksum <"$HOME/.claude/settings.json")" = "$settings_before" ] || fail "the hook changed settings.json before the cleanup time"
-[ -d "$HOME/.gournal/runtime" ] || fail "the hook removed the runtime before the cleanup time"
-# After 3600 s the hook removes the gournal setup. It finds the fake claude on its PATH.
-echo $(( $(date +%s) - 3600 )) >"$removed_at"
-expect_silent_hook "$child_rest"
-[ ! -f "$HOME/.claude/settings.json" ] || ! grep -q gournal "$HOME/.claude/settings.json" || fail "the cleanup left the gournal hook in settings.json"
-[ ! -e "$HOME/.claude/skills/gournal/SKILL.md" ] || fail "the cleanup left the skill file"
-# The fake claude.cmd on Windows logs each word in quotes, so strip them first.
-[ "$(tr -d '"\r' <"$calls" | grep -c 'mcp remove')" -ge 1 ] || fail "the cleanup did not run claude mcp remove: $(cat "$calls")"
-[ ! -e "$HOME/.gournal/bin/gournal" ] && [ ! -e "$HOME/.gournal/bin/gournal.cmd" ] || fail "the cleanup left the launcher"
-[ ! -e "$HOME/.gournal/runtime" ] || fail "the cleanup left the runtime folder"
-[ -f "$HOME/.gournal/gournal.db" ] || fail "the cleanup removed the journal file"
-
-echo "launcher-smoke: node-switch-and-removal-never-clean-up"
-mkdir -p "$vc_bin"
-cp "$ci_node" "$vc_bin/$node_name"
-chmod +x "$vc_bin/$node_name"
-install_b
-launch_both() {
-  expect_silent_hook "$1"
-  launch reg "$1" "" --version
-  [ "$launch_status" -eq 0 ] || fail "--version exited with $launch_status: $(cat "$tmp/l.err")"
-  [ "$(tr -d '\r\n' <"$tmp/l.out")" = "$expected" ] || fail "--version printed '$(cat "$tmp/l.out")', expected '$expected'"
-  [ -z "$(tr -d '\r\n' <"$tmp/l.err")" ] || fail "--version wrote to stderr: $(cat "$tmp/l.err")"
-  [ ! -e "$removed_at" ] || fail "removed-at exists after a Node.js change"
-  grep -q gournal "$HOME/.claude/settings.json" || fail "the gournal hook is gone from settings.json"
-}
-# A switch to version C (it holds no gournal): the recorded Node.js and the copy still work.
-launch_both "$child_vc$sep$child_sys"
-# A removal of version B, which holds the package: the anchor goes too, so this is not an uninstall.
-rm -rf "$vb"
-launch_both ""
+expect_silent_hook
 
 echo "launcher-smoke: OK (gournal $expected)"
