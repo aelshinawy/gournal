@@ -26,7 +26,7 @@ test.each([
   const fixture = read(name);
   const want = expected();
   expect(fixture.entries.length).toBeGreaterThanOrEqual(6);
-  expect(importBundle(db, fixture)).toMatchObject({ inserted: fixture.entries.length, updated: 0, skipped: 0, deduplicated: 0 });
+  expect(importBundle(db, fixture)).toMatchObject({ inserted: fixture.entries.length, updated: 0, skipped: 0 });
   const out = JSON.parse(JSON.stringify(exportBundle(db, config)));
   expect(out.entries).toEqual(want.entries);
   expect(out.activity).toEqual(want.activity);

@@ -5,6 +5,7 @@ import { newId } from '../core';
 import type { Activity, Entry } from '../core';
 import type { Config } from '../core';
 import { createWriter } from './writer';
+import { immediate } from './transaction';
 import { createActivityRepository } from './activity-repository';
 import { payloadText, rowToActivity } from './activity-rows';
 import { hydrateRows, replaceRefs, replaceTags } from './entry-rows';
@@ -21,13 +22,13 @@ export interface Bundle {
 }
 
 export interface ImportResult {
-  inserted: number; updated: number; skipped: number; deduplicated: number;
+  inserted: number; updated: number; skipped: number;
   /** Present only when the bundle carries at least one activity row. */
   activity?: { inserted: number; updated: number; skipped: number };
 }
 
 export function exportBundle(db: DatabaseSync, config: Config): Bundle {
-  // One read transaction gives a consistent snapshot of entries, tags, and refs.
+  // One read transaction gives a consistent snapshot.
   db.exec('BEGIN');
   try {
     const rows = db.prepare('SELECT * FROM entries ORDER BY created_at, id').all() as unknown as Row[];
@@ -46,12 +47,12 @@ export function exportBundle(db: DatabaseSync, config: Config): Bundle {
 }
 
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
-// Strict: only canonical UTC ISO strings, as toISOString writes them.
+// Only canonical UTC ISO strings, as toISOString writes them.
 const Iso = z.string().refine((v) => { const t = Date.parse(v); return !Number.isNaN(t) && new Date(t).toISOString() === v; });
 // Number.isInteger, not .int(): .int() also rejects unsafe integers, which the format accepts.
 const Int = z.number().refine(Number.isInteger);
 
-// The bundle schemas extend the core schemas. test/fixtures/bundles pins what import accepts.
+// test/fixtures/bundles pins what import accepts.
 const BundleEntrySchema = EntrySchema.extend({
   id: z.string().regex(ULID),
   createdAt: Iso,
@@ -62,7 +63,7 @@ const BundleEntrySchema = EntrySchema.extend({
   tags: z.array(z.string()).refine((t) => new Set(t).size === t.length),
 });
 
-// A bundle never carries capturedBy. Import writes the literal 'github'.
+// Import writes capturedBy as the literal 'github'.
 const BundleActivitySchema = ActivitySchema.omit({ capturedBy: true }).extend({
   id: z.string().regex(ULID),
   createdAt: Iso,
@@ -73,7 +74,7 @@ const BundleActivitySchema = ActivitySchema.omit({ capturedBy: true }).extend({
 });
 type BundleActivity = z.infer<typeof BundleActivitySchema>;
 
-/** Parse each item. A failure names the first bad field, or `top` when the item is not an object. */
+/** A failure names the first bad field, or `top` when the item is not an object. */
 function parseItems<T>(items: unknown[], schema: z.ZodType<T>, fail: (i: number, field: string) => Error, top: string): T[] {
   return items.map((item, i) => {
     const parsed = schema.safeParse(item);
@@ -82,7 +83,7 @@ function parseItems<T>(items: unknown[], schema: z.ZodType<T>, fail: (i: number,
   });
 }
 
-/** Strip control characters from an entry's text fields. Only an empty summary fails, as it does in the repository. */
+/** Only an empty summary fails, as it does in the repository. */
 function cleanEntry(e: Entry, i: number): Entry {
   const summary = stripControl(e.summary);
   if (summary.trim().length === 0) throw new Error(`Bundle entry ${i} is invalid: summary`);
@@ -110,17 +111,16 @@ export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config)
   if (typeof b !== 'object' || b === null || b.format !== 'gournal-bundle' || b.schemaVersion !== 1 || !Array.isArray(b.entries)) {
     throw new Error('Not a gournal bundle');
   }
-  // Strip control characters on write, the same as the repository does. A stripped field is never rejected.
+  // Strip control characters on write, as the repository does. A stripped field is never rejected.
   const entries = parseItems(b.entries, BundleEntrySchema, (i, f) => new Error(`Bundle entry ${i} is invalid: ${f}`), 'entry').map((e, i) => cleanEntry(e, i));
 
   if (b.activity !== undefined && !Array.isArray(b.activity)) throw new Error('Bundle activity is invalid');
   const acts = parseItems(b.activity ?? [],BundleActivitySchema, (i, f) => new Error(`Bundle activity ${i} is invalid: ${f}`), 'activity');
 
-  const result: ImportResult = { inserted: 0, updated: 0, skipped: 0, deduplicated: 0 };
+  const result: ImportResult = { inserted: 0, updated: 0, skipped: 0 };
   const changedEntries: string[] = [];
   const changedActivity: string[] = [];
-  db.exec('BEGIN IMMEDIATE');
-  try {
+  immediate(db, () => {
     const find = db.prepare('SELECT updated_at FROM entries WHERE id = ?');
     const insert = db.prepare(`INSERT INTO entries (id, created_at, updated_at, deleted_at, device_id, summary, details, kind, status,
       resolved_at, resolved_by_entry_id, project, repo, branch, source, agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
@@ -138,11 +138,7 @@ export function importBundle(db: DatabaseSync, bundle: unknown, config?: Config)
       replaceRefs(db, e.id, e.refs);
     }
     if (acts.length > 0) result.activity = mergeActivity(db, acts, changedActivity);
-    db.exec('COMMIT');
-  } catch (err) {
-    try { db.exec('ROLLBACK'); } catch { /* ignore */ }
-    throw err;
-  }
+  });
   // Links are derived data. A relink failure never fails the import.
   if (config && (changedEntries.length > 0 || changedActivity.length > 0)) {
     try {

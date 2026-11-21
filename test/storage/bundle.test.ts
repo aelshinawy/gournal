@@ -37,7 +37,7 @@ test('round-trips all entries including deleted', () => {
   expect(bundle.entries).toHaveLength(2);
   const { d: db2, r: repo2 } = open('b.db');
   try {
-    expect(importBundle(db2, JSON.parse(JSON.stringify(bundle)))).toEqual({ inserted: 2, updated: 0, skipped: 0, deduplicated: 0 });
+    expect(importBundle(db2, JSON.parse(JSON.stringify(bundle)))).toEqual({ inserted: 2, updated: 0, skipped: 0 });
     expect(repo2.find({ includeDeleted: true })).toEqual(repo.find({ includeDeleted: true }));
   } finally { db2.close(); }
 });
@@ -46,7 +46,7 @@ test('later updatedAt wins on import and replaces tags and refs', () => {
   const e = repo.add({ summary: 'old', tags: ['a'], refs: [{ type: 'pr', value: '1' }], ...base });
   const bundle = exportBundle(db, config);
   const next = { ...bundle.entries[0], summary: 'new', tags: ['b', 'Not-Normalized'], refs: [], updatedAt: new Date(Date.parse(e.updatedAt) + 1000).toISOString() };
-  expect(importBundle(db, { ...bundle, entries: [next] })).toEqual({ inserted: 0, updated: 1, skipped: 0, deduplicated: 0 });
+  expect(importBundle(db, { ...bundle, entries: [next] })).toEqual({ inserted: 0, updated: 1, skipped: 0 });
   expect(repo.get(e.id)).toEqual(next);
   expectFts(db, 'new', [e.id]);
   expectFts(db, 'old', []);
@@ -57,7 +57,7 @@ test('older and equal updatedAt are skipped', () => {
   const bundle = exportBundle(db, config);
   const older = { ...bundle.entries[0], summary: 'older', updatedAt: new Date(Date.parse(e.updatedAt) - 1000).toISOString() };
   const equal = { ...bundle.entries[0], summary: 'equal' };
-  expect(importBundle(db, { ...bundle, entries: [older, equal] })).toEqual({ inserted: 0, updated: 0, skipped: 2, deduplicated: 0 });
+  expect(importBundle(db, { ...bundle, entries: [older, equal] })).toEqual({ inserted: 0, updated: 0, skipped: 2 });
   expect(repo.get(e.id)!.summary).toBe('keep');
 });
 
@@ -113,7 +113,7 @@ test('summary limit counts code points: 120 emoji pass, 121 fail', () => {
 
 test('the same id twice in one bundle skips the second copy', () => {
   const e = goodEntry();
-  expect(importBundle(db, wrap([e, { ...e, summary: 'second' }]))).toEqual({ inserted: 1, updated: 0, skipped: 1, deduplicated: 0 });
+  expect(importBundle(db, wrap([e, { ...e, summary: 'second' }]))).toEqual({ inserted: 1, updated: 0, skipped: 1 });
   expect(repo.get(e.id)!.summary).toBe('s');
 });
 
@@ -306,7 +306,7 @@ describe('activity in bundles', () => {
     delete bundle.activity;
     const { d: db2 } = open('c.db');
     try {
-      expect(importBundle(db2, bundle, config)).toEqual({ inserted: 1, updated: 0, skipped: 0, deduplicated: 0 });
+      expect(importBundle(db2, bundle, config)).toEqual({ inserted: 1, updated: 0, skipped: 0 });
     } finally { db2.close(); }
   });
 

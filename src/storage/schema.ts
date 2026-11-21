@@ -1,4 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
+import { immediate } from './transaction';
 
 const SCHEMA_VERSION = 2;
 
@@ -124,17 +125,12 @@ export function migrateSchema(db: DatabaseSync): void {
   const before = readVersion(db);
   checkNotNewer(before);
   if (before === SCHEMA_VERSION) return;
-  db.exec('BEGIN IMMEDIATE');
-  try {
+  immediate(db, () => {
     const current = readVersion(db);
     checkNotNewer(current);
     for (let v = current + 1; v <= SCHEMA_VERSION; v++) {
       db.exec(MIGRATIONS[v]);
       db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(v);
     }
-    db.exec('COMMIT');
-  } catch (err) {
-    try { db.exec('ROLLBACK'); } catch { /* ignore */ }
-    throw err;
-  }
+  });
 }

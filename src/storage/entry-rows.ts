@@ -19,6 +19,13 @@ export function chunks<T>(list: T[]): T[][] {
   return out;
 }
 
+/** Parse an ISO time input to epoch ms. A bad value throws a message that names the field. */
+export function parseTime(value: string, what: string): number {
+  const ms = Date.parse(value);
+  if (Number.isNaN(ms)) throw new Error(`Invalid ${what}: "${value}"`);
+  return ms;
+}
+
 export const marks = (n: number): string => Array.from({ length: n }, () => '?').join(', ');
 
 /** Load tags and refs for the rows and build full entries. */

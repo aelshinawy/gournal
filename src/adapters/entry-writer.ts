@@ -1,9 +1,6 @@
-// The Entry writer: the single place for every adapter-level entry change (add, update, resolve, delete, restore, undo, clear).
-// Bulk import writes through storage.
-// An adapter (CLI or MCP) parses its input, resolves the identity, and calls this module.
-// The summary rule, the resolves policy, the similar-tag check, and the relink live here.
-// The repository keeps `cleanSummary` as an invariant guard, so a bad summary never reaches the database.
-// The module returns Write notes (facts about a write that did not stop it). write-note-text.ts holds the wording that the adapters share.
+// The one place for adapter-level entry changes. Bulk import writes through storage.
+// The repository keeps `cleanSummary` as a guard, so a bad summary never reaches the database.
+// Write notes are facts about a write that did not stop it. write-note-text.ts holds their shared wording.
 import { canResolve, checkSummary, closeTags, noEntryMessage, normalizeTags, NOT_RESOLVABLE } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref, RepoIdentity, Source } from '../core';
 import type { Journal } from '../storage';
@@ -47,10 +44,10 @@ export interface EntryWriter {
   add(input: AddInput): WriteResult;
   update(id: string, input: UpdateInput): WriteResult;
   resolve(id: string, by?: string): Entry;
-  delete(id: string): Entry;      // soft delete
+  delete(id: string): Entry;
   restore(id: string): Entry;
   undo(): Entry | null;           // latest live entry of this device, soft-deleted
-  clear(): number;                // softDeleteAll
+  clear(): number;
 }
 
 export function createEntryWriter(

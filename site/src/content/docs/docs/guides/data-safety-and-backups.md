@@ -31,7 +31,7 @@ A bundle is a JSON file with every entry, all fields, and your GitHub activity. 
 $ gournal export --format bundle --output bundle.json
 ✓ Exported 3 entries to bundle.json
 $ gournal import bundle.json
-Imported: 0 new, 0 updated, 3 unchanged, 0 duplicates merged.
+Imported: 0 new, 0 updated, 3 unchanged.
 ```
 
 Add `--force` to replace an earlier bundle. A scheduled backup needs `--force`, or a dated file name such as `bundle-2026-07-31.json`.
