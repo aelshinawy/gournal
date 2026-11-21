@@ -2,6 +2,9 @@
   "name": "gournal-site",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
   "version": "0.0.0",
   "scripts": {
     "dev": "astro dev",

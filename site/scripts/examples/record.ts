@@ -79,7 +79,6 @@ const w = (rel: string, body: string) => {
 };
 const block = (lang: string, body: string) => '```' + lang + '\n' + body.replace(/\n+$/, '') + '\n```';
 const q = (s: string) => `"${s}"`;
-const sid = (s: string) => s.slice(-8);
 const idOf = (home: string, summary: string): string => {
   const out = sh(home, 'gournal log');
   const line = out.split('\n').find((l) => l.includes(summary));
@@ -163,7 +162,6 @@ async function mcp(name: string, fn: (call: (n: string, a: Record<string, unknow
 }
 
 async function mcpAll() {
-  const shortOf = (home: string, summary: string) => idOf(home, summary);
   await mcp('m_add', async (call, home) => {
     const input = {
       summary: 'Fix the stale totals in the invoice PDF',
@@ -176,7 +174,7 @@ async function mcpAll() {
     w('mcp/add_entry.md', `Log a finished piece of work. Pass \`project\` and \`cwd\`.\n\n${block('json', json(shown))}\n\nThe text result:\n\n${block('text', r.content[0].text)}\n\nThe structured result:\n\n${block('json', json(r.structuredContent))}`);
   });
   await mcp('m_delete', async (call, home) => {
-    const id = shortOf(home, 'Document the invoice export endpoint');
+    const id = idOf(home, 'Document the invoice export endpoint');
     const r = await call('delete_entry', { id });
     w('mcp/delete_entry.md', `Delete an entry. The entry stays in the database. The text result tells you the command that restores it.\n\n${block('json', json({ id }))}\n\nThe text result:\n\n${block('text', r.content[0].text)}\n\nThe structured result has the same shape as the \`add_entry\` result. The \`deletedAt\` field holds the time of the deletion.\n\n${block('json', json(r.structuredContent))}`);
   });
@@ -204,12 +202,12 @@ async function mcpAll() {
     w('mcp/list_tags.md', `List the tags of one project before you add an entry. Reuse these names.\n\n${block('json', json(tin))}\n\nThe structured result:\n\n${block('json', `{\n  "tags": [\n${tags}\n  ]\n}`)}\n\nThe text result holds the \`tags\` list as JSON.`);
   });
   await mcp('m_resolve', async (call, home) => {
-    const id = shortOf(home, 'Add a regression test for tax rounding');
+    const id = idOf(home, 'Add a regression test for tax rounding');
     const r = await call('resolve_entry', { id });
     w('mcp/resolve_entry.md', `Resolve an open next item. Pass the short id.\n\n${block('json', json({ id }))}\n\nThe text result:\n\n${block('text', r.content[0].text)}\n\nThe structured result:\n\n${block('json', json(r.structuredContent))}`);
   });
   await mcp('m_update', async (call, home) => {
-    const id = shortOf(home, 'Document the invoice export endpoint');
+    const id = idOf(home, 'Document the invoice export endpoint');
     const input = { id, summary: 'Document the invoice export endpoint and its limits', tags: ['docs', 'review'], refs: [{ type: 'pr', value: '415', repo: 'acme/billing-api' }] };
     const r = await call('update_entry', input);
     w('mcp/update_entry.md', `Fix the summary of an entry, replace its tags, and add a pull request reference. Fields that you omit stay as they are.\n\n${block('json', json(input))}\n\nThe text result:\n\n${block('text', r.content[0].text)}\n\nThe structured result:\n\n${block('json', json(r.structuredContent))}`);

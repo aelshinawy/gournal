@@ -71,7 +71,7 @@ function surfaceAnchor(cap: Capability, name: string, cli: boolean): string {
 export function capabilityPage(cap: Capability, cli: CliSection[], mcp: ToolSection[]): GeneratedPage {
   const blocks: string[] = [
     frontmatter(cap.title, firstSentence(cap.summary)).trimEnd(),
-    `<!-- ${GENERATED_NOTE} Edit examples in site/src/content/examples/. -->`,
+    `<!-- ${GENERATED_NOTE} Edit examples in site/scripts/examples/record.ts. Only cli/mcp.md in site/src/content/examples/ is hand-written. -->`,
     cap.summary,
   ];
   if (cap.caution) blocks.push(`:::caution\n${cap.caution}\n:::`);

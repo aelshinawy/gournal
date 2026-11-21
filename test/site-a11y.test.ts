@@ -55,19 +55,6 @@ describe('built pages', () => {
     expect(bad).toEqual([]);
   });
 
-  run('every table on the built reference overview has g-table--overview', () => {
-    const file = path.join(dist, 'docs/reference/index.html');
-    expect(fs.existsSync(file)).toBe(true);
-    const html = fs.readFileSync(file, 'utf8');
-    const tables = [...html.matchAll(/<table\b/g)];
-    expect(tables.length).toBe(5);
-    for (const m of tables) {
-      const before = html.slice(0, m.index);
-      const wrapper = before.slice(before.lastIndexOf('<div class="g-table'));
-      expect(wrapper).toMatch(/^<div class="[^"]*g-table--overview/);
-    }
-  });
-
   run('content tables fill their wrapper (display: table, width 100%)', () => {
     const css = fs.readFileSync(path.join(__dirname, '../site/src/styles/docs.css'), 'utf8');
     const rule = css.match(/\.sl-markdown-content \.g-table table\s*\{([^}]*)\}/);

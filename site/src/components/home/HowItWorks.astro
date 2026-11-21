@@ -1,5 +1,4 @@
 ---
-const base = import.meta.env.BASE_URL;
 // The four steps mark the standup lines that they make. The transcript is the same standup as the recording.
 const steps = [
   {
@@ -43,7 +42,6 @@ const lines: [number, string][] = [
   [0, `  ${acc('worker')}`],
   [1, `  ${dim('14:04')}  Added retry with backoff to webhooks`],
   [3, `         ${dim('\u21b3 2 commits')}`],
-  [1, `  ${dim('16:09')}  Wrote tests for the retry policy`],
   [0, ' '],
   [4, '  <span class="t-red">Blockers</span>'],
   [2, `    ${dim('Nov 14  DFKD4PX0')}  Waiting on staging keys  ${acc('[api]')}`],
@@ -51,9 +49,8 @@ const lines: [number, string][] = [
   [4, '  <span class="t-yel">Next</span>'],
   [1, `    ${dim('Nov 15  9BZNA94G')}  Ship retry metrics  ${acc('[worker]')}`],
   [0, ' '],
-  [3, `  ${dim('Also: 1 commit, 1 PR merged, 1 review in 2 repos (--activity to expand)')}`],
-  [3, `    ${dim('merged    acme/docs#57  Document webhook retries')}`],
-  [3, `    ${dim('reviewed  octo/web#88   Dark mode tokens')}`]
+  [3, `  ${dim('Also: 1 PR merged in 1 repo (--activity to expand)')}`],
+  [3, `    ${dim('merged    acme/docs#57  Document webhook retries')}`]
 ];
 // Consecutive lines of one step share one proof bracket.
 const runs: { step: number; lines: string[] }[] = [];
@@ -83,7 +80,7 @@ for (const [step, html] of lines) {
           ))
         }
       </ol>
-      <p class="g-how__more"><a href={`${base}docs/guides/standups-and-work-logs/`}>Standups and work logs</a></p>
+      <p class="g-how__more"><a href="/docs/guides/standups-and-work-logs/">Standups and work logs</a></p>
     </div>
 
     <figure class="g-ledger__specimen g-transcript" aria-labelledby="g-transcript-caption">

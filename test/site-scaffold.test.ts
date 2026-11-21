@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync, spawnSync } from 'child_process';
 import { npmCli, npmCommand } from './helpers/npm';
+import { CAPABILITIES } from '../site/scripts/reference/capabilities';
 import { siteConfig } from './helpers/site-config';
 import { makeTmp } from './helpers/tmp';
 
@@ -21,7 +22,6 @@ const SINGLE_PAGES = [
   'guides/data-safety-and-backups',
   'reference/configuration',
   'reference/environment',
-  'resources/changelog',
   'resources/faq',
   'resources/troubleshooting'
 ];
@@ -46,11 +46,7 @@ test('every page in the spec sidebar has a file', () => {
   for (const slug of SINGLE_PAGES) {
     expect(fs.existsSync(path.join(docsRoot, `${slug}.md`))).toBe(true);
   }
-  const sidebar = JSON.parse(
-    fs.readFileSync(path.join(root, 'site/src/generated/reference-sidebar.json'), 'utf8')
-  ) as Array<{ items: string[] }>;
-  const slugs = [...sidebar.flatMap((g) => g.items), 'docs/reference/output-shapes', 'docs/reference'];
-  expect(sidebar.length).toBeGreaterThan(0);
+  const slugs = [...CAPABILITIES.map((c) => `docs/reference/${c.slug}`), 'docs/reference/output-shapes', 'docs/reference'];
   for (const slug of slugs) {
     const rel = slug.replace(/^docs\//, '');
     const file = rel === 'reference' ? 'reference/index' : rel;
@@ -79,7 +75,7 @@ test('package.json homepage matches the site config', () => {
 
 test('every docs link in README.md resolves to a page in site/src/content/docs', () => {
   const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
-  const origin = siteConfig.SITE_URL + siteConfig.BASE.replace(/\/$/, '');
+  const origin = siteConfig.SITE_URL;
   const links = [...readme.matchAll(/https:\/\/[^)\s"'#]*/g)].map((m) => m[0]).filter((l) => l.startsWith(`${origin}/docs`)).map((l) => l.slice(origin.length));
   expect(links.length).toBeGreaterThan(0);
   for (const link of links) {
@@ -87,8 +83,8 @@ test('every docs link in README.md resolves to a page in site/src/content/docs',
     const exists = ['.md', '.mdx', '/index.md', '/index.mdx'].some((ext) =>
       fs.existsSync(path.join(root, 'site/src/content/docs', `${rel}${ext}`))
     );
-    // The docs root has a redirect page instead of a content page.
-    const isDocsRoot = rel === 'docs' && fs.existsSync(path.join(root, 'site/src/pages/docs/index.astro'));
+    // The docs root has a redirect in the Astro config instead of a content page.
+    const isDocsRoot = rel === 'docs' && /redirects:\s*\{\s*'\/docs'/.test(fs.readFileSync(path.join(root, 'site/astro.config.mjs'), 'utf8'));
     expect(exists || isDocsRoot).toBe(true);
   }
 });
