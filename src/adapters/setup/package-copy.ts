@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import fs from 'fs';
+import { createRequire } from 'module';
 import path from 'path';
 
 /** The installed package folder. Node resolves __dirname to a real path, so this never holds a symlink. */
@@ -18,16 +19,14 @@ function assertBuilt(root: string): void {
   }
 }
 
-/** The first <dir>/node_modules/<name> from realDir upward, or null. */
+/** The first node_modules/<name> that Node would search from realDir upward, or null. */
 function findDependency(realDir: string, name: string): string | null {
-  let dir = realDir;
-  for (;;) {
-    const candidate = path.join(dir, 'node_modules', name);
+  const searched = createRequire(path.join(realDir, 'x.js')).resolve.paths(name) ?? [];
+  for (const dir of searched) {
+    const candidate = path.join(dir, name);
     if (fs.existsSync(path.join(candidate, 'package.json'))) return candidate;
-    const parent = path.dirname(dir);
-    if (parent === dir) return null;
-    dir = parent;
   }
+  return null;
 }
 
 /** Decide where each production dependency goes. The first version of a name takes the hoisted slot. A different version nests. */
@@ -60,14 +59,11 @@ function planDependencies(root: string): Placement[] {
   return out;
 }
 
-function listFiles(dir: string, base = dir): string[] {
-  const files: string[] = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...listFiles(full, base));
-    else files.push(path.relative(base, full));
-  }
-  return files;
+function listFiles(dir: string, base: string): string[] {
+  return fs
+    .readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((entry) => !entry.isDirectory())
+    .map((entry) => path.relative(base, path.join(entry.parentPath, entry.name)));
 }
 
 /** 12 hex characters over package.json, every file under dist, and name@version of each dependency. */
