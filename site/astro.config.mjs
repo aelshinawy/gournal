@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLinksValidator from 'starlight-links-validator';
 import { satteri } from '@astrojs/markdown-satteri';
-import { ecFocusable } from './plugins/ec-focusable.mjs';
+import { codeLabelMeta, ecFocusable } from './plugins/ec-focusable.mjs';
 import { rehypeTableRegion } from './plugins/rehype-table-region.mjs';
 import { OG_ALT, OG_HEIGHT, OG_WIDTH, SITE_URL, siteUrl } from './site.config.mjs';
 import { CAPABILITIES, GROUPS } from './scripts/reference/capabilities.ts';
@@ -18,7 +18,7 @@ export default defineConfig({
   site: SITE_URL,
   redirects: { '/docs': '/docs/start-here/introduction/' },
   markdown: {
-    processor: satteri({ features: { smartPunctuation: false }, hastPlugins: [rehypeTableRegion()] })
+    processor: satteri({ features: { smartPunctuation: false }, hastPlugins: [rehypeTableRegion(), codeLabelMeta()] })
   },
   integrations: [
     starlight({

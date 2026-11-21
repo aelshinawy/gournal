@@ -44,12 +44,13 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
       # GITHUB_TOKEN pull requests do not start CI. GITHUB_TOKEN may start a workflow_dispatch run.
-      # This step starts ci.yml on the Release PR branch, so the required checks report on the PR.
+      # This step starts ci.yml and site.yml on the Release PR branch, so the required checks report on the PR.
       - name: Run CI on the Release PR branch
         if: ${{ steps.release.outputs.prs_created == 'true' }}
         run: |
           printf '%s' "$PRS" | jq -r '.[].headBranchName' | while read -r branch; do
             gh workflow run ci.yml --ref "$branch"
+            gh workflow run site.yml --ref "$branch"
           done
         env:
           GH_TOKEN: ${{ github.token }}

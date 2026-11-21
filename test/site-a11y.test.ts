@@ -63,18 +63,25 @@ describe('built pages', () => {
     expect(rule![1]).toMatch(/width:\s*100%/);
   });
 
-  run('every code pre has tabindex 0', () => {
+  run('every code pre is focusable, and Expressive Code blocks are labelled regions with a unique name per page', () => {
     const bad: string[] = [];
     let count = 0;
+    let withHeading = 0;
     for (const f of pages) {
       const html = fs.readFileSync(f, 'utf8');
+      const names = new Set<string>();
       for (const m of html.matchAll(/<pre\b[^>]*>/g)) {
         count++;
-        if (!/tabindex="0"/.test(m[0])) bad.push(`${path.relative(dist, f)} ${m[0].slice(0, 60)}`);
+        const name = m[0].match(/aria-label="([^"]+)"/)?.[1];
+        const isEc = m[0].includes('data-language');
+        if (!/tabindex="0"/.test(m[0]) || (isEc && (!/role="region"/.test(m[0]) || !name || names.has(name)))) bad.push(`${path.relative(dist, f)} ${m[0].slice(0, 80)}`);
+        if (isEc && name?.includes(', ')) withHeading++;
+        if (isEc && name) names.add(name);
       }
     }
     expect(count).toBeGreaterThan(0);
     expect(bad).toEqual([]);
+    expect(withHeading).toBeGreaterThan(0);
   });
 
   run('no page loads a resource from another host', () => {
