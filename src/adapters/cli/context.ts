@@ -23,6 +23,8 @@ export interface CliIo {
   exec?: CommandRunner;
   /** Test seam for the spinner. The default is process.stderr. */
   spinnerStream?: SpinnerStream;
+  packageRoot?: string;
+  now?: () => Date;
 }
 
 export interface CliContext {

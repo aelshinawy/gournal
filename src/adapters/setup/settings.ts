@@ -1,3 +1,5 @@
+import { baseName, isGournalNodeLaunch, isLauncherCmd } from './command';
+
 type Json = Record<string, unknown>;
 
 /** Characters that `shellQuote` leaves bare. */
@@ -31,26 +33,22 @@ function tokenize(command: string): string[] | null {
   return words;
 }
 
-const baseName = (p: string): string => p.split(/[\\/]/).pop() ?? '';
-
 /**
  * A hook is gournal's only when its command has a shape that setup writes:
- *   gournal hook stop
+ *   gournal hook stop   (`gournal` may be a path: the launcher, quoted when needed)
  *   <node> <cli.js|gournal> hook stop   (each part quoted by shellQuote when needed)
- * The script is `gournal` when setup ran through a bin symlink such as node_modules/.bin/gournal.
- * `current` always counts, whatever the script is named. This function reads the shell form only.
+ * The script is a `cli.js` under a folder named `gournal`, or a file named `gournal` when setup ran
+ * through a bin symlink such as node_modules/.bin/gournal.
+ * `current` is the command setup resolves now. It always counts, whatever the script is named.
+ * This function reads the shell form only. The exec form is recognized when setup reads the settings.
  */
 export function isGournalHook(command: string, current?: string): boolean {
   if (current !== undefined && command === current) return true;
   const t = tokenize(command);
   if (t === null) return false;
-  if (t.length === 3) return t[0] === 'gournal' && t[1] === 'hook' && t[2] === 'stop';
+  if (t.length === 3) return baseName(t[0]!) === 'gournal' && t[1] === 'hook' && t[2] === 'stop';
   if (t.length !== 4) return false;
-  const node = baseName(t[0]!);
-  const script = baseName(t[1]!);
-  const isNode = node === 'node' || node === 'node.exe';
-  const isScript = script === 'cli.js' || script === 'gournal';
-  return isNode && isScript && t[2] === 'hook' && t[3] === 'stop';
+  return isGournalNodeLaunch(t[0]!, t[1]!) && t[2] === 'hook' && t[3] === 'stop';
 }
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -73,14 +71,19 @@ function sameHook(h: Json, hook: StopHook): boolean {
   return w.args === undefined ? h.args === undefined : isStrings(h.args) && JSON.stringify(h.args) === JSON.stringify(w.args);
 }
 
-/** The exec form that setup writes on Windows: `<node|node.exe>` with the args `[<cli.js|gournal>, 'hook', 'stop']`. */
+/**
+ * The exec forms that setup writes on Windows: `<node|node.exe>` with the args
+ * `[<cli.js under a gournal folder|gournal>, 'hook', 'stop']`, and `cmd.exe` with `['/d', '/c', <gournal.cmd>, 'hook', 'stop']`.
+ * Each path is one arg, so it needs no quoting.
+ */
 function isGournalExecHook(command: string, args: unknown): boolean {
-  if (!isStrings(args) || args.length !== 3) return false;
+  if (!isStrings(args)) return false;
   const node = baseName(command).toLowerCase();
-  const script = baseName(args[0]!);
-  const isNode = node === 'node' || node === 'node.exe';
-  const isScript = script === 'cli.js' || script === 'gournal';
-  return isNode && isScript && args[1] === 'hook' && args[2] === 'stop';
+  if (node === 'cmd.exe') {
+    return isLauncherCmd(args, ['hook', 'stop']);
+  }
+  if (args.length !== 3) return false;
+  return isGournalNodeLaunch(command, args[0]!) && args[1] === 'hook' && args[2] === 'stop';
 }
 
 function isOurs(h: unknown, current?: StopHook): h is Json {
@@ -145,7 +148,9 @@ export function addStopHook(settings: Json, hook: StopHook): { next: Json; chang
 
 /** Remove every gournal Stop hook and the containers that this leaves empty. */
 export function removeStopHook(settings: Json, current?: StopHook): { next: Json; changed: boolean } {
-  if (gournalHooks(settings, current).length === 0) return { next: settings, changed: false };
+  const mine = (h: unknown): boolean => isOurs(h, current);
+  const has = stopGroups(settings).some((g) => isObj(g) && Array.isArray(g.hooks) && g.hooks.some(mine));
+  if (!has) return { next: settings, changed: false };
   const next = clone(settings);
   const hooks = next.hooks as Json;
   const kept: unknown[] = [];
@@ -154,7 +159,7 @@ export function removeStopHook(settings: Json, current?: StopHook): { next: Json
       kept.push(group);
       continue;
     }
-    const rest = group.hooks.filter((h) => !isOurs(h, current));
+    const rest = group.hooks.filter((h) => !mine(h));
     if (rest.length === group.hooks.length) kept.push(group);
     else if (rest.length > 0) kept.push({ ...group, hooks: rest });
   }

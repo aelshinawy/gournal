@@ -115,7 +115,7 @@ describe('docs examples', () => {
   // [console blocks, JSON blocks] per file. A change here means an example gained or lost a block.
   const BLOCKS: Record<string, [number, number]> = {
     'cli/add.md': [2, 0], 'cli/clear.md': [1, 0], 'cli/export.md': [2, 0], 'cli/find.md': [2, 0],
-    'cli/import.md': [2, 0], 'cli/index-rebuild.md': [1, 0], 'cli/log.md': [1, 0], 'cli/mcp.md': [1, 1],
+    'cli/import.md': [2, 0], 'cli/index-rebuild.md': [1, 0], 'cli/log.md': [1, 0], 'cli/mcp.md': [0, 1],
     'cli/projects.md': [1, 0], 'cli/resolve.md': [1, 0], 'cli/restore.md': [1, 0],
     'cli/setup-claude.md': [2, 0], 'cli/standup.md': [1, 0], 'cli/stats.md': [2, 0], 'cli/sync.md': [2, 0],
     'cli/tags.md': [1, 0], 'cli/undo.md': [1, 0],

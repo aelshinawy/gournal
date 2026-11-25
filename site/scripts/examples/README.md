@@ -33,6 +33,6 @@ The script refuses to work in the real home or in `~/.gournal`. It always sets `
 2. Runs the read-only commands in `<dir>/dev/billing-api`: `projects`, `tags`, `log`, `index rebuild`, `standup`, `stats`, `find`, `export`.
 3. Copies the seed again for each command that changes state: `add`, `resolve`, `undo`, `restore`, `clear`, `import`, `sync`, `setup claude`. Each runs in its own copy.
 4. Runs `sync` with `GOURNAL_GH` set to `fake-gh.js`, a committed stand-in gh program. PR 412 in `acme/billing-api` links to the seed entry.
-5. Runs `setup claude` with a `PATH` of only the scratch folder (a `gournal` link and a `node` link) and the system folders, so no `claude` program is found.
+5. Runs `setup claude` with a `PATH` of only the scratch folder (a `gournal` link and a `node` link) and the system folders, so no `claude` program is found. The runs use the gournal home `<home>/.gournal`.
 6. Makes the MCP calls in process, with the client pattern of `test/mcp.test.ts`.
 7. Replaces the temp home path with `/Users/you`. Every other value stays as the run printed it.

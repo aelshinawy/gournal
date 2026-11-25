@@ -11,7 +11,7 @@ type RunResult = Awaited<ReturnType<CommandRunner>>;
 export type ExecOnce = (file: string, args: string[], options: ExecOptions) => Promise<RunResult>;
 
 /** Production: execFile, no shell. Never throws. */
-const execOnce: ExecOnce = (file, args, options) =>
+export const execOnce: ExecOnce = (file, args, options) =>
   new Promise((resolve) => {
     const done = (error: Error | null, stdout: string, stderr: string): void => {
       if (error === null) return resolve({ code: 0, stdout, stderr });

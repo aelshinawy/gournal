@@ -1,34 +1,33 @@
-import { makeCtx, planCommand, type Ctx, type SetupIo, type SetupOptions } from './claude-ctx';
-import { installMcp, uninstallMcp } from './claude-mcp';
-import { installSkill, uninstallSkill, installHook, uninstallHook } from './claude-steps';
+import { makeCtx, type Ctx, type SetupIo, type SetupOptions } from './claude-ctx';
+import { installFlow } from './install';
+import { uninstallFlow } from './uninstall';
 
 export type { SetupIo, SetupOptions };
 
-function printPlan(c: Ctx): void {
-  const { io } = c;
-  io.out(`gournal setup claude would ${c.opts.uninstall ? 'remove' : 'make'} these changes:`);
-  if (c.opts.uninstall) {
-    io.out(`  1. Remove the MCP registration: claude ${c.removeArgs.join(' ')}`);
-    io.out(`  2. Remove ${c.skillFile} (only if gournal wrote it)`);
-    io.out(`  3. Remove the gournal Stop hook from ${c.settingsFile}`);
+function printPlan(ctx: Ctx): void {
+  const { io, opts, paths } = ctx;
+  io.out(`gournal setup claude would ${opts.uninstall ? 'remove' : 'make'} these changes:`);
+  if (opts.uninstall) {
+    io.out(`  1. Remove the MCP registration: claude ${ctx.removeArgs.join(' ')}`);
+    io.out(`  2. Remove ${ctx.skillFile} (only if gournal wrote it)`);
+    io.out(`  3. Remove the gournal Stop hook from ${ctx.settingsFile}`);
+    io.out(`  4. Remove the launcher ${paths.launcher} and ${paths.runtimeDir}`);
   } else {
-    io.out(`  1. Register the MCP server: ${c.manualAdd}`);
-    io.out(`  2. Write the skill file ${c.skillFile}`);
-    io.out(`  3. Optional, with --hook: add a Stop hook to ${c.settingsFile}: ${planCommand(c)}`);
+    io.out(`  1. Install the launcher ${paths.launcher} and a copy of gournal in ${paths.runtimeDir}`);
+    io.out(`  2. Register the MCP server: ${ctx.manualAdd}`);
+    io.out(`  3. Write the skill file ${ctx.skillFile}`);
+    io.out(`  4. Optional, with --hook: add a Stop hook to ${ctx.settingsFile}: ${ctx.hookCommand}`);
   }
   io.err('Not a terminal. Run it again with --yes to apply these changes.');
 }
 
 export async function setupClaude(io: SetupIo, opts: SetupOptions): Promise<number> {
-  const c = makeCtx(io, opts);
+  const ctx = makeCtx(io, opts);
   if (!opts.yes && !io.isTTY) {
-    printPlan(c);
+    printPlan(ctx);
     return 1;
   }
-  const [mcp, skill, hook] = opts.uninstall
-    ? ([uninstallMcp, uninstallSkill, uninstallHook] as const)
-    : ([installMcp, installSkill, installHook] as const);
-  const mcpStatus = await mcp(c);
-  await skill(c);
-  return mcpStatus | (await hook(c));
+  if (opts.uninstall) await uninstallFlow(ctx);
+  else await installFlow(ctx);
+  return ctx.status;
 }

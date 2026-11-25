@@ -5,7 +5,7 @@ description: Install gournal with npm, check the install, and optionally sign in
 
 ## Requirements
 
-- **Node.js 22.13 or newer.** Run `node --version` to check.
+- **Node.js 22.13 or newer.** Run `node --version` to check. If you use a Node.js version manager, see [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal).
 - **Git 2.7 or newer.** Gournal uses Git to find the project, the repository, and the branch of a directory. With Git older than 2.7, or without Git, gournal puts entries in the `uncategorized` project and records no repository or branch.
 - **The GitHub CLI (`gh`), optional.** You need it only for [GitHub sync](/docs/guides/github-activity/).
 - **On Windows, Git for Windows.** Gournal runs `git`, so `git.exe` must be on your `PATH`. The Git for Windows installer does this.
@@ -30,7 +30,7 @@ Gournal supports Windows on x64, as a native program. CI runs on Windows Server 
 2. The GitHub CLI (`gh`) is optional.
 3. Gournal looks for `git.exe` and `gh.exe` in the absolute folders of your `PATH`. It ignores `.cmd` and `.bat` files. It skips the current folder and relative `PATH` entries. Put Git for Windows on your `PATH`. The `gh` CLI is optional.
 4. The default data folder is `%USERPROFILE%\.gournal`. Windows ignores the `HOME` variable. Set `GOURNAL_HOME` to use a different folder.
-5. `gournal setup claude` registers the MCP server with the full path to `node.exe` and to the gournal script. It never uses the short `gournal` command. If your Node.js version changes, for example with nvm-windows or fnm, run `gournal setup claude` again in a terminal. Answer yes to replace the MCP registration. `--yes` keeps the old registration.
+5. `gournal setup claude` registers the MCP server as the full path of `cmd.exe`, then `/d /c`, then the full path of `gournal.cmd`, then `mcp`. If the launcher path has one of the characters `% ^ & | < > ! " ( ) @`, setup prints an error. Set `GOURNAL_HOME` to a folder without these characters and run setup again.
 6. `gournal setup claude --hook` writes the Stop hook in exec form, so no shell has to quote the path. If you installed Claude Code with npm (`claude.cmd`), setup runs it through `cmd.exe`. Gournal runs an npm-installed `claude.cmd` only when it finds it in an absolute folder of your `PATH`. It never runs a `claude.cmd` or `claude.bat` from the current folder.
 
 These limits apply on Windows.
@@ -60,7 +60,7 @@ $ gournal --version
 0.9.0
 ```
 
-Gournal prints its version number. Your number can be different. If your shell says `command not found`, your global npm folder is not on your `PATH`. Run `npm config get prefix` and add its `bin` folder to your `PATH`.
+Gournal prints its version number. Your number can be different. With npm, if your shell says `command not found`, your global npm folder is not on your `PATH`. Run `npm config get prefix` and add its `bin` folder to your `PATH`.
 
 ## Sign in to GitHub (optional)
 
@@ -74,15 +74,15 @@ Gournal keeps its data in `~/.gournal`. On Windows, this is `%USERPROFILE%\.gour
 
 ## Upgrade
 
-Run `npm install -g gournal` again to get the newest version. The import of the 0.x `entries.json` file was removed. To migrate from 0.x, install gournal 0.10 first.
+Run `npm install -g gournal` again to get the newest version. Then run `gournal setup claude` again to update the copy that Claude Code uses when the package is missing. If you install under another Node.js version, any `gournal` command from the new install makes Claude Code use it. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal). The import of the 0.x `entries.json` file was removed. To migrate from 0.x, install gournal 0.10 first.
 
 ## Uninstall
 
-1. Remove the Claude Code setup: `gournal setup claude --uninstall`. See [Claude Code setup](/docs/guides/claude-code-setup/#undo-it).
+1. Remove the Claude Code setup: `gournal setup claude --uninstall`. This also removes the launcher and `runtime` in the gournal home (`~/.gournal/bin` and `~/.gournal/runtime` by default). Use the same `GOURNAL_HOME` as the install. See [Claude Code setup](/docs/guides/claude-code-setup/#undo-it).
 2. Remove the package: `npm uninstall -g gournal`.
 3. Optional: delete the data folder, `~/.gournal` (`%USERPROFILE%\.gournal` on Windows, or the folder in `GOURNAL_HOME`). This deletes your journal, your settings, and your backups. Export a bundle first if you want a copy. See [Data safety and backups](/docs/guides/data-safety-and-backups/#bundles).
 
-Steps 1 and 2 keep your journal. Run step 1 before step 2, because `gournal setup claude --uninstall` needs the `gournal` command.
+Steps 1 and 2 keep your journal. If you remove the package first, see [Claude Code cannot start gournal](/docs/resources/troubleshooting/#claude-code-cannot-start-gournal).
 
 ## Next step
 

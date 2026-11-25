@@ -105,7 +105,7 @@ An agent can forget to log. The Stop hook asks Claude once to log a session that
 
 ## Use another MCP client
 
-`gournal mcp` starts the MCP server on stdio. Any MCP client can start it. The package installs the `gournal` command, so the client needs no path. Add the server to the MCP configuration of your client. Most clients use the `mcpServers` shape, for example in `.mcp.json`:
+`gournal mcp` starts the MCP server on stdio. Any MCP client can start it. A client that starts without your shell `PATH`, such as a desktop app, cannot find `gournal`. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal). Add the server to the MCP configuration of your client. Most clients use the `mcpServers` shape, for example in `.mcp.json`:
 
 ```json
 {

@@ -7,11 +7,13 @@ description: Connect gournal to Claude Code with one command, and learn what the
 
 ## What the command changes
 
-The command has three steps. It shows each change before it applies the change.
+The command has three steps and a check. It shows each change before it applies the change.
 
-1. **MCP server.** It runs `claude mcp add --scope user gournal -- gournal mcp`. When `gournal` on your `PATH` is a different install than the one that runs now, gournal uses the full paths of Node and of the script instead.
+1. **MCP server and launcher.** It registers `~/.gournal/bin/gournal mcp` with `claude mcp add --scope user`. On Windows, it registers `gournal.cmd` through `cmd.exe`. See [Install](/docs/start-here/install/#windows). The launcher and a copy of gournal go into the gournal home, `~/.gournal` by default (`%USERPROFILE%\.gournal` on Windows). See [How Claude Code starts gournal](#how-claude-code-starts-gournal).
 2. **Skill.** It writes `~/.claude/skills/gournal/SKILL.md`. The skill tells Claude when to log work.
 3. **Stop hook.** It adds a hook to `~/.claude/settings.json`. This step is off by default.
+
+When the launcher is installed, the command runs a check after the three steps. If setup cannot install the launcher, it runs no check. The check asks nothing and changes nothing. It runs the launcher with a short `PATH`, as Claude Code does. It prints `Check: Claude Code can start gournal without your shell PATH.` when gournal starts.
 
 ## Run it
 
@@ -30,22 +32,24 @@ This run used `--yes --hook` in a clean home folder that has no `claude` CLI:
 
 ```console
 $ gournal setup claude --yes --hook
-MCP server: register gournal for all projects (claude mcp add --scope user gournal -- gournal mcp).
+MCP server: register gournal for all projects (claude mcp add --scope user gournal -- /Users/you/.gournal/bin/gournal mcp).
+Launcher: installed in /Users/you/.gournal/runtime.
 MCP server: the claude CLI was not found on PATH. Run this command yourself:
-  claude mcp add --scope user gournal -- gournal mcp
+  claude mcp add --scope user gournal -- /Users/you/.gournal/bin/gournal mcp
 Skill: write /Users/you/.claude/skills/gournal/SKILL.md.
 Skill: installed.
-Stop hook: add "gournal hook stop" to /Users/you/.claude/settings.json.
+Stop hook: add "/Users/you/.gournal/bin/gournal hook stop" to /Users/you/.claude/settings.json.
 Stop hook: added.
+Check: Claude Code can start gournal without your shell PATH.
 ```
 
-When the `claude` CLI is missing, gournal prints the command, and you run it yourself. Nothing is registered in that case, so setup finishes the skill and hook steps and then exits with code 1. When `claude` is installed, gournal runs the command for you.
+When the `claude` CLI is missing, gournal prints the command, and you run it yourself. Nothing is registered in that case, so setup finishes the launcher, skill, and hook steps and then exits with code 1. When `claude` is installed, gournal runs the command for you.
 
 Run the command again at any time. A step that is already done prints `already set up`.
 
 ## Safety rules
 
-1. If gournal is already registered with a different command, setup replaces it only when you answer yes in a terminal. The default answer is no. `--yes` does not replace it.
+1. A registration that gournal wrote is moved to the launcher. This covers a bare `gournal mcp`, a Node.js path with a script path, and a launcher at another path. `--yes` moves it without a question. Without `--yes`, setup asks, and the default answer is yes. A registration that gournal did not write is replaced only when you answer yes in a terminal. The default answer is no. `--yes` does not replace it.
 2. If `~/.claude/skills/gournal/SKILL.md` exists and gournal did not write it, setup leaves the file alone.
 3. Before the first change to `settings.json`, setup saves a copy as `settings.json.gournal-backup`. Setup keeps that first copy. It makes no backup when `settings.json` did not exist.
 4. Setup keeps every other key and hook of `settings.json`.
@@ -57,7 +61,7 @@ Run the command again at any time. A step that is already done prints `already s
 gournal setup claude --uninstall
 ```
 
-The command removes the MCP registration, the skill file (only if gournal wrote it), and the gournal hook. It changes nothing else. It asks before each step unless you pass `--yes`. It does not delete your journal. The backup file `settings.json.gournal-backup` stays.
+The command removes the MCP registration, the skill file (only if gournal wrote it), the gournal hook, and the launcher with its copy of gournal (`~/.gournal/bin` and `~/.gournal/runtime`). It changes nothing else. It asks before each step unless you pass `--yes`. It does not delete your journal. The backup file `settings.json.gournal-backup` stays. When the MCP registration or the hook stays (you answer no, the `claude` command is missing, or setup cannot remove them), the launcher stays too, and setup says so. The registration and the hook start the launcher.
 
 ```console
 $ gournal setup claude --uninstall --yes
@@ -66,7 +70,34 @@ Skill: remove /Users/you/.claude/skills/gournal/SKILL.md.
 Skill: removed.
 Stop hook: remove the gournal hook from /Users/you/.claude/settings.json.
 Stop hook: removed.
+Launcher: remove /Users/you/.gournal/bin/gournal and /Users/you/.gournal/runtime.
+Launcher: removed.
 ```
+
+## How Claude Code starts gournal
+
+Claude Code starts a server with the `PATH` of the app that started it. A desktop app, or a shell that does not load your version manager, can have no `gournal` command and no Node.js 22.13 or newer. The launcher solves this. It does not depend on the `PATH` of the app, because it looks for Node.js itself.
+
+1. Setup copies the installed package into `~/.gournal/runtime`, in the gournal home.
+2. Setup writes the launcher `~/.gournal/bin/gournal`. On Windows, the launcher is `%USERPROFILE%\.gournal\bin\gournal.cmd`.
+3. Claude Code starts the launcher. It does not start the `gournal` command on your `PATH`.
+4. The launcher runs the installed package when it is there. It runs the copy in `~/.gournal/runtime` only when the installed package is missing. The package is missing after you remove a Node.js version, or while `brew upgrade` replaces it.
+5. The launcher looks for Node.js 22.13 or newer each time it runs. It tries the Node.js that worked last, then `node` on the `PATH` of Claude Code, then the usual folders of Node.js version managers and Homebrew. On macOS and Linux, it uses only absolute folders of the `PATH`. On Windows, the launcher does not search `PATH`.
+
+These changes do not break the launcher:
+
+- A switch of the active Node.js version.
+- A project version, for example `.nvmrc`, `.node-version`, or `fnm --use-on-cd`.
+- The removal of a Node.js version.
+- A start from the desktop app.
+
+The copy in `~/.gournal/runtime` changes only when you run `gournal setup claude`. Setup records one install of gournal. If you install under another Node.js version or with another tool, run any `gournal` command from the new install, or run `gournal setup claude` again, so that Claude Code uses the new install.
+
+If you set `GOURNAL_HOME` when you run setup, the gournal home is that folder, and the launcher keeps it. A `GOURNAL_HOME` that Claude Code passes at run time overrides it. Run undo with the same `GOURNAL_HOME` as the install. Undo removes the two launcher files and the `runtime` folder. It removes the `bin` folder only when the folder is empty.
+
+If you remove the package before you run `gournal setup claude --uninstall`, see [You removed gournal before you ran the uninstall](/docs/resources/troubleshooting/#you-removed-gournal-before-you-ran-the-uninstall).
+
+If Claude Code cannot start gournal, see [Claude Code cannot start gournal](/docs/resources/troubleshooting/#claude-code-cannot-start-gournal).
 
 ## The Stop hook command
 
@@ -82,7 +113,7 @@ Setup adds this entry to `~/.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "gournal hook stop"
+            "command": "/Users/you/.gournal/bin/gournal hook stop"
           }
         ]
       }

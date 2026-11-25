@@ -1,83 +1,48 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { setupClaude, resolveGournalCommand, SKILL_MD, SKILL_MARKER, type SetupIo, type CommandRunner } from '../../src/adapters/setup';
-import { shellQuote } from '../../src/adapters/setup/command';
+import { setupClaude, SKILL_MD, SKILL_MARKER, type SetupIo, type CommandRunner } from '../../src/adapters/setup';
+import { shellQuote, displayQuote } from '../../src/adapters/setup/command';
 import { createExecFileRunner, buildCmdLine, type ExecOnce } from '../../src/adapters/setup/runner';
 import { addStopHook, removeStopHook, isGournalHook } from '../../src/adapters/setup/settings';
+import { VERSION } from '../../src/adapters/version';
 import { runIn } from '../helpers/run-cli';
+import { makeHarness, type Harness } from '../helpers/setup-harness';
+import { makeFakePackage } from '../helpers/fake-package';
 import { canSymlink } from '../helpers/symlink';
 import { makeRealTmp, rmTmp } from '../helpers/tmp';
 
 // Windows needs a privilege to create a symlink. A test that needs one skips without it.
 const symlinkTest = canSymlink() ? test : test.skip;
 
+let h: Harness;
 let root: string;
 let home: string;
-let script: string;
-let bin: string;
+let gh: string;
+let pkg: string;
 let calls: string[][];
 let out: string[];
 let err: string[];
 let confirmAnswers: Array<[string, boolean]>;
+let checks: string[][];
 
-/** A fake claude CLI. It keeps ~/.claude.json in step, as the real one does. */
-function fakeExec(code = 0): CommandRunner {
-  return async (file, args) => {
-    calls.push([file, ...args]);
-    if (code !== 0) return { code, stdout: '', stderr: 'boom' };
-    const f = path.join(home, '.claude.json');
-    const cfg = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : {};
-    if (args[1] === 'add') {
-      const rest = args.slice(args.indexOf('--') + 1);
-      cfg.mcpServers = { ...cfg.mcpServers, gournal: { type: 'stdio', command: rest[0], args: rest.slice(1) } };
-    } else if (args[1] === 'remove') {
-      delete cfg.mcpServers?.gournal;
-    }
-    fs.writeFileSync(f, JSON.stringify(cfg));
-    return { code: 0, stdout: '', stderr: '' };
-  };
-}
+const fakeExec = (code = 0): CommandRunner => h.fakeExec(code);
+const makeIo: Harness['makeIo'] = (over) => h.makeIo(over);
+const run: Harness['run'] = (opts, io) => h.run(opts, io);
+const settingsFile = () => h.settingsFile();
+const skillFile = () => h.skillFile();
+const writeSettings = (v: unknown) => h.writeSettings(v);
+const readSettings = () => h.readSettings();
+const stopCommands: Harness['stopCommands'] = (s) => h.stopCommands(s);
 
-function makeIo(over: Partial<SetupIo> & { answer?: boolean } = {}): SetupIo {
-  return {
-    out: (t) => out.push(t),
-    err: (t) => err.push(t),
-    home,
-    isTTY: true,
-    confirm: async (m, d) => { confirmAnswers.push([m, d]); return over.answer ?? d; },
-    exec: fakeExec(),
-    env: { argv1: script, execPath: '/opt/node/bin/node', path: bin },
-    // The POSIX rules hold on every OS that runs the tests. A win32 test sets its own platform.
-    platform: 'linux',
-    ...over,
-  };
-}
-
-const run = (opts: Partial<{ uninstall: boolean; yes: boolean; hook: boolean }> = {}, io: SetupIo = makeIo()) =>
-  setupClaude(io, { uninstall: false, yes: true, hook: false, ...opts });
-
-const settingsFile = () => path.join(home, '.claude', 'settings.json');
-const skillFile = () => path.join(home, '.claude', 'skills', 'gournal', 'SKILL.md');
-const writeSettings = (v: unknown) => {
-  fs.mkdirSync(path.dirname(settingsFile()), { recursive: true });
-  fs.writeFileSync(settingsFile(), typeof v === 'string' ? v : JSON.stringify(v, null, 2));
-};
-const readSettings = () => JSON.parse(fs.readFileSync(settingsFile(), 'utf8'));
+const LAUNCHER = () => path.join(h.gh, 'bin', 'gournal');
+const HOOK = () => `${shellQuote(LAUNCHER())} hook stop`;
+const CMD_EXE = 'C:\\Windows\\System32\\cmd.exe';
 
 beforeEach(() => {
   root = makeRealTmp('gournal-setup-');
-  home = path.join(root, 'home');
-  fs.mkdirSync(home);
-  script = path.join(root, 'lib', 'cli.js');
-  fs.mkdirSync(path.dirname(script));
-  fs.writeFileSync(script, '');
-  bin = path.join(root, 'bin');
-  fs.mkdirSync(bin);
-  // Without symlink rights, a copy keeps the setup working. The tests that need a real link skip.
-  if (canSymlink()) fs.symlinkSync(script, path.join(bin, 'gournal'));
-  else fs.copyFileSync(script, path.join(bin, 'gournal'));
-  calls = []; out = []; err = []; confirmAnswers = [];
+  h = makeHarness(root);
+  ({ home, gh, pkg, calls, out, err, confirmAnswers, checks } = h);
 });
 afterEach(() => rmTmp(root));
 
@@ -85,7 +50,7 @@ test('setup registers MCP, installs the skill, and leaves the hook off by defaul
   writeSettings({ model: 'x' });
   const before = fs.readFileSync(settingsFile(), 'utf8');
   expect(await run()).toBe(0);
-  expect(calls).toEqual([['claude', 'mcp', 'add', '--scope', 'user', 'gournal', '--', 'gournal', 'mcp']]);
+  expect(calls).toEqual([['claude', 'mcp', 'add', '--scope', 'user', 'gournal', '--', LAUNCHER(), 'mcp']]);
   expect(fs.readFileSync(skillFile(), 'utf8')).toBe(SKILL_MD);
   expect(fs.readFileSync(settingsFile(), 'utf8')).toBe(before);
   expect(fs.existsSync(`${settingsFile()}.gournal-backup`)).toBe(false);
@@ -102,20 +67,19 @@ test('setup is idempotent', async () => {
   expect(calls).toEqual([]);
   expect(fs.statSync(skillFile()).mtimeMs).toBe(skillMtime);
   expect(fs.readFileSync(settingsFile(), 'utf8')).toBe(settingsBytes);
-  expect(out.filter((l) => l.includes('already set up'))).toHaveLength(3);
+  expect(out.filter((l) => l.includes('already set up'))).toHaveLength(4);
   expect(out).toContain('Stop hook: already set up.');
   expect(out).not.toContain('Stop hook: added.');
 });
 
 test('existing different registration is replaced only on yes', async () => {
-  fs.writeFileSync(path.join(home, '.claude.json'),
-    JSON.stringify({ mcpServers: { gournal: { type: 'stdio', command: 'node', args: ['/old/cli.js', 'mcp'] } } }));
+  h.writeReg({ command: '/opt/tools/run-gournal', args: ['serve'] });
   expect(await run({}, makeIo({ answer: false }))).toBe(0);
   expect(calls).toEqual([]);
   expect(confirmAnswers.some(([m, d]) => m.includes('Replace') && d === false)).toBe(true);
   expect(await run({}, makeIo({ answer: true }))).toBe(0);
   expect(calls.map((c) => c[2])).toEqual(['remove', 'add']);
-  expect(JSON.parse(fs.readFileSync(path.join(home, '.claude.json'), 'utf8')).mcpServers.gournal.command).toBe('gournal');
+  expect(JSON.parse(fs.readFileSync(path.join(home, '.claude.json'), 'utf8')).mcpServers.gournal.command).toBe(LAUNCHER());
 });
 
 test('setup keeps other settings and hooks', async () => {
@@ -131,7 +95,7 @@ test('setup keeps other settings and hooks', async () => {
   expect(added.permissions).toEqual(original.permissions);
   expect(added.hooks.Stop[0]).toEqual(original.hooks.Stop[0]);
   expect(added.hooks.Stop).toHaveLength(2);
-  expect(added.hooks.Stop[1].hooks[0]).toEqual({ type: 'command', command: 'gournal hook stop' });
+  expect(added.hooks.Stop[1].hooks[0]).toEqual({ type: 'command', command: HOOK() });
   expect(fs.existsSync(`${settingsFile()}.gournal-backup`)).toBe(true);
   await run({ uninstall: true });
   expect(readSettings()).toEqual(original);
@@ -139,7 +103,7 @@ test('setup keeps other settings and hooks', async () => {
 
 test('settings.json is created with only hooks when missing', async () => {
   await run({ hook: true });
-  expect(readSettings()).toEqual({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'gournal hook stop' }] }] } });
+  expect(readSettings()).toEqual({ hooks: { Stop: [{ hooks: [{ type: 'command', command: HOOK() }] }] } });
 });
 
 test('invalid settings.json is never changed', async () => {
@@ -185,7 +149,7 @@ test('setup updates an old managed skill', async () => {
 test('non-TTY without --yes prints the plan and exits 1', async () => {
   const io = makeIo({ isTTY: false });
   expect(await setupClaude(io, { uninstall: false, yes: false, hook: false })).toBe(1);
-  expect(out.join('\n')).toContain('claude mcp add --scope user gournal -- gournal mcp');
+  expect(out.join('\n')).toContain(`claude mcp add --scope user gournal -- ${shellQuote(LAUNCHER())} mcp`);
   expect(calls).toEqual([]);
   expect(fs.existsSync(path.join(home, '.claude'))).toBe(false);
   expect(err.join('\n')).toContain('--yes');
@@ -217,31 +181,6 @@ test('a failing claude CLI gives exit 1 with its message', async () => {
   expect(err.join('\n')).toContain('boom');
 });
 
-symlinkTest('uses node and the script path when gournal on PATH is a different install', async () => {
-  const other = path.join(root, 'other.js');
-  fs.writeFileSync(other, '');
-  fs.rmSync(path.join(bin, 'gournal'));
-  fs.symlinkSync(other, path.join(bin, 'gournal'));
-  await run({ hook: true });
-  expect(calls[0]).toEqual(['claude', 'mcp', 'add', '--scope', 'user', 'gournal', '--', '/opt/node/bin/node', script, 'mcp']);
-  expect(readSettings().hooks.Stop[0].hooks[0].command).toBe(`/opt/node/bin/node ${shellQuote(script)} hook stop`);
-});
-
-test('hook command quotes parts that contain spaces', async () => {
-  const spaced = path.join(root, 'my lib', 'cli.js');
-  fs.mkdirSync(path.dirname(spaced));
-  fs.writeFileSync(spaced, '');
-  await run({ hook: true }, makeIo({ env: { argv1: spaced, execPath: '/opt/node/bin/node', path: bin } }));
-  expect(readSettings().hooks.Stop[0].hooks[0].command).toBe(`/opt/node/bin/node '${spaced}' hook stop`);
-});
-
-test.each(['linux', 'darwin', 'win32'] as const)('resolveGournalCommand on %s', (platform) => {
-  // Windows always pins node and the script. POSIX uses the bare name when PATH resolves to the same script.
-  const bare = platform === 'win32' ? { command: '/n', args: [script] } : { command: 'gournal', args: [] };
-  expect(resolveGournalCommand({ argv1: script, execPath: '/n', path: bin }, platform)).toEqual(bare);
-  expect(resolveGournalCommand({ argv1: script, execPath: '/n', path: '' }, platform)).toEqual({ command: '/n', args: [script] });
-});
-
 test('the setup claude command is wired into the CLI (non-TTY without --yes exits 1)', async () => {
   const r = await runIn(path.join(root, 'gh'), ['setup', 'claude'], { isTTY: false });
   expect(r.status).toBe(1);
@@ -251,9 +190,7 @@ test('the setup claude command is wired into the CLI (non-TTY without --yes exit
 
 // A different registration, a pinned hook, a failed removal, and the settings backup
 
-const differentReg = () =>
-  fs.writeFileSync(path.join(home, '.claude.json'),
-    JSON.stringify({ mcpServers: { gournal: { type: 'stdio', command: 'node', args: ['/old/cli.js', 'mcp'] } } }));
+const differentReg = () => h.writeReg({ command: 'node', args: ['/old/cli.js', 'mcp'] });
 
 test('non-TTY with --yes keeps a different registration without prompting', async () => {
   differentReg();
@@ -312,7 +249,7 @@ symlinkTest('a symlinked settings.json stays a link, the target holds the hook, 
   expect(fs.realpathSync(settingsFile())).toBe(fs.realpathSync(target));
   const stored = JSON.parse(fs.readFileSync(target, 'utf8'));
   expect(stored.model).toBe('x');
-  expect(stored.hooks.Stop[0].hooks[0].command).toBe('gournal hook stop');
+  expect(stored.hooks.Stop[0].hooks[0].command).toBe(HOOK());
   // Windows has no POSIX mode bits.
   if (process.platform !== 'win32') expect(fs.statSync(target).mode & 0o777).toBe(0o600);
   expect(fs.readdirSync(dotfiles).filter((n) => n.endsWith('.tmp'))).toEqual([]);
@@ -371,8 +308,6 @@ posixTest('the temp file for an existing settings.json is never readable by othe
 // Foreign hooks (F4)
 
 const FOREIGN = '/opt/my-gournal-notes/bin hook stop';
-const stopCommands = (settings: { hooks?: { Stop?: Array<{ hooks: Array<{ command: string }> }> } }) =>
-  (settings.hooks?.Stop ?? []).flatMap((g) => g.hooks.map((h) => h.command));
 const foreignSettings = () => ({
   model: 'opus',
   hooks: { Stop: [{ hooks: [{ type: 'command', command: FOREIGN }] }], PreToolUse: [{ matcher: 'Bash', hooks: [] }] },
@@ -384,12 +319,13 @@ const SYMLINKED = 'node /x/node_modules/.bin/gournal hook stop';
 test.each<[string, boolean]>([
   ['gournal hook stop', true],
   ['/usr/local/bin/node /usr/lib/gournal/dist/cli.js hook stop', true],
-  ['node /x/cli.js hook stop', true],
-  ['C:\\nodejs\\node.exe C:\\app\\cli.js hook stop', false],
-  [`'C:\\Program Files\\nodejs\\node.exe' 'C:\\app\\cli.js' hook stop`, true],
+  ['node /x/gournal/cli.js hook stop', true],
+  ['node /x/cli.js hook stop', false],
+  [`'C:\\nodejs\\node.exe' 'C:\\app\\cli.js' hook stop`, false],
+  [`'C:\\Program Files\\nodejs\\node.exe' 'C:\\gournal\\cli.js' hook stop`, true],
   [`/opt/node/bin/node '/my lib/it's here/cli.js' hook stop`, false],
-  [`/opt/node/bin/node '/my lib/it'\\''s here/cli.js' hook stop`, true],
-  [`'/my node/node' '/my lib/cli.js' hook stop`, true],
+  [`/opt/node/bin/node '/my lib/gournal/it'\\''s here/cli.js' hook stop`, true],
+  [`'/my node/node' '/my lib/gournal/cli.js' hook stop`, true],
   ['gournal hook stop ', true],
   // A node command that runs a bin symlink named gournal
   [SYMLINKED, true],
@@ -420,7 +356,7 @@ test('a foreign hook whose path contains "gournal" survives install and uninstal
   writeSettings(foreignSettings());
   expect(await run({ hook: true })).toBe(0);
   const added = readSettings();
-  expect(stopCommands(added)).toEqual([FOREIGN, 'gournal hook stop']);
+  expect(stopCommands(added)).toEqual([FOREIGN, HOOK()]);
   expect(added.hooks.Stop[0]).toEqual(foreignSettings().hooks.Stop[0]);
   expect(out).toContain('Stop hook: added.');
   expect(await run({ uninstall: true })).toBe(0);
@@ -439,13 +375,13 @@ test('both gournal shapes from earlier versions are recognized and updated, neve
   const pinned = `/old/node/bin/node '/old lib/gournal/dist/cli.js' hook stop`;
   writeSettings({ hooks: { Stop: [{ hooks: [{ type: 'command', command: pinned }] }] } });
   expect(await run({ hook: true })).toBe(0);
-  expect(stopCommands(readSettings())).toEqual(['gournal hook stop']);
+  expect(stopCommands(readSettings())).toEqual([HOOK()]);
   expect(out).toContain('Stop hook: updated.');
 
   writeSettings({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'gournal hook stop' }] }] } });
   out.length = 0;
-  await run({ hook: true }, makeIo({ env: { argv1: script, execPath: '/opt/node/bin/node', path: '' } }));
-  expect(stopCommands(readSettings())).toEqual([`/opt/node/bin/node ${shellQuote(script)} hook stop`]);
+  await run({ hook: true });
+  expect(stopCommands(readSettings())).toEqual([HOOK()]);
   expect(out).toContain('Stop hook: updated.');
 });
 
@@ -455,41 +391,37 @@ test('duplicate gournal hooks collapse to one and foreign hooks stay', async () 
       Stop: [
         { hooks: [{ type: 'command', command: 'gournal hook stop' }, { type: 'command', command: 'afplay done.wav' }] },
         { hooks: [{ type: 'command', command: FOREIGN }] },
-        { hooks: [{ type: 'command', command: '/old/node /old/cli.js hook stop' }] },
+        { hooks: [{ type: 'command', command: '/old/node /old/gournal/cli.js hook stop' }] },
         { hooks: [{ type: 'command', command: 'gournal hook stop' }] },
       ],
     },
   });
   await run({ hook: true });
   expect(readSettings().hooks.Stop).toEqual([
-    { hooks: [{ type: 'command', command: 'gournal hook stop' }, { type: 'command', command: 'afplay done.wav' }] },
+    { hooks: [{ type: 'command', command: HOOK() }, { type: 'command', command: 'afplay done.wav' }] },
     { hooks: [{ type: 'command', command: FOREIGN }] },
   ]);
   expect(out).toContain('Stop hook: updated.');
 });
 
-// A pinned command has no "gournal" in a plain path, and a quoted one has a space.
-test.each([['a plain', 'app'], ['a quoted', 'my lib']])('%s pinned hook command is found again on re-run and on uninstall', async (_kind, dir) => {
-  const pinned = path.join(root, dir, 'cli.js');
-  fs.mkdirSync(path.dirname(pinned));
-  fs.writeFileSync(pinned, '');
-  const io = () => makeIo({ env: { argv1: pinned, execPath: '/opt/node/bin/node', path: '' } });
-  await run({ hook: true }, io());
+test('re-running setup reports "already set up" and does not write', async () => {
+  writeSettings(foreignSettings());
+  await run({ hook: true });
+  const bytes = fs.readFileSync(settingsFile(), 'utf8');
   out.length = 0;
-  await run({ hook: true }, io());
+  expect(await run({ hook: true })).toBe(0);
+  expect(fs.readFileSync(settingsFile(), 'utf8')).toBe(bytes);
   expect(out).toContain('Stop hook: already set up.');
-  expect(stopCommands(readSettings())).toHaveLength(1);
-  await run({ uninstall: true }, io());
-  expect(readSettings().hooks).toBeUndefined();
+  expect(out).not.toContain('Stop hook: added.');
+  expect(out).not.toContain('Stop hook: updated.');
 });
 
 // A pinned hook runs a gournal bin symlink: node <path>/gournal hook stop
 
 test('a hook pinned through a gournal bin symlink is updated from another location, not duplicated', async () => {
   writeSettings({ hooks: { Stop: [{ hooks: [{ type: 'command', command: SYMLINKED }] }] } });
-  const io = () => makeIo({ env: { argv1: script, execPath: '/opt/node/bin/node', path: '' } });
-  expect(await run({ hook: true }, io())).toBe(0);
-  expect(stopCommands(readSettings())).toEqual([`/opt/node/bin/node ${shellQuote(script)} hook stop`]);
+  expect(await run({ hook: true })).toBe(0);
+  expect(stopCommands(readSettings())).toEqual([HOOK()]);
   expect(out).toContain('Stop hook: updated.');
 });
 
@@ -502,11 +434,9 @@ test('uninstall from another location removes a hook pinned through a gournal bi
 
 // Windows (every case injects the platform, so it runs on any OS)
 
-const WIN_NODE = 'C:\\Program Files\\nodejs\\node.exe';
-const WIN_CLI = 'C:\\Users\\Ann Lee\\AppData\\Roaming\\npm\\node_modules\\gournal\\dist\\cli.js';
-const winIo = (over: Partial<SetupIo> = {}) =>
-  makeIo({ platform: 'win32', env: { argv1: WIN_CLI, execPath: WIN_NODE, path: bin }, ...over });
-const WIN_HOOK = { type: 'command', command: WIN_NODE, args: [WIN_CLI, 'hook', 'stop'] };
+const WIN_CMD = () => path.join(h.gh, 'bin', 'gournal.cmd');
+const winIo = (over: Partial<SetupIo> = {}) => makeIo({ platform: 'win32', ...over });
+const WIN_HOOK = () => ({ type: 'command', command: CMD_EXE, args: ['/d', '/c', WIN_CMD(), 'hook', 'stop'] });
 const stopEntries = (settings: { hooks?: { Stop?: Array<{ hooks: unknown[] }> } }) =>
   (settings.hooks?.Stop ?? []).flatMap((g) => g.hooks);
 
@@ -522,6 +452,8 @@ describe('claude runner on Windows', () => {
     return { log, once };
   };
 
+  const WIN_NODE = 'C:\\Program Files\\nodejs\\node.exe';
+  const WIN_CLI = 'C:\\Users\\Ann Lee\\AppData\\Roaming\\npm\\node_modules\\gournal\\dist\\cli.js';
   const SHIM = 'C:\\Users\\x\\AppData\\Roaming\\npm\\claude.cmd';
   const SHIM_PATH = 'C:\\Windows;C:\\Users\\x\\AppData\\Roaming\\npm';
   const COMSPEC = 'C:\\Windows\\System32\\cmd.exe';
@@ -675,7 +607,7 @@ describe('setup on Windows', () => {
       expect(await run({ hook: true }, winIo())).toBe(0);
       expect(win.mock.calls.filter(([, to]) => to === fs.realpathSync(settingsFile()))).toHaveLength(2);
     } finally { win.mockRestore(); }
-    expect(readSettings()).toEqual({ model: 'x', hooks: { Stop: [{ hooks: [WIN_HOOK] }] } });
+    expect(readSettings()).toEqual({ model: 'x', hooks: { Stop: [{ hooks: [WIN_HOOK()] }] } });
 
     writeSettings({ model: 'x' });
     const posix = failFirst();
@@ -686,36 +618,26 @@ describe('setup on Windows', () => {
     expect(readSettings()).toEqual({ model: 'x' });
   });
 
-  test('the manual line quotes each path with double quotes on Windows and single quotes on POSIX', async () => {
-    await run({}, winIo({ exec: fakeExec(127) }));
-    const win = out.join('\n');
-    expect(win).toContain(`  claude mcp add --scope user gournal -- "${WIN_NODE}" "${WIN_CLI}" mcp`);
-    expect(win).not.toContain("'");
-    out.length = 0;
-    const spaced = path.join(root, 'my lib', 'cli.js');
-    fs.mkdirSync(path.dirname(spaced));
-    fs.writeFileSync(spaced, '');
-    await run({}, makeIo({ exec: fakeExec(127), env: { argv1: spaced, execPath: '/opt/node/bin/node', path: '' } }));
-    expect(out.join('\n')).toContain(`  claude mcp add --scope user gournal -- /opt/node/bin/node '${spaced}' mcp`);
+  test('registration runs the launcher through cmd.exe', async () => {
+    expect(await run({}, winIo())).toBe(0);
+    expect(calls).toEqual([['claude', 'mcp', 'add', '--scope', 'user', 'gournal', '--', CMD_EXE, '/d', '/c', WIN_CMD(), 'mcp']]);
   });
 
-  test('a path that cmd.exe cannot quote ends in the manual command and a clear sentence', async () => {
-    const enoent = { code: 127, stdout: '', stderr: 'spawn claude ENOENT' };
-    const shim = 'C:\\Users\\x\\npm\\claude.cmd';
-    const exec = createExecFileRunner({ platform: 'win32', env: { PATH: 'C:\\Users\\x\\npm' }, exists: (f) => f === shim, cwd: 'C:\\work', once: async () => enoent });
-    const cli = 'C:\\R&D\\gournal\\dist\\cli.js';
-    const io = winIo({ exec, env: { argv1: cli, execPath: WIN_NODE, path: bin } });
-    expect(await run({}, io)).toBe(1);
-    expect(err.join('\n')).toContain('cannot pass the argument');
-    expect(err.join('\n')).toMatch(/Run the claude mcp add command yourself\.\s*$/);
-    expect(out.join('\n')).toContain(`  claude mcp add --scope user gournal -- "${WIN_NODE}" "${cli}" mcp`);
-    expect(() => buildCmdLine('C:\\x\\claude.cmd', ['a&b'])).toThrow(/Run the claude mcp add command yourself\.$/);
+  test('the manual line quotes each word with double quotes on Windows and single quotes on POSIX', async () => {
+    await run({}, winIo({ exec: fakeExec(127) }));
+    const win = out.join('\n');
+    expect(win).toContain(`  claude mcp add --scope user gournal -- ${displayQuote(CMD_EXE, 'win32')} /d /c ${displayQuote(WIN_CMD(), 'win32')} mcp`);
+    expect(win).not.toContain("'");
+    out.length = 0;
+    h.gh = path.join(root, 'my home', '.gournal');
+    await run({}, makeIo({ exec: fakeExec(127) }));
+    expect(out.join('\n')).toContain(`  claude mcp add --scope user gournal -- '${LAUNCHER()}' mcp`);
   });
 
   test('the hook is written in the exec form, is idempotent, and uninstall removes it', async () => {
     writeSettings({ model: 'x' });
     expect(await run({ hook: true }, winIo())).toBe(0);
-    expect(readSettings()).toEqual({ model: 'x', hooks: { Stop: [{ hooks: [WIN_HOOK] }] } });
+    expect(readSettings()).toEqual({ model: 'x', hooks: { Stop: [{ hooks: [WIN_HOOK()] }] } });
     expect(out).toContain('Stop hook: added.');
     out.length = 0;
     const bytes = fs.readFileSync(settingsFile(), 'utf8');
@@ -729,20 +651,20 @@ describe('setup on Windows', () => {
   });
 
   test('a POSIX string hook from an earlier run becomes the exec form, never a second hook', async () => {
-    for (const old of ['gournal hook stop', `'C:\\old dir\\node.exe' 'C:\\old dir\\cli.js' hook stop`, 'node /x/node_modules/.bin/gournal hook stop']) {
+    for (const old of ['gournal hook stop', `'C:\\old dir\\node.exe' 'C:\\old dir\\gournal\\cli.js' hook stop`, 'node /x/node_modules/.bin/gournal hook stop']) {
       writeSettings({ hooks: { Stop: [{ hooks: [{ type: 'command', command: old }, { type: 'command', command: 'afplay done.wav' }] }] } });
       out.length = 0;
       expect(await run({ hook: true }, winIo())).toBe(0);
-      expect(stopEntries(readSettings())).toEqual([WIN_HOOK, { type: 'command', command: 'afplay done.wav' }]);
+      expect(stopEntries(readSettings())).toEqual([WIN_HOOK(), { type: 'command', command: 'afplay done.wav' }]);
       expect(out).toContain('Stop hook: updated.');
     }
   });
 
   test('an exec hook from another install is updated in place, and duplicates collapse', async () => {
     const other = { type: 'command', command: 'C:\\old\\node.exe', args: ['C:\\old\\gournal', 'hook', 'stop'] };
-    writeSettings({ hooks: { Stop: [{ hooks: [other] }, { hooks: [{ ...WIN_HOOK }] }, { hooks: [{ type: 'command', command: FOREIGN }] }] } });
+    writeSettings({ hooks: { Stop: [{ hooks: [other] }, { hooks: [WIN_HOOK()] }, { hooks: [{ type: 'command', command: FOREIGN }] }] } });
     expect(await run({ hook: true }, winIo())).toBe(0);
-    expect(readSettings().hooks.Stop).toEqual([{ hooks: [WIN_HOOK] }, { hooks: [{ type: 'command', command: FOREIGN }] }]);
+    expect(readSettings().hooks.Stop).toEqual([{ hooks: [WIN_HOOK()] }, { hooks: [{ type: 'command', command: FOREIGN }] }]);
     expect(out).toContain('Stop hook: updated.');
   });
 
@@ -751,7 +673,7 @@ describe('setup on Windows', () => {
     writeSettings({
       hooks: { Stop: [
         { hooks: [{ type: 'command', command: 'gournal hook stop' }, foreign] },
-        { hooks: [{ type: 'command', command: 'C:\\old\\node.exe', args: ['C:\\old\\cli.js', 'hook', 'stop'] }] },
+        { hooks: [{ type: 'command', command: 'C:\\old\\node.exe', args: ['C:\\old\\gournal\\cli.js', 'hook', 'stop'] }] },
       ] },
     });
     expect(await run({ uninstall: true }, winIo())).toBe(0);
@@ -759,9 +681,9 @@ describe('setup on Windows', () => {
   });
 
   test('a Linux run turns an exec-form hook back into the string form', async () => {
-    writeSettings({ hooks: { Stop: [{ hooks: [WIN_HOOK] }] } });
+    writeSettings({ hooks: { Stop: [{ hooks: [WIN_HOOK()] }] } });
     await run({ hook: true });
-    expect(stopEntries(readSettings())).toEqual([{ type: 'command', command: 'gournal hook stop' }]);
+    expect(stopEntries(readSettings())).toEqual([{ type: 'command', command: HOOK() }]);
   });
 
   test('a read-only mode is not copied to the temp file on Windows, and it is on POSIX', async () => {
@@ -769,10 +691,12 @@ describe('setup on Windows', () => {
     try {
       writeSettings({ model: 'x' });
       await run({ hook: true }, winIo());
-      expect(chmod).not.toHaveBeenCalled();
+      // The launcher write sets its own mode. Only the calls next to settings.json count here.
+      const nearSettings = () => chmod.mock.calls.filter(([f]) => path.dirname(String(f)) === path.dirname(settingsFile()));
+      expect(nearSettings()).toHaveLength(0);
       writeSettings({ model: 'x' });
       await run({ hook: true });
-      expect(chmod).toHaveBeenCalled();
+      expect(nearSettings().length).toBeGreaterThan(0);
     } finally {
       chmod.mockRestore();
     }
@@ -781,16 +705,16 @@ describe('setup on Windows', () => {
   test('every hook plan line shows the exec form with one pair of quotes per word', async () => {
     expect(await run({ hook: true }, winIo())).toBe(0);
     const added = out.join('\n');
-    expect(added).toContain(`Stop hook: add "${WIN_NODE}" "${WIN_CLI}" hook stop to ${settingsFile()}`);
+    expect(added).toContain(`Stop hook: add ${displayQuote(CMD_EXE, 'win32')} /d /c ${displayQuote(WIN_CMD(), 'win32')} hook stop to ${settingsFile()}`);
     out.length = 0;
     writeSettings({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'gournal hook stop' }] }] } });
     expect(await run({ hook: true }, winIo())).toBe(0);
     const updated = out.join('\n');
-    expect(updated).toContain(`update the gournal hook in ${settingsFile()} to "${WIN_NODE}"`);
+    expect(updated).toContain(`update the gournal hook in ${settingsFile()} to ${displayQuote(CMD_EXE, 'win32')} /d /c ${displayQuote(WIN_CMD(), 'win32')} hook stop`);
     out.length = 0;
     await setupClaude(winIo({ isTTY: false }), { uninstall: false, yes: false, hook: false });
     const preview = out.join('\n');
-    expect(preview).toContain(`add a Stop hook to ${settingsFile()}: "${WIN_NODE}"`);
+    expect(preview).toContain(`add a Stop hook to ${settingsFile()}: ${displayQuote(CMD_EXE, 'win32')} /d /c ${displayQuote(WIN_CMD(), 'win32')} hook stop`);
     for (const text of [added, updated, preview]) expect(text).not.toContain('""');
   });
 });
@@ -800,28 +724,28 @@ describe('isGournalHook exec form', () => {
   const recognized = (command: string, args: unknown) => exec(command, args).action === 'updated';
 
   test('accepts node or node.exe with a cli.js or gournal script', () => {
-    expect(recognized('C:\\Program Files\\nodejs\\node.exe', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(true);
+    expect(recognized('C:\\Program Files\\nodejs\\node.exe', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(true);
     expect(recognized('node', ['C:\\app\\node_modules\\.bin\\gournal', 'hook', 'stop'])).toBe(true);
-    expect(recognized('/usr/bin/node', ['/x/cli.js', 'hook', 'stop'])).toBe(true);
+    expect(recognized('/usr/bin/node', ['/x/gournal/cli.js', 'hook', 'stop'])).toBe(true);
   });
 
   test('compares the program name without regard to case', () => {
-    expect(recognized('C:\\Program Files\\nodejs\\Node.exe', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(true);
-    expect(recognized('NODE', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(true);
-    expect(recognized('Nodejs.exe', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(false);
+    expect(recognized('C:\\Program Files\\nodejs\\Node.exe', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(true);
+    expect(recognized('NODE', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(true);
+    expect(recognized('Nodejs.exe', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(false);
   });
 
   test('rejects look-alikes', () => {
     expect(recognized('node.exe', ['other.js', 'hook', 'stop'])).toBe(false);
     expect(recognized('C:\\tools\\gournal-notes\\run.exe', ['hook', 'stop'])).toBe(false);
-    expect(recognized('C:\\tools\\gournal-notes\\run.exe', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(false);
-    expect(recognized('python.exe', ['C:\\app\\cli.js', 'hook', 'stop'])).toBe(false);
-    expect(recognized('node.exe', ['C:\\app\\cli.js', 'hook', 'stop', 'extra'])).toBe(false);
-    expect(recognized('node.exe', ['C:\\app\\cli.js', 'hook'])).toBe(false);
-    expect(recognized('node.exe', ['C:\\app\\cli.js', 'hook', 'start'])).toBe(false);
-    expect(recognized('node.exe', ['--inspect', 'C:\\app\\cli.js', 'hook', 'stop'])).toBe(false);
-    expect(recognized('node.exe', 'C:\\app\\cli.js hook stop')).toBe(false);
-    expect(recognized('node.exe', ['C:\\app\\cli.js', 7, 'stop'])).toBe(false);
+    expect(recognized('C:\\tools\\gournal-notes\\run.exe', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(false);
+    expect(recognized('python.exe', ['C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(false);
+    expect(recognized('node.exe', ['C:\\gournal\\cli.js', 'hook', 'stop', 'extra'])).toBe(false);
+    expect(recognized('node.exe', ['C:\\gournal\\cli.js', 'hook'])).toBe(false);
+    expect(recognized('node.exe', ['C:\\gournal\\cli.js', 'hook', 'start'])).toBe(false);
+    expect(recognized('node.exe', ['--inspect', 'C:\\gournal\\cli.js', 'hook', 'stop'])).toBe(false);
+    expect(recognized('node.exe', 'C:\\gournal\\cli.js hook stop')).toBe(false);
+    expect(recognized('node.exe', ['C:\\gournal\\cli.js', 7, 'stop'])).toBe(false);
     expect(recognized('gournal hook stop', ['x'])).toBe(false);
   });
 
@@ -858,5 +782,67 @@ describe('claude CLI missing is never a silent success', () => {
     differentReg();
     expect(await run({}, makeIo({ answer: true, exec: fakeExec(127) }))).toBe(1);
     expect(hasMissingNote()).toBe(true);
+  });
+});
+
+describe('the launcher registration', () => {
+  const readJson = (rel: string) => fs.readFileSync(path.join(h.gh, rel), 'utf8');
+
+  test('a fresh setup registers the launcher, not bare gournal (root cause 1)', async () => {
+    expect(await run({ hook: true })).toBe(0);
+    expect(calls).toEqual([['claude', 'mcp', 'add', '--scope', 'user', 'gournal', '--', LAUNCHER(), 'mcp']]);
+    expect(readSettings().hooks.Stop[0].hooks[0].command).toBe(HOOK());
+    expect(readJson('runtime/node')).toBe('/opt/node/bin/node\n');
+    expect(checks).toEqual([[LAUNCHER(), '--version']]);
+    expect(out).toContain('Check: Claude Code can start gournal without your shell PATH.');
+    expect(out.join('\n')).not.toContain(VERSION);
+  });
+
+  symlinkTest('no registration, hook, or record holds the package path, and the copy survives the link (root cause 3)', async () => {
+    fs.mkdirSync(path.join(root, 'ms'));
+    const pkgLink = path.join(root, 'ms', 'bin');
+    fs.symlinkSync(pkg, pkgLink);
+    expect(await run({ hook: true }, makeIo({ packageRoot: pkgLink }))).toBe(0);
+    const current = readJson('runtime/current').trim();
+    const seen = [JSON.stringify(calls), fs.readFileSync(settingsFile(), 'utf8'), readJson('runtime/node'), readJson('runtime/current'), readJson('bin/gournal')];
+    for (const text of seen) {
+      expect(text).not.toContain(pkgLink);
+      expect(text).not.toContain(pkg);
+    }
+    fs.rmSync(pkgLink);
+    expect(fs.existsSync(path.join(h.gh, 'runtime', current, 'dist', 'cli.js'))).toBe(true);
+  });
+
+  test('a bare 0.9 registration moves to the launcher under --yes without a terminal (migration)', async () => {
+    h.writeReg({ command: 'gournal', args: ['mcp'] });
+    expect(await run({}, makeIo({ isTTY: false }))).toBe(0);
+    expect(calls.map((c) => c[2])).toEqual(['remove', 'add']);
+    expect(out.join('\n')).toContain('That command depends on the PATH and the Node.js version of the shell that ran setup.');
+    expect(JSON.parse(fs.readFileSync(path.join(home, '.claude.json'), 'utf8')).mcpServers.gournal.command).toBe(LAUNCHER());
+  });
+
+  test('a pinned node registration moves on a terminal, and the prompt defaults to yes', async () => {
+    h.writeReg({ command: '/opt/node/bin/node', args: ['/usr/lib/node_modules/gournal/dist/cli.js', 'mcp'] });
+    expect(await run({ yes: false }, makeIo())).toBe(0);
+    expect(confirmAnswers).toContainEqual(['Move the gournal MCP registration to the launcher?', true]);
+    expect(calls.map((c) => c[2])).toEqual(['remove', 'add']);
+    expect(calls[1]!.slice(-2)).toEqual([LAUNCHER(), 'mcp']);
+    expect(fs.existsSync(LAUNCHER())).toBe(true);
+  });
+
+  test('a foreign registration is still kept under --yes', async () => {
+    h.writeReg({ command: '/opt/tools/run-gournal', args: ['serve'] });
+    expect(await run({}, makeIo({ isTTY: false }))).toBe(0);
+    expect(calls).toEqual([]);
+    expect(confirmAnswers).toEqual([]);
+    expect(out).toContain('MCP server: kept the existing registration. Run setup in a terminal to replace it.');
+  });
+
+  test('a current registration with a failing check exits 1 (root cause 5)', async () => {
+    expect(await run({})).toBe(0);
+    err.length = 0;
+    const check = async () => ({ code: 1, stdout: '', stderr: 'gournal: found no Node.js 22.13 or newer.\nmore' });
+    expect(await run({}, makeIo({ check }))).toBe(1);
+    expect(err).toContain('Check: the launcher did not start gournal (exit 1). gournal: found no Node.js 22.13 or newer.');
   });
 });

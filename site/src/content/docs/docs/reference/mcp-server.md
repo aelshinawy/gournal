@@ -32,11 +32,7 @@ An MCP client starts this command for you, so you do not run it in a terminal. T
 }
 ```
 
-Claude Code registers the same server with one command.
-
-```console
-$ claude mcp add --scope user gournal -- gournal mcp
-```
+For Claude Code, run `gournal setup claude`. A client that starts without your shell `PATH`, such as a desktop app, cannot find `gournal`. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal).
 
 ## Related
 

@@ -137,9 +137,10 @@ function main() {
 
   h = fresh('setup');
   const sub = (t: string) => t.split(h).join('/Users/you');
-  const c1 = sub(cli(h, 'gournal setup claude --yes --hook', { PATH: NO_CLAUDE_PATH }));
-  const c2 = sub(cli(h, 'gournal setup claude --yes', { PATH: NO_CLAUDE_PATH }));
-  w('cli/setup-claude.md', `Set gournal up for Claude Code. This example ran with a fresh home folder that has no claude CLI. The command prints the step that you run yourself, and it writes the skill and the Stop hook.\n\n${block('console', c1)}\n\nRun the command again. The skill step now reports that it is already set up.\n\n${block('console', c2)}`);
+  const setupEnv = { PATH: NO_CLAUDE_PATH, GOURNAL_HOME: `${h}/.gournal` };
+  const c1 = sub(cli(h, 'gournal setup claude --yes --hook', setupEnv));
+  const c2 = sub(cli(h, 'gournal setup claude --yes', setupEnv));
+  w('cli/setup-claude.md', `Set gournal up for Claude Code. This example ran with a fresh home folder that has no claude CLI. The command prints the step that you run yourself, and it writes the skill and the Stop hook.\n\n${block('console', c1)}\n\nRun the command again. The launcher, skill, and hook steps now report that they are already set up.\n\n${block('console', c2)}`);
 }
 
 const json = (v: unknown) => JSON.stringify(v, null, 2);
