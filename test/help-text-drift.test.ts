@@ -83,7 +83,7 @@ test('stated defaults match real defaults', () => {
 
 test('CLI and MCP date wording match', () => {
   const cliCommands = ['log', 'standup', 'find', 'export'];
-  const mcpTools = ['list_entries', 'find_entries', 'export_entries', 'get_standup', 'get_work_log'];
+  const mcpTools = ['find_entries', 'export_entries', 'get_standup', 'get_work_log'];
   for (const name of cliCommands) {
     const cmd = program.commands.find((c) => c.name() === name)!;
     for (const key of ['from', 'to'] as const) {

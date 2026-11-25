@@ -57,7 +57,10 @@ Search journal entries. Every filter is optional, and filters combine.
 
 ### Output
 
-This tool returns structured output. The shape is the [Entry list](/docs/reference/output-shapes/#entry-list).
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `entries` | [`Entry[]`](/docs/reference/output-shapes/#entry) | yes | The matching entries. |
+| `count` | `number` | yes | Number of entries returned. |
 
 ## Examples
 
@@ -139,6 +142,5 @@ The structured result lists each entry with all of its fields. This example show
 
 ## Related
 
-- [List entries](/docs/reference/list/)
 - [Tags](/docs/reference/tags/)
 - [Projects](/docs/reference/projects/)

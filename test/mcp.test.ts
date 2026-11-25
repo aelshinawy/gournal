@@ -157,25 +157,33 @@ test('unknown ids and bad resolves return tool errors', async () => {
   expect(text(r)).toContain('only an open blocker or next');
 });
 
-test('list_entries respects limit and project filter', async () => {
+test('find_entries respects limit and project filter', async () => {
   seed('a', { project: 'api', createdAt: '2026-07-13T10:00:00.000Z' });
   seed('b', { project: 'infra', createdAt: '2026-07-13T10:00:01.000Z' });
   seed('c', { project: 'api', createdAt: '2026-07-13T10:00:02.000Z' });
-  expect(JSON.parse(text(await call('list_entries', { limit: 1 }))).map((e: any) => e.summary)).toEqual(['c']);
-  expect(JSON.parse(text(await call('list_entries', { project: 'api' }))).map((e: any) => e.summary)).toEqual(['c', 'a']);
+  const names = (r: any) => r.structuredContent.entries.map((e: any) => e.summary);
+  expect(names(await call('find_entries', { limit: 1 }))).toEqual(['c']);
+  expect(names(await call('find_entries', { project: 'api' }))).toEqual(['c', 'a']);
 });
 
-test('list_entries "to" date includes that whole day', async () => {
+test('find_entries "to" date includes that whole day', async () => {
   journal.repo.add({ summary: 'late', project: 'p', source: 'mcp', createdAt: new Date(2026, 6, 13, 23, 30).toISOString() });
-  const res = await call('list_entries', { to: '2026-07-13' });
-  expect(JSON.parse(text(res))).toHaveLength(1);
+  const res = await call('find_entries', { to: '2026-07-13' });
+  expect(res.structuredContent.entries).toHaveLength(1);
 });
 
-test('list_entries filters by from', async () => {
+test('find_entries filters by from', async () => {
   journal.repo.add({ summary: 'old', project: 'p', source: 'mcp', createdAt: '2026-07-12T10:00:00.000Z' });
   journal.repo.add({ summary: 'new', project: 'p', source: 'mcp', createdAt: '2026-07-13T10:00:00.000Z' });
-  const res = await call('list_entries', { from: '2026-07-13T00:00:00.000Z' });
-  expect(JSON.parse(text(res)).map((e: any) => e.summary)).toEqual(['new']);
+  const res = await call('find_entries', { from: '2026-07-13T00:00:00.000Z' });
+  expect(res.structuredContent.entries.map((e: any) => e.summary)).toEqual(['new']);
+});
+
+test('find_entries filters by tag', async () => {
+  seed('a', { createdAt: '2026-07-13T10:00:00.000Z' });
+  seed('b', { createdAt: '2026-07-13T10:00:01.000Z', tags: ['x'] });
+  const tagged = await call('find_entries', { tags: ['x'] });
+  expect(tagged.structuredContent.entries.map((e: any) => e.summary)).toEqual(['b']);
 });
 
 test('get_standup renders added entries', async () => {
@@ -247,20 +255,21 @@ test('find_entries rejects a limit above 500', async () => {
   expect(r.isError).toBe(true);
 });
 
-test('list_entries is newest first, keeps JSON text, and adds structured entries', async () => {
-  seed('a', { createdAt: '2026-07-13T10:00:00.000Z' });
-  seed('b', { createdAt: '2026-07-13T10:00:01.000Z' });
-  seed('c', { createdAt: '2026-07-13T10:00:02.000Z', tags: ['x'] });
-  const r = await call('list_entries', { limit: 2 });
-  expect(JSON.parse(text(r)).map((e: any) => e.summary)).toEqual(['c', 'b']);
-  expect(r.structuredContent.entries.map((e: any) => e.summary)).toEqual(['c', 'b']);
-  const tagged = await call('list_entries', { tags: ['x'] });
-  expect(JSON.parse(text(tagged)).map((e: any) => e.summary)).toEqual(['c']);
+test('list_entries is no longer a tool', async () => {
+  const { tools } = await client.listTools();
+  expect(tools.map((t) => t.name)).not.toContain('list_entries');
+});
+
+test('add_entry rejects the removed message alias', async () => {
+  const r = await call('add_entry', { message: 'old alias', project: 'p' });
+  expect(r.isError).toBe(true);
+  expect(text(r)).toContain('summary is required');
+  expect(journal.repo.find({ includeDeleted: true })).toHaveLength(0);
 });
 
 test('every data tool declares an outputSchema', async () => {
   const { tools } = await client.listTools();
-  for (const n of ['find_entries', 'list_entries', 'get_standup', 'get_work_log', 'list_tags', 'list_projects', 'sync_activity', 'add_entry', 'update_entry', 'delete_entry', 'resolve_entry'])
+  for (const n of ['find_entries', 'get_standup', 'get_work_log', 'list_tags', 'list_projects', 'sync_activity', 'add_entry', 'update_entry', 'delete_entry', 'resolve_entry'])
     expect(tools.find((t) => t.name === n)?.outputSchema).toBeDefined();
   expect(tools.find((t) => t.name === 'export_entries')?.outputSchema).toBeUndefined();
 });
@@ -410,7 +419,7 @@ describe('ANSI', () => {
     seed('Done thing', { tags: ['t'] });
     const calls: [string, Record<string, unknown>][] = [
       ['add_entry', { summary: 'added', project: 'p' }],
-      ['find_entries', {}], ['list_entries', {}], ['get_standup', {}], ['get_work_log', {}],
+      ['find_entries', {}], ['get_standup', {}], ['get_work_log', {}],
       ['list_tags', {}], ['list_projects', {}], ['export_entries', {}], ['export_entries', { format: 'csv' }],
     ];
     for (const [name, args] of calls) {
@@ -423,7 +432,7 @@ describe('ANSI', () => {
 });
 
 test('a bad from date is a tool error, not a protocol error', async () => {
-  for (const name of ['get_standup', 'get_work_log', 'export_entries', 'find_entries', 'list_entries']) {
+  for (const name of ['get_standup', 'get_work_log', 'export_entries', 'find_entries']) {
     const r = await call(name, { from: 'soon' });
     expect(r.isError).toBe(true);
   }
@@ -550,7 +559,6 @@ describe('tool annotations', () => {
     delete_entry: { destructiveHint: true },
     resolve_entry: { destructiveHint: false },
     find_entries: { readOnlyHint: true },
-    list_entries: { readOnlyHint: true },
     list_tags: { readOnlyHint: true },
     list_projects: { readOnlyHint: true },
     export_entries: { readOnlyHint: true },
@@ -587,8 +595,8 @@ describe('input caps', () => {
     expect(uncapped).toEqual([]);
   });
 
-  test.each(['summary', 'message'])('add_entry accepts %s exactly at the cap', async (field) => {
-    const r = await call('add_entry', { [field]: x(1000), details: 'd', project: 'p' });
+  test('add_entry accepts summary exactly at the cap', async () => {
+    const r = await call('add_entry', { summary: x(1000), details: 'd', project: 'p' });
     expect(r.isError).toBeFalsy();
     expect(journal.repo.find()).toHaveLength(1);
   });

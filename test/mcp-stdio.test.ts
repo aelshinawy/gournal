@@ -54,7 +54,7 @@ test('gournal mcp writes only JSON-RPC lines to stdout', async () => {
     const msgs = lines.map(l => JSON.parse(l));
     for (const m of msgs) expect(m.jsonrpc).toBe('2.0');
     const list = msgs.find(m => m.id === 2);
-    expect(list.result.tools).toHaveLength(12);
+    expect(list.result.tools).toHaveLength(11);
   } finally {
     clearTimeout(timer);
     child.kill();

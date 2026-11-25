@@ -56,15 +56,6 @@ Tool outputs use this object for each journal entry. Their tables link here.
 | `refs.value` | `string` | yes | The PR number, ticket key, commit hash, or URL. |
 | `refs.repo` | `string` | no | Repository (owner/name) of the reference. |
 
-## Entry list
-
-Tools that return this shape: [`find_entries`](/docs/reference/search/#mcp-tool-find_entries), [`list_entries`](/docs/reference/list/#mcp-tool-list_entries).
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `entries` | [`Entry[]`](/docs/reference/output-shapes/#entry) | yes | The matching entries. |
-| `count` | `number` | yes | Number of entries returned. |
-
 ## Entry result
 
 Tools that return this shape: [`add_entry`](/docs/reference/add/#mcp-tool-add_entry), [`delete_entry`](/docs/reference/remove-restore/#mcp-tool-delete_entry), [`resolve_entry`](/docs/reference/resolve/#mcp-tool-resolve_entry), [`update_entry`](/docs/reference/edit/#mcp-tool-update_entry).

@@ -30,7 +30,6 @@ The CLI has no edit command. The MCP `update_entry` tool fills that gap. Use it 
 | Task | CLI | MCP tool |
 |------|-----|----------|
 | [Search entries](/docs/reference/search/) | [`gournal find`](/docs/reference/search/#cli-gournal-find) | [`find_entries`](/docs/reference/search/#mcp-tool-find_entries) |
-| [List entries](/docs/reference/list/) | None | [`list_entries`](/docs/reference/list/#mcp-tool-list_entries) |
 | [Projects](/docs/reference/projects/) | [`gournal projects`](/docs/reference/projects/#cli-gournal-projects) | [`list_projects`](/docs/reference/projects/#mcp-tool-list_projects) |
 | [Tags](/docs/reference/tags/) | [`gournal tags`](/docs/reference/tags/#cli-gournal-tags) | [`list_tags`](/docs/reference/tags/#mcp-tool-list_tags) |
 

@@ -42,7 +42,7 @@ test('the CLI and MCP surface matches the committed contract', async () => {
   const program = buildProgram({ out: () => undefined, err: () => undefined, cwd: '/', home: '/nonexistent/gournal-contract', isTTY: false });
   const surface = { cli: cliSurface(program), mcp: await mcpSurface() };
   expect(surface.cli).toHaveLength(21);
-  expect(surface.mcp).toHaveLength(12);
+  expect(surface.mcp).toHaveLength(11);
   const text = `${JSON.stringify(surface, null, 2)}\n`;
   if (process.env.UPDATE_CONTRACT === '1') {
     fs.mkdirSync(path.dirname(FIXTURE), { recursive: true });

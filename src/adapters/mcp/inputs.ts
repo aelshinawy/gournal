@@ -6,7 +6,6 @@ export const SUMMARY_TEXT = 'One line, max 120 characters. A longer summary is s
 
 export const EXPORT_DEFAULT_LIMIT = 200;
 export const FIND_DEFAULT_LIMIT = 50;
-export const LIST_DEFAULT_LIMIT = 50;
 
 export const KIND = z.enum(KINDS);
 

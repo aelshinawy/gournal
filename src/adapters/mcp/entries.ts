@@ -5,7 +5,7 @@ import { writeNoteText } from '../write-note-text';
 import { OPTION_TEXT } from '../shared/option-text';
 import { resolveCallIdentity } from './identity';
 import {
-  CAPS, KIND, FIND_DEFAULT_LIMIT, LIST_DEFAULT_LIMIT, SUMMARY_TEXT,
+  CAPS, KIND, FIND_DEFAULT_LIMIT, SUMMARY_TEXT,
   entryRefs, entryTags, shortText, tagsInput,
 } from './inputs';
 import { dataResult, entryResult, errorResult, type ToolContext } from './tool-context';
@@ -19,7 +19,6 @@ export function registerAddEntry({ server, guarded, getWriter, identity, roots, 
       outputSchema: EntryResultSchema,
       inputSchema: {
         summary: z.string().max(CAPS.summary).optional().describe(SUMMARY_TEXT),
-        message: z.string().max(CAPS.summary).optional().describe('Deprecated alias for summary. Use summary instead. It will be removed in 0.12.0.'),
         details: z.string().max(CAPS.details).optional().describe('Longer text for this entry. Use it when the summary needs more room.'),
         kind: KIND.default('done').describe(`Entry kind: ${kindList({ notes: true, defaultKind: 'done' })}.`),
         project: shortText().optional().describe('Project name for this entry. Pass it explicitly. Do not rely on the server working directory.'),
@@ -33,15 +32,14 @@ export function registerAddEntry({ server, guarded, getWriter, identity, roots, 
       },
     },
     guarded(async (args: {
-      summary?: string; message?: string; details?: string; kind?: Kind;
+      summary?: string; details?: string; kind?: Kind;
       project?: string; repo?: string; branch?: string; cwd?: string; agent?: string; tags?: string[];
       refs?: Ref[]; resolves?: string[];
     }, journal) => {
-      const raw = args.summary ?? args.message;
-      if (raw === undefined) return errorResult('summary is required');
+      if (args.summary === undefined) return errorResult('summary is required');
       const identityOfCall = await resolveCallIdentity(args, { identity, roots, processCwd });
       const { entry, notes } = getWriter(journal).add({
-        summary: raw, details: args.details, kind: args.kind, identity: identityOfCall, source: 'mcp',
+        summary: args.summary, details: args.details, kind: args.kind, identity: identityOfCall, source: 'mcp',
         agent: args.agent, tags: args.tags, refs: args.refs, resolves: args.resolves,
       });
       const lines = notes.map(writeNoteText);
@@ -140,28 +138,6 @@ export function registerFindEntries({ server, guarded }: ToolContext): void {
     guarded((args: Query & { limit: number; order: 'asc' | 'desc' }, { repo }) => {
       const entries = repo.find(args);
       return dataResult(entriesMarkdown(entries), { entries: entries.map(entryJson), count: entries.length });
-    })
-  );
-}
-
-export function registerListEntries({ server, guarded }: ToolContext): void {
-  server.registerTool('list_entries',
-    {
-      title: 'List journal entries',
-      annotations: { readOnlyHint: true },
-      description: 'Deprecated: use find_entries (same filters and more). This tool will be removed in 0.12.0. List journal entries, newest first. The text result is JSON. Pass a low `limit` so that the result does not flood your context.',
-      outputSchema: EntryListSchema,
-      inputSchema: {
-        project: z.string().optional().describe(OPTION_TEXT.project),
-        tags: tagsInput,
-        from: z.string().optional().describe(OPTION_TEXT.from),
-        to: z.string().optional().describe(OPTION_TEXT.to),
-        limit: z.number().int().positive().max(500).default(LIST_DEFAULT_LIMIT).describe(`${OPTION_TEXT.limit} The newest come first. The maximum is 500.`),
-      },
-    },
-    guarded(({ project, tags, from, to, limit }: { project?: string; tags?: string[]; from?: string; to?: string; limit: number }, { repo }) => {
-      const newest = repo.find({ project, tags, from, to, order: 'desc', limit });
-      return dataResult(JSON.stringify(newest, null, 2), { entries: newest.map(entryJson), count: newest.length });
     })
   );
 }

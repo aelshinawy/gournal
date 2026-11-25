@@ -165,7 +165,7 @@ describe('MCP reference', () => {
 
   test('every MCP tool has a page', async () => {
     const names = await toolNames();
-    expect(names).toHaveLength(12);
+    expect(names).toHaveLength(11);
     for (const n of names) {
       expect(pages.filter((p) => new RegExp(`^(## MCP tool: |### )${n}$`, 'm').test(p.content))).toHaveLength(1);
     }
@@ -188,7 +188,7 @@ describe('MCP reference', () => {
 
   test('shared output shapes appear once and tool sections link to them', async () => {
     const shapes = await get('output-shapes.md');
-    for (const h of ['Activity', 'Entry', 'Entry list', 'Entry result']) {
+    for (const h of ['Activity', 'Entry', 'Entry result']) {
       expect(shapes.match(new RegExp(`^## ${h}$`, 'gm'))).toHaveLength(1);
     }
     const link = '/docs/reference/output-shapes/#entry-result';
@@ -197,7 +197,9 @@ describe('MCP reference', () => {
       expect(page).toContain(link);
       expect(page).not.toContain('| `entry` |');
     }
-    expect(await get('list.md')).toContain('/docs/reference/output-shapes/#entry-list');
+    // Only find_entries returns an entry list, so its shape is inline, not shared.
+    expect(shapes).not.toMatch(/^## Entry list$/m);
+    expect(await get('search.md')).toContain('| `entries` | [`Entry[]`](/docs/reference/output-shapes/#entry) |');
     // The Entry shape has its own fields. The entry-result shape holds one row that links to it.
     expect(shapes).toMatch(/^\| `deviceId` \| `string` \| yes \|/m);
     expect(shapes).toContain('[`Entry`](/docs/reference/output-shapes/#entry)');
