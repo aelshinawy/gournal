@@ -8,6 +8,22 @@ The last version on npm before this release is 0.5.0.
 Versions 0.6.0 to 0.8.0 were internal steps and were not published to npm.
 Their changes are in this file so that you can see how 0.9.0 grew from 0.5.0.
 
+## [0.12.0](https://github.com/aelshinawy/gournal/compare/v0.11.0...v0.12.0) (2026-11-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mcp:** The list_entries MCP tool is removed. Use find_entries instead. The message argument of add_entry is removed. Use summary instead.
+
+### Features
+
+* **mcp:** remove list_entries and the message alias ([#50](https://github.com/aelshinawy/gournal/issues/50)) ([256598d](https://github.com/aelshinawy/gournal/commit/256598de77425b37c398f7477daf89e0cf9bdf4e))
+
+
+### Bug Fixes
+
+* **setup:** survive Node version managers in the Claude Code setup ([#35](https://github.com/aelshinawy/gournal/issues/35)) ([4d62749](https://github.com/aelshinawy/gournal/commit/4d62749d62e02269da1091c8f74bc6f4082f9d1c))
+
 ## [0.11.0](https://github.com/aelshinawy/gournal/compare/v0.10.0...v0.11.0) (2026-11-21)
 
 
