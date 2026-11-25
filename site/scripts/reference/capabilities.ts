@@ -98,16 +98,7 @@ export const CAPABILITIES: readonly Capability[] = [
     summary: 'Find an old entry when you remember a word from it. Add filters to narrow a large journal.',
     cli: ['find'],
     mcp: ['find_entries'],
-    related: ['list', 'tags', 'projects'],
-  },
-  {
-    slug: 'list',
-    title: 'List entries',
-    group: 'find',
-    summary: 'Browse recent entries when you have no search word. An agent can use it to see what the journal holds before it adds more.',
-    cli: [],
-    mcp: ['list_entries'],
-    related: ['search', 'projects'],
+    related: ['tags', 'projects'],
   },
   {
     slug: 'projects',

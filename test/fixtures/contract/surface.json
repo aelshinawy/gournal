@@ -403,11 +403,6 @@
           "required": false
         },
         {
-          "name": "message",
-          "type": "string",
-          "required": false
-        },
-        {
           "name": "details",
           "type": "string",
           "required": false
@@ -640,44 +635,6 @@
           "name": "includeDeleted",
           "type": "boolean",
           "required": false
-        }
-      ],
-      "outputs": [
-        "count",
-        "entries"
-      ]
-    },
-    {
-      "name": "list_entries",
-      "annotations": {
-        "readOnlyHint": true
-      },
-      "inputs": [
-        {
-          "name": "project",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "tags",
-          "type": "array",
-          "required": false
-        },
-        {
-          "name": "from",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "to",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "limit",
-          "type": "integer",
-          "required": false,
-          "default": 50
         }
       ],
       "outputs": [

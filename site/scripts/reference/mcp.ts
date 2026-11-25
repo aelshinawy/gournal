@@ -38,7 +38,6 @@ const SHAPES_URL = '/docs/reference/output-shapes/';
  */
 const SHAPE_NAMES: Readonly<Record<string, string>> = {
   'add_entry,delete_entry,resolve_entry,update_entry': 'entry-result',
-  'find_entries,list_entries': 'entry-list',
 };
 
 /**

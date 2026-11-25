@@ -120,7 +120,7 @@ describe('docs examples', () => {
     'cli/setup-claude.md': [2, 0], 'cli/standup.md': [1, 0], 'cli/stats.md': [2, 0], 'cli/sync.md': [2, 0],
     'cli/tags.md': [1, 0], 'cli/undo.md': [1, 0],
     'mcp/add_entry.md': [0, 2], 'mcp/delete_entry.md': [0, 2], 'mcp/find_entries.md': [0, 2],
-    'mcp/get_standup.md': [0, 2], 'mcp/list_entries.md': [0, 2], 'mcp/list_projects.md': [0, 2],
+    'mcp/get_standup.md': [0, 2], 'mcp/list_projects.md': [0, 2],
     'mcp/list_tags.md': [0, 2], 'mcp/resolve_entry.md': [0, 2], 'mcp/update_entry.md': [0, 2],
   };
 

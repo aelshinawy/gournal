@@ -191,9 +191,6 @@ async function mcpAll() {
     w('mcp/get_standup.md', `Get today's standup for one project.\n\n${block('json', json(input))}\n\nThe text result:\n\n${block('markdown', r.content[0].text)}\n\nThe structured result holds the same data as JSON. This example shows the entries as \`...\` to stay short.\n\n${block('json', json(sc))}`);
   });
   await mcp('m_list', async (call) => {
-    const input = { project: 'worker', limit: 2 };
-    const r = await call('list_entries', input);
-    w('mcp/list_entries.md', `List the two newest entries of one project. Pass a low \`limit\` so that the result stays short.\n\n${block('json', json(input))}\n\nThe structured result. The text result holds the \`entries\` list as JSON.\n\n${block('json', json(r.structuredContent))}`);
     const p = await call('list_projects', {});
     w('mcp/list_projects.md', `List every project with its number of entries. The tool takes no input.\n\n${block('json', '{}')}\n\nThe structured result:\n\n${block('json', json(p.structuredContent))}\n\nThe text result holds the \`projects\` list as JSON.`);
     const tin = { project: 'worker' };

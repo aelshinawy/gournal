@@ -165,7 +165,7 @@ describe('MCP reference', () => {
 
   test('every MCP tool has a page', async () => {
     const names = await toolNames();
-    expect(names).toHaveLength(12);
+    expect(names).toHaveLength(11);
     for (const n of names) {
       expect(pages.filter((p) => new RegExp(`^(## MCP tool: |### )${n}$`, 'm').test(p.content))).toHaveLength(1);
     }
@@ -197,7 +197,7 @@ describe('MCP reference', () => {
       expect(page).toContain(link);
       expect(page).not.toContain('| `entry` |');
     }
-    expect(await get('list.md')).toContain('/docs/reference/output-shapes/#entry-list');
+    expect(await get('search.md')).toContain('/docs/reference/output-shapes/#entry-list');
     // The Entry shape has its own fields. The entry-result shape holds one row that links to it.
     expect(shapes).toMatch(/^\| `deviceId` \| `string` \| yes \|/m);
     expect(shapes).toContain('[`Entry`](/docs/reference/output-shapes/#entry)');

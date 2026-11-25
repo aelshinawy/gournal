@@ -39,7 +39,6 @@ Add a journal entry. Pass `project` explicitly whenever you know it, and pass `c
 | Field | Type | Required | Description | Default |
 |-------|------|----------|-------------|---------|
 | `summary` | `string` | no | One line, max 120 characters. A longer summary is split into details when you pass `details`, or when you retry a summary with the same first 60 characters within 10 minutes. Otherwise the server rejects it. |  |
-| `message` | `string` | no | Deprecated alias for summary. Use summary instead. It will be removed in 0.12.0. |  |
 | `details` | `string` | no | Longer text for this entry. Use it when the summary needs more room. |  |
 | `kind` | `"done" \| "blocker" \| "next"` | no | Entry kind: done (default), blocker (something stops you), or next (a planned step). | `"done"` |
 | `project` | `string` | no | Project name for this entry. Pass it explicitly. Do not rely on the server working directory. |  |

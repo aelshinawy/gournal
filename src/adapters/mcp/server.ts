@@ -8,7 +8,7 @@ import type { RepoIdentity } from '../../core';
 import { openJournal } from '../../storage';
 import { errorResult, type JournalLike, type RegisterTool, type ToolContext, type ToolResult } from './tool-context';
 import {
-  registerAddEntry, registerDeleteEntry, registerFindEntries, registerListEntries, registerListProjects, registerListTags,
+  registerAddEntry, registerDeleteEntry, registerFindEntries, registerListProjects, registerListTags,
   registerResolveEntry, registerUpdateEntry,
 } from './entries';
 import { registerExportEntries, registerGetStandup, registerGetWorkLog } from './reports';
@@ -36,7 +36,7 @@ export interface ServerDeps {
 const ROOTS_TIMEOUT_MS = 1000;
 
 const TOOLS: RegisterTool[] = [
-  registerAddEntry, registerUpdateEntry, registerDeleteEntry, registerResolveEntry, registerFindEntries, registerListEntries,
+  registerAddEntry, registerUpdateEntry, registerDeleteEntry, registerResolveEntry, registerFindEntries,
   registerGetStandup, registerGetWorkLog, registerListTags, registerListProjects, registerExportEntries, registerSyncActivity,
 ];
 
