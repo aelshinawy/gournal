@@ -13,6 +13,9 @@ test.each(indexes)('%s lists its exports by name', (file) => {
   expect(text).not.toMatch(/export\s+(type\s+)?\*/);
 });
 
+test('src has only the layer folders and the bin shim', () =>
+  expect(fs.readdirSync(path.join(ROOT, 'src')).sort()).toEqual(['adapters', 'cli.ts', 'core', 'render', 'sources', 'storage']));
+
 test('core groups its files in the glossary folders', () => {
   const entries = fs.readdirSync(path.join(ROOT, 'src/core'), { withFileTypes: true });
   expect(entries.filter((e) => e.isDirectory()).map((e) => e.name).sort()).toEqual(['activity', 'entries', 'labels', 'reports']);

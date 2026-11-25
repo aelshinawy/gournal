@@ -65,7 +65,6 @@ const want = (hook: StopHook): { command: string; args?: string[] } =>
 
 const isStrings = (v: unknown): v is string[] => Array.isArray(v) && v.every((a) => typeof a === 'string');
 
-/** True when `h` is a hook entry that has the same command and the same args (or none) as `hook`. */
 function sameHook(h: Json, hook: StopHook): boolean {
   const w = want(hook);
   if (h.command !== w.command) return false;
@@ -87,7 +86,6 @@ function isGournalExecHook(command: string, args: unknown): boolean {
   return isGournalNodeLaunch(command, args[0]!) && args[1] === 'hook' && args[2] === 'stop';
 }
 
-/** True when `h` is a gournal hook entry in the shell form or in the exec form. */
 function isOurs(h: unknown, current?: StopHook): h is Json {
   if (!isObj(h) || typeof h.command !== 'string') return false;
   if (current !== undefined && sameHook(h, current)) return true;
@@ -101,7 +99,6 @@ function stopGroups(settings: Json): unknown[] {
   return hooks.Stop;
 }
 
-/** The gournal hook entries in settings, in order. */
 function gournalHooks(settings: Json, current?: StopHook): Json[] {
   const out: Json[] = [];
   for (const group of stopGroups(settings)) {
@@ -113,11 +110,7 @@ function gournalHooks(settings: Json, current?: StopHook): Json[] {
 
 export type HookAction = 'added' | 'updated' | 'unchanged';
 
-/**
- * Add the gournal Stop hook. Every other key and hook stays as it is, foreign hooks included.
- * One gournal hook already there is pointed at `hook`, in whichever form `hook` has.
- * Extra gournal hooks are removed.
- */
+/** Add the gournal Stop hook. Foreign hooks stay. One gournal hook already there is updated, extra ones are removed. */
 export function addStopHook(settings: Json, hook: StopHook): { next: Json; changed: boolean; action: HookAction } {
   const existing = gournalHooks(settings, hook);
   if (existing.length === 1 && sameHook(existing[0]!, hook)) return { next: settings, changed: false, action: 'unchanged' };
@@ -153,7 +146,7 @@ export function addStopHook(settings: Json, hook: StopHook): { next: Json; chang
   return { next, changed: true, action: 'added' };
 }
 
-/** Remove every gournal Stop hook. Drop the containers that this leaves empty. */
+/** Remove every gournal Stop hook and the containers that this leaves empty. */
 export function removeStopHook(settings: Json, current?: StopHook): { next: Json; changed: boolean } {
   const mine = (h: unknown): boolean => isOurs(h, current);
   const has = stopGroups(settings).some((g) => isObj(g) && Array.isArray(g.hooks) && g.hooks.some(mine));

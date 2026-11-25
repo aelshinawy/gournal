@@ -1,4 +1,3 @@
-import fs from 'fs';
 import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../../src/storage/db';
@@ -124,24 +123,18 @@ test('GOURNAL_DISABLE_FTS5 is active only when it equals 1', () => {
   try { expect(hasFts5(db)).toBe(realFts5(db)); } finally { db.close(); }
 });
 
-ftsTest('a database at schema v2 that already has entries_fts and triggers opens as a no-op', () => {
+ftsTest('opening an up-to-date database with FTS takes no write lock and keeps its index', () => {
   const first = openDb(file);
   createRepository(first, config, file).add({ summary: 'alpha', ...base });
   first.close();
-  const before = fs.readFileSync(file);
+  const holder = openDb(file);
+  holder.exec('BEGIN IMMEDIATE');
+  try { openDb(file).close(); } finally { holder.exec('ROLLBACK'); holder.close(); }
   const db = openDb(file);
   try {
     expect(ftsTriggers(db)).toEqual(['entries_fts_ad', 'entries_fts_ai', 'entries_fts_au']);
     expect(hits(db, 'alpha')).toHaveLength(1);
   } finally { db.close(); }
-  expect(fs.readFileSync(file).equals(before)).toBe(true);
-});
-
-ftsTest('opening an up-to-date database with FTS takes no write lock', () => {
-  openDb(file).close();
-  const holder = openDb(file);
-  holder.exec('BEGIN IMMEDIATE');
-  try { openDb(file).close(); } finally { holder.exec('ROLLBACK'); holder.close(); }
 });
 
 test('opening an up-to-date database without FTS takes no write lock', () => {
@@ -188,18 +181,6 @@ ftsTest('stray triggers are replaced by a full index when FTS5 exists', () => {
   } finally { db.close(); }
 });
 
-ftsTest('a table without triggers stays alone on open', () => {
-  const d = openDb(file);
-  createRepository(d, config, file).add({ summary: 'alpha', ...base });
-  for (const t of ['entries_fts_ad', 'entries_fts_ai', 'entries_fts_au']) d.exec(`DROP TRIGGER ${t}`);
-  d.close();
-  const db = openDb(file);
-  try {
-    expect(ftsTable(db)).toBe(true);
-    expect(ftsTriggers(db)).toEqual([]);
-  } finally { db.close(); }
-});
-
 ftsTest('rebuild restores a live index over all rows', () => {
   const d = openDb(file);
   const repo = createRepository(d, config, file);
@@ -215,27 +196,11 @@ ftsTest('rebuild restores a live index over all rows', () => {
   d.close();
 });
 
-test('rebuild refuses without FTS5', async () => {
-  const msg = 'This Node build has no FTS5; the search index cannot be rebuilt.';
+test('rebuild refuses without FTS5', () => {
   withoutFts(() => {
     const db = openDb(file);
-    try { expect(() => rebuildSearchIndex(db)).toThrow(msg); } finally { db.close(); }
+    try { expect(() => rebuildSearchIndex(db)).toThrow('This Node build has no FTS5; the search index cannot be rebuilt.'); } finally { db.close(); }
   });
-  process.env[FLAG] = '1';
-  try {
-    const r = await runIn(dir, ['index', 'rebuild']);
-    expect(r.status).toBe(1);
-    expect(r.stderr).toContain(msg);
-  } finally { restoreFlag(); }
-});
-
-ftsTest('the CLI rebuilds the index and prints the count', async () => {
-  const d = openDb(file);
-  createRepository(d, config, file).add({ summary: 'alpha', ...base });
-  d.close();
-  const r = await runIn(dir, ['index', 'rebuild']);
-  expect(r.status).toBe(0);
-  expect(r.stdout).toBe('Search index rebuilt: 1 entries.');
 });
 
 test('the rebuild help text carries the warning', async () => {

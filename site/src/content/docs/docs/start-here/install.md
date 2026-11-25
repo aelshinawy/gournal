@@ -74,7 +74,7 @@ Gournal keeps its data in `~/.gournal`. On Windows, this is `%USERPROFILE%\.gour
 
 ## Upgrade
 
-Run `npm install -g gournal` again to get the newest version. Then run `gournal setup claude` again to update the copy that Claude Code uses when the package is missing. If you install under another Node.js version, any `gournal` command from the new install makes Claude Code use it. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal). If you upgrade from version 0.6 or older, see [Migrating from 0.x](/docs/guides/migrating-from-0x/).
+Run `npm install -g gournal` again to get the newest version. Then run `gournal setup claude` again to update the copy that Claude Code uses when the package is missing. If you install under another Node.js version, any `gournal` command from the new install makes Claude Code use it. See [How Claude Code starts gournal](/docs/guides/claude-code-setup/#how-claude-code-starts-gournal). The import of the 0.x `entries.json` file was removed. To migrate from 0.x, install gournal 0.10 first.
 
 ## Uninstall
 

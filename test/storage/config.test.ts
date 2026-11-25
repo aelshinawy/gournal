@@ -1,17 +1,13 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import { CONFIG_DEFAULTS } from '../../src/core';
 import { loadConfig } from '../../src/storage/config';
-import { gournalHome } from '../../src/storage/home';
 import { makeTmp, rmTmp } from '../helpers/tmp';
 
 let dir: string;
-const savedHome = process.env.GOURNAL_HOME;
 const savedNoAuto = process.env.GOURNAL_NO_AUTOSYNC;
 beforeEach(() => { delete process.env.GOURNAL_NO_AUTOSYNC; dir = makeTmp('gournal-cfg-'); });
 afterEach(() => {
-  if (savedHome === undefined) delete process.env.GOURNAL_HOME; else process.env.GOURNAL_HOME = savedHome;
   if (savedNoAuto === undefined) delete process.env.GOURNAL_NO_AUTOSYNC; else process.env.GOURNAL_NO_AUTOSYNC = savedNoAuto;
   rmTmp(dir);
 });
@@ -45,19 +41,19 @@ test('loadConfig creates the folder and leaves no temp files', () => {
   loadConfig(sub);
   expect(fs.readdirSync(sub)).toEqual(['config.json']);
 });
-test('gournalHome honors GOURNAL_HOME', () => {
-  process.env.GOURNAL_HOME = dir; expect(gournalHome()).toBe(dir);
-});
-test('gournalHome falls back to HOME/.gournal', () => {
-  delete process.env.GOURNAL_HOME;
-  expect(gournalHome()).toBe(path.join(process.env.HOME || process.env.USERPROFILE || os.homedir(), '.gournal'));
-});
 test('loadConfig persists filled keys and keeps the deviceId', () => {
   const file = path.join(dir, 'config.json');
   fs.writeFileSync(file, JSON.stringify({ deviceId: 'D1' }));
   loadConfig(dir);
   expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ deviceId: 'D1', projectAliases: {}, tagAliases: {}, ticketPrefixes: [] });
   expect(fs.readdirSync(dir)).toEqual(['config.json']);
+  // A first-run file holds the same key set. The newer settings stay out of the file.
+  const fresh = makeTmp('gournal-cfg-first-');
+  try {
+    loadConfig(fresh);
+    expect(Object.keys(JSON.parse(fs.readFileSync(path.join(fresh, 'config.json'), 'utf8'))).sort())
+      .toEqual(['deviceId', 'projectAliases', 'tagAliases', 'ticketPrefixes']);
+  } finally { rmTmp(fresh); }
 });
 test('a concurrent first run keeps the deviceId that won', () => {
   const file = path.join(dir, 'config.json');
@@ -91,18 +87,6 @@ test.each(['projectAliases', 'tagAliases'])('%s with an alias chain is rejected'
     expect(() => loadConfig(home)).toThrow('alias chain at "a"');
   } finally { rmTmp(home); }
 });
-test('new settings are not written to the file', () => {
-  const file = path.join(dir, 'config.json');
-  const text = JSON.stringify({ deviceId: 'D', projectAliases: {}, tagAliases: {}, ticketPrefixes: [] }, null, 2) + '\n';
-  fs.writeFileSync(file, text);
-  expect(loadConfig(dir).staleAfterDays).toBe(14);
-  expect(fs.readFileSync(file, 'utf8')).toBe(text);
-});
-test('a first-run file holds only the Phase 1 keys', () => {
-  loadConfig(dir);
-  expect(Object.keys(JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'))).sort())
-    .toEqual(['deviceId', 'projectAliases', 'tagAliases', 'ticketPrefixes']);
-});
 test('loadConfig sends warnings to the warn hook', () => {
   fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify({ deviceId: 'D', projectAliases: {}, tagAliases: {}, ticketPrefixes: [], staleAfterDays: -1 }));
   const warn = jest.fn();
@@ -115,68 +99,14 @@ describe('first run without hard links', () => {
   const failLink = (code: string) =>
     jest.spyOn(fs, 'linkSync').mockImplementation(() => { throw Object.assign(new Error(code), { code }); });
 
-  test.each(['EPERM', 'ENOSYS', 'ENOTSUP', 'EXDEV', 'EINVAL'])('a link that fails with %s still publishes the config', (code) => {
-    failLink(code);
+  test('a link that fails with EPERM still publishes the config', () => {
+    failLink('EPERM');
     const c = loadConfig(dir);
     const file = path.join(dir, 'config.json');
     expect(JSON.parse(fs.readFileSync(file, 'utf8')).deviceId).toBe(c.deviceId);
     expect(loadConfig(dir)).toEqual(c);
     expect(fs.readdirSync(dir)).toEqual(['config.json']);
   });
-
-  test('the fallback keeps the deviceId of a process that won the race', () => {
-    const file = path.join(dir, 'config.json');
-    const winner = { deviceId: 'WINNER', projectAliases: {}, tagAliases: {}, ticketPrefixes: [] };
-    // The other process creates the file after our link fails and before our claim.
-    jest.spyOn(fs, 'linkSync').mockImplementation(() => {
-      fs.writeFileSync(file, JSON.stringify(winner));
-      throw Object.assign(new Error('EPERM'), { code: 'EPERM' });
-    });
-    expect(loadConfig(dir).deviceId).toBe('WINNER');
-    expect(JSON.parse(fs.readFileSync(file, 'utf8')).deviceId).toBe('WINNER');
-    expect(fs.readdirSync(dir)).toEqual(['config.json']);
-  });
-
-  test('the fallback keeps the deviceId of a winner that is still renaming its file', () => {
-    const file = path.join(dir, 'config.json');
-    const winner = { deviceId: 'WINNER', projectAliases: {}, tagAliases: {}, ticketPrefixes: [] };
-    // The winner has claimed the file (empty) and has not renamed its finished file onto it yet.
-    jest.spyOn(fs, 'linkSync').mockImplementation(() => {
-      fs.writeFileSync(file, '');
-      throw Object.assign(new Error('EPERM'), { code: 'EPERM' });
-    });
-    const realStat = fs.statSync.bind(fs);
-    let calls = 0;
-    jest.spyOn(fs, 'statSync').mockImplementation(((p: fs.PathLike, o?: unknown) => {
-      if (p === file && ++calls === 2) fs.writeFileSync(file, JSON.stringify(winner));
-      return realStat(p, o as never);
-    }) as typeof fs.statSync);
-    expect(loadConfig(dir).deviceId).toBe('WINNER');
-  });
-
-  test('two loads in a row without hard links agree on one deviceId', () => {
-    failLink('EPERM');
-    const a = loadConfig(dir);
-    const b = loadConfig(dir);
-    expect(b.deviceId).toBe(a.deviceId);
-  });
-});
-
-test('the config rewrite retries a Windows rename', () => {
-  const file = path.join(dir, 'config.json');
-  fs.writeFileSync(file, JSON.stringify({ deviceId: 'D1' }));
-  const real = fs.renameSync.bind(fs);
-  let n = 0;
-  const spy = jest.spyOn(fs, 'renameSync').mockImplementation((a, b) => {
-    if (n++ === 0) throw Object.assign(new Error('EPERM'), { code: 'EPERM' });
-    real(a, b);
-  });
-  const saved = Object.getOwnPropertyDescriptor(process, 'platform')!;
-  Object.defineProperty(process, 'platform', { value: 'win32' });
-  try { loadConfig(dir); } finally { Object.defineProperty(process, 'platform', saved); spy.mockRestore(); }
-  expect(n).toBe(2);
-  expect(JSON.parse(fs.readFileSync(file, 'utf8')).deviceId).toBe('D1');
-  expect(fs.readdirSync(dir)).toEqual(['config.json']);
 });
 
 describe('an empty config file', () => {

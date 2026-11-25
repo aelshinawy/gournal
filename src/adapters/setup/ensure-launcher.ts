@@ -4,7 +4,7 @@ import { installRuntime } from './runtime';
 import { checkLauncherPath } from './launcher';
 import { createLauncherCheck } from './launcher-check';
 import { VERSION } from '../version';
-import type { SetupCtx } from './claude';
+import type { Ctx } from './claude-ctx';
 
 export interface LauncherStep {
   ensure(): boolean;
@@ -14,7 +14,7 @@ export interface LauncherStep {
 
 const LABELS = { installed: 'installed in', updated: 'updated in', unchanged: '' } as const;
 
-export function makeLauncherStep(ctx: SetupCtx): LauncherStep {
+export function makeLauncherStep(ctx: Ctx): LauncherStep {
   const { io, paths, platform } = ctx;
   let state: 'new' | 'ok' | 'failed' = 'new';
   const fail = (message: string): boolean => {

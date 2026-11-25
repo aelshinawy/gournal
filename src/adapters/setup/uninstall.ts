@@ -5,10 +5,11 @@ import { removeStopHook } from './settings';
 import { classifyRegistration } from './command';
 import { readSettings, readRegistration, writeSettingsFile } from './claude-files';
 import { removeRuntime } from './runtime';
-import type { SetupCtx } from './claude';
+import { uninstallSkill } from './claude-skill';
+import type { Ctx } from './claude-ctx';
 
 /** Returns true when a registration that starts the launcher is still there. */
-async function mcpStep(ctx: SetupCtx): Promise<boolean> {
+async function mcpStep(ctx: Ctx): Promise<boolean> {
   const { io } = ctx;
   const reg = readRegistration(ctx.claudeJson);
   if (reg === null) {
@@ -33,22 +34,8 @@ async function mcpStep(ctx: SetupCtx): Promise<boolean> {
   return kind === 'current';
 }
 
-async function skillStep(ctx: SetupCtx): Promise<void> {
-  const { io, skillFile } = ctx;
-  if (!fs.existsSync(skillFile)) return void io.out('Skill: not set up.');
-  if (!fs.readFileSync(skillFile, 'utf8').includes(SKILL_MARKER)) {
-    return void io.out(`Skill: ${skillFile} was not written by gournal. Left alone.`);
-  }
-  io.out(`Skill: remove ${skillFile}.`);
-  if (await ctx.ask('Remove the gournal skill?', true)) {
-    fs.rmSync(skillFile, { force: true });
-    try { fs.rmdirSync(path.dirname(skillFile)); } catch { /* not empty: keep it */ }
-    io.out('Skill: removed.');
-  } else io.out('Skill: kept.');
-}
-
 /** `kept`: a gournal Stop hook is still there. `invalid`: settings.json cannot be read. */
-async function hookStep(ctx: SetupCtx): Promise<'done' | 'kept' | 'invalid'> {
+async function hookStep(ctx: Ctx): Promise<'done' | 'kept' | 'invalid'> {
   const { io, settingsFile, backupFile } = ctx;
   const read = readSettings(settingsFile);
   if (read.kind === 'invalid') {
@@ -73,7 +60,7 @@ async function hookStep(ctx: SetupCtx): Promise<'done' | 'kept' | 'invalid'> {
   return 'kept';
 }
 
-async function launcherStep(ctx: SetupCtx, reasons: string[]): Promise<void> {
+async function launcherStep(ctx: Ctx, reasons: string[]): Promise<void> {
   const { io, paths } = ctx;
   if (!fs.existsSync(paths.launcher) && !fs.existsSync(paths.runtimeDir)) return void io.out('Launcher: not set up.');
   if (reasons.length > 0) {
@@ -86,10 +73,10 @@ async function launcherStep(ctx: SetupCtx, reasons: string[]): Promise<void> {
   } else io.out('Launcher: kept.');
 }
 
-export async function uninstallFlow(ctx: SetupCtx): Promise<void> {
+export async function uninstallFlow(ctx: Ctx): Promise<void> {
   const reasons: string[] = [];
   if (await mcpStep(ctx)) reasons.push('the MCP registration still starts it');
-  await skillStep(ctx);
+  await uninstallSkill(ctx);
   const hook = await hookStep(ctx);
   if (hook === 'kept') reasons.push('the Stop hook still starts it');
   if (hook === 'invalid') reasons.push(`${ctx.settingsFile} is not valid JSON and may hold a hook that starts it`);

@@ -17,6 +17,14 @@ export const DEFAULT_PROJECT = 'uncategorized';
 /** Strip a project. A project with nothing left falls back to the default project. */
 export const cleanProject = (s: string): string => stripControl(s) || DEFAULT_PROJECT;
 
+const MAX_FIRST_LINE = 100;
+
+/** The first non-blank line of text, trimmed and cut to 100 characters. For one-line reasons and warnings. */
+export function firstLine(text: string): string {
+  const line = text.split('\n').find((l) => l.trim() !== '')?.trim() ?? 'unknown error';
+  return line.slice(0, MAX_FIRST_LINE);
+}
+
 /** Strip an optional single-line field. null and undefined pass through. */
 export const cleanOpt = (v: string | null | undefined): string | null | undefined => (typeof v === 'string' ? stripControl(v) : v);
 

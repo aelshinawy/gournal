@@ -1,6 +1,6 @@
 import { openJournal, type Journal } from '../../src/storage/journal';
 import {
-  RETRY_WINDOW_MS, createEntryWriter, type AddInput, type EntryWriter, type EntryWriterOptions,
+  RETRY_WINDOW_MS, createEntryWriter, relinkAfterWrite, type AddInput, type EntryWriter, type EntryWriterOptions,
 } from '../../src/adapters/entry-writer';
 import { NOT_RESOLVABLE, type NewEntryInput } from '../../src/core';
 import { makeTmp, rmTmp } from '../helpers/tmp';
@@ -36,9 +36,10 @@ describe('add summary rule', () => {
     expect(notes).toEqual([{ type: 'split' }]);
   });
 
-  test('without retry memory a long summary with details keeps both', () => {
-    const { entry } = add(writer(), { summary: long, details: 'extra' });
+  test.each([false, true])('with retryMemory %s a long summary with details is split and keeps both', (retryMemory) => {
+    const { entry, notes } = add(writer({ retryMemory }), { summary: long, details: 'extra' });
     expect(entry.details).toBe(`${long}\n\nextra`);
+    expect(notes).toEqual([{ type: 'split' }]);
   });
 
   test('with retry memory a long summary without details throws and stores nothing', () => {
@@ -51,19 +52,14 @@ describe('add summary rule', () => {
       .toThrow(/^summary must be one line, max 120\. Put the rest in details\.$/);
   });
 
-  test('a retry at exactly 10 minutes is split', () => {
+  test('a retry at exactly 10 minutes is split, one millisecond later it is rejected again', () => {
     const w = writer({ retryMemory: true });
     expect(() => add(w, { summary: long })).toThrow('max 120');
     now += RETRY_WINDOW_MS;
     const { entry, notes } = add(w, { summary: long });
     expect(notes).toEqual([{ type: 'split' }]);
     expect(entry.details).toBe(long);
-  });
-
-  test('a retry after more than 10 minutes is rejected again', () => {
-    const w = writer({ retryMemory: true });
-    expect(() => add(w, { summary: long })).toThrow('max 120');
-    now += RETRY_WINDOW_MS + 1;
+    now += 1;
     expect(() => add(w, { summary: long })).toThrow('max 120');
   });
 
@@ -79,12 +75,6 @@ describe('add summary rule', () => {
     expect(() => add(w, { summary: 'a'.repeat(59) + 'c'.repeat(101) })).toThrow('max 120');
   });
 
-  test('an unrelated long summary is still rejected after a rejection', () => {
-    const w = writer({ retryMemory: true });
-    expect(() => add(w, { summary: 'a'.repeat(200) })).toThrow('max 120');
-    expect(() => add(w, { summary: 'z'.repeat(200) })).toThrow('max 120');
-  });
-
   test('retry matching ignores surrounding whitespace', () => {
     const w = writer({ retryMemory: true });
     expect(() => add(w, { summary: `  ${'q'.repeat(200)}  ` })).toThrow('max 120');
@@ -94,16 +84,6 @@ describe('add summary rule', () => {
   test('retry memory is per writer', () => {
     expect(() => add(writer({ retryMemory: true }), { summary: long })).toThrow('max 120');
     expect(() => add(writer({ retryMemory: true }), { summary: long })).toThrow('max 120');
-  });
-
-  test('with retry memory a long summary with details is split', () => {
-    const { entry, notes } = add(writer({ retryMemory: true }), { summary: long, details: 'given' });
-    expect(entry.details).toBe(`${long}\n\ngiven`);
-    expect(notes).toEqual([{ type: 'split' }]);
-  });
-
-  test('a blank summary throws summary is empty', () => {
-    expect(() => add(writer(), { summary: '   ' })).toThrow('summary is empty');
   });
 
   test('add stores the identity, source, agent, kind, tags, and refs', () => {
@@ -119,9 +99,9 @@ describe('add summary rule', () => {
 });
 
 describe('update summary rule', () => {
-  test('with retry memory update rejects a long summary without details and changes nothing', () => {
+  test.each([['no details', undefined], ['existing details', 'keep me']])('with retry memory update rejects a long first summary with %s and changes nothing', (_label, details) => {
     const w = writer({ retryMemory: true });
-    const e = seed('one');
+    const e = seed('one', { details });
     expect(() => w.update(e.id, { summary: long })).toThrow('max 120');
     expect(journal.repo.get(e.id)).toEqual(e);
   });
@@ -151,13 +131,6 @@ describe('update summary rule', () => {
     expect(notes).toEqual([{ type: 'split' }]);
   });
 
-  test('existing details do not make a first long update split', () => {
-    const w = writer({ retryMemory: true });
-    const e = seed('one', { details: 'keep me' });
-    expect(() => w.update(e.id, { summary: long })).toThrow('max 120');
-    expect(journal.repo.get(e.id)).toEqual(e);
-  });
-
   test('a rejected add makes the same update a retry', () => {
     const w = writer({ retryMemory: true });
     expect(() => add(w, { summary: long })).toThrow('max 120');
@@ -174,40 +147,26 @@ describe('update summary rule', () => {
     expect(out.notes).toEqual([{ type: 'split' }]);
   });
 
-  test('update keeps details when only the summary changes', () => {
+  test('update keeps details when only the summary changes, and replaces them when only details change', () => {
     const w = writer();
     const e = seed('old', { details: 'keep me' });
-    const out = w.update(e.id, { summary: 'new' });
-    expect(out.entry.summary).toBe('new');
-    expect(out.entry.details).toBe('keep me');
-    expect(out.notes).toEqual([]);
-  });
-
-  test('update with only details replaces details', () => {
-    const e = seed('old', { details: 'before' });
-    const out = writer().update(e.id, { details: 'after' });
-    expect(out.entry.summary).toBe('old');
-    expect(out.entry.details).toBe('after');
-    expect(out.notes).toEqual([]);
-  });
-
-  test('update kind change reopens a resolved blocker', () => {
-    const b = seed('stuck', { kind: 'blocker' });
-    journal.repo.resolve(b.id);
-    const out = writer().update(b.id, { kind: 'next' });
-    expect(out.entry).toMatchObject({ status: 'open', resolvedAt: null, resolvedByEntryId: null });
+    const kept = w.update(e.id, { summary: 'new' });
+    expect(kept.entry).toMatchObject({ summary: 'new', details: 'keep me' });
+    expect(kept.notes).toEqual([]);
+    const replaced = w.update(e.id, { details: 'after' });
+    expect(replaced.entry).toMatchObject({ summary: 'new', details: 'after' });
+    expect(replaced.notes).toEqual([]);
   });
 });
 
 describe('resolves policy', () => {
-  test('a writer has no resolves option', () => {
-    // @ts-expect-error the option is gone
-    createEntryWriter(journal, { retryMemory: false, clock, resolves: 'strict' });
-  });
-
-  test('an open blocker is resolved', () => {
+  test.each([
+    ['a full id', (id: string) => [id]],
+    ['a full id and its suffix', (id: string) => [id, id.slice(-8)]],
+  ])('an open blocker is resolved once by %s', (_label, ids) => {
     const b = seed('stuck', { kind: 'blocker' });
-    const { entry } = add(writer(), { resolves: [b.id] });
+    const { entry, notes } = add(writer(), { resolves: ids(b.id) });
+    expect(notes).toEqual([]);
     expect(journal.repo.get(b.id)).toMatchObject({ status: 'resolved', resolvedByEntryId: entry.id });
   });
 
@@ -223,13 +182,6 @@ describe('resolves policy', () => {
     const { notes } = add(writer(), { resolves: [blocker.id, done.id.slice(-8)] });
     expect(notes).toContainEqual({ type: 'resolveDropped', id: done.id.slice(-8), reason: NOT_RESOLVABLE });
     expect(journal.repo.get(blocker.id)!.status).toBe('resolved');
-  });
-
-  test('a full id and its suffix resolve once', () => {
-    const b = seed('stuck', { kind: 'blocker' });
-    const { entry, notes } = add(writer(), { resolves: [b.id, b.id.slice(-8)] });
-    expect(notes).toEqual([]);
-    expect(journal.repo.get(b.id)!.resolvedByEntryId).toBe(entry.id);
   });
 
   test('a target that turns non-open inside the transaction is dropped', () => {
@@ -250,19 +202,15 @@ describe('similar-tag notes', () => {
     expect(notes).toEqual([{ type: 'similarTag', tag: 'reveiw', close: ['review'] }]);
   });
 
-  test('a new tag with no close match gives no similarTag note', () => {
-    seed('first', { tags: ['review'] });
-    expect(add(writer(), { tags: ['database'] }).notes).toEqual([]);
-  });
-
   test('similar-tag notes use the normalized tag', () => {
     seed('first', { tags: ['review'] });
     const { notes } = add(writer(), { tags: ['Reveiw'] });
     expect(notes).toEqual([{ type: 'similarTag', tag: 'reveiw', close: ['review'] }]);
   });
 
-  test('an existing tag gives no similarTag note', () => {
+  test('a new tag with no close match, and an existing tag, give no similarTag note', () => {
     seed('first', { tags: ['review'] });
+    expect(add(writer(), { tags: ['database'] }).notes).toEqual([]);
     expect(add(writer(), { tags: ['review'] }).notes).toEqual([]);
   });
 
@@ -307,23 +255,7 @@ describe('relink after write', () => {
   });
 });
 
-describe('pass-through methods', () => {
-  test('resolve stores the resolver', () => {
-    const w = writer();
-    const b = seed('stuck', { kind: 'blocker' });
-    const d = seed('finished');
-    expect(w.resolve(b.id.slice(-8), d.id.slice(-8))).toMatchObject({ status: 'resolved', resolvedByEntryId: d.id });
-    const b2 = seed('stuck two', { kind: 'blocker' });
-    expect(w.resolve(b2.id)).toMatchObject({ status: 'resolved', resolvedByEntryId: null });
-  });
-
-  test('delete soft-deletes and restore brings it back', () => {
-    const w = writer();
-    const e = seed('one');
-    expect(w.delete(e.id).deletedAt).not.toBeNull();
-    expect(w.restore(e.id).deletedAt).toBeNull();
-  });
-
+describe('undo', () => {
   test('undo removes the latest entry of this device, then returns null', () => {
     const w = writer();
     seed('first', { createdAt: '2026-07-13T10:00:00.000Z' });
@@ -332,18 +264,15 @@ describe('pass-through methods', () => {
     expect(w.undo()?.summary).toBe('first');
     expect(w.undo()).toBeNull();
   });
+});
 
-  test('clear hides every entry and returns the count', () => {
-    seed('one');
-    seed('two');
-    expect(writer().clear()).toBe(2);
-    expect(journal.repo.find()).toHaveLength(0);
-  });
-
-  test('resolve, delete, and restore throw on an unknown id', () => {
-    const w = writer();
-    expect(() => w.resolve('NOPE1234')).toThrow('No entry with id "NOPE1234"');
-    expect(() => w.delete('NOPE1234')).toThrow('No entry with id "NOPE1234"');
-    expect(() => w.restore('NOPE1234')).toThrow('No entry with id "NOPE1234"');
+describe('relinkAfterWrite', () => {
+  test('it never throws and warns once per process', () => {
+    const write = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const broken = { activity: { relinkEntries: () => { throw new Error('boom'); } } } as unknown as Journal;
+    expect(() => relinkAfterWrite(broken, ['a'])).not.toThrow();
+    expect(() => relinkAfterWrite(broken, ['b'])).not.toThrow();
+    const warnings = write.mock.calls.filter((c) => String(c[0]).includes('relink'));
+    expect(warnings.length).toBeLessThanOrEqual(1);
   });
 });

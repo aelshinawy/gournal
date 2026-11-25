@@ -7,12 +7,13 @@ import { SERVER, writeAtomic, readSettings, readRegistration, writeSettingsFile 
 import { makeLauncherStep, type LauncherStep } from './ensure-launcher';
 import { copyHomeOf } from './source';
 import { PACKAGE_ROOT } from './package-copy';
-import type { SetupCtx } from './claude';
+import { installSkill } from './claude-skill';
+import type { Ctx } from './claude-ctx';
 
 const NO_LAUNCHER_MCP = 'MCP server: skipped, because the launcher is not installed.';
 const NO_LAUNCHER_HOOK = 'Stop hook: skipped, because the launcher is not installed.';
 
-async function registerMcp(ctx: SetupCtx): Promise<'ok' | 'missing' | 'failed'> {
+async function registerMcp(ctx: Ctx): Promise<'ok' | 'missing' | 'failed'> {
   const { io } = ctx;
   const res = await ctx.runClaude(ctx.addArgs);
   if (res === 'ok') io.out('MCP server: registered.');
@@ -28,7 +29,7 @@ async function registerMcp(ctx: SetupCtx): Promise<'ok' | 'missing' | 'failed'> 
   return res;
 }
 
-async function replaceMcp(ctx: SetupCtx, old: { command: string; args: string[] }): Promise<void> {
+async function replaceMcp(ctx: Ctx, old: { command: string; args: string[] }): Promise<void> {
   const { io } = ctx;
   const removed = await ctx.runClaude(ctx.removeArgs);
   if (removed === 'ok') {
@@ -44,7 +45,7 @@ async function replaceMcp(ctx: SetupCtx, old: { command: string; args: string[] 
   } else ctx.status = 1;
 }
 
-async function mcpStep(ctx: SetupCtx, launcher: LauncherStep): Promise<void> {
+async function mcpStep(ctx: Ctx, launcher: LauncherStep): Promise<void> {
   const { io } = ctx;
   const reg = readRegistration(ctx.claudeJson);
   if (reg === null) {
@@ -73,22 +74,7 @@ async function mcpStep(ctx: SetupCtx, launcher: LauncherStep): Promise<void> {
   }
 }
 
-async function skillStep(ctx: SetupCtx): Promise<void> {
-  const { io, skillFile } = ctx;
-  const current = fs.existsSync(skillFile) ? fs.readFileSync(skillFile, 'utf8') : null;
-  if (current === SKILL_MD) io.out('Skill: already set up.');
-  else if (current !== null && !current.includes(SKILL_MARKER)) {
-    io.out(`Skill: ${skillFile} exists and gournal did not write it. Left alone.`);
-  } else {
-    io.out(`Skill: ${current === null ? 'write' : 'update'} ${skillFile}.`);
-    if (await ctx.ask('Install the gournal skill?', true)) {
-      writeAtomic(skillFile, SKILL_MD, ctx.platform);
-      io.out('Skill: installed.');
-    } else io.out('Skill: skipped.');
-  }
-}
-
-async function hookStep(ctx: SetupCtx, launcher: LauncherStep): Promise<void> {
+async function hookStep(ctx: Ctx, launcher: LauncherStep): Promise<void> {
   const { io, opts, settingsFile, backupFile } = ctx;
   const notEnabled = 'Stop hook: not enabled (add --hook to enable it).';
   const read = readSettings(settingsFile);
@@ -119,7 +105,7 @@ async function hookStep(ctx: SetupCtx, launcher: LauncherStep): Promise<void> {
   io.out(`Stop hook: ${action}.`);
 }
 
-export async function installFlow(ctx: SetupCtx): Promise<void> {
+export async function installFlow(ctx: Ctx): Promise<void> {
   const packageRoot = ctx.io.packageRoot ?? PACKAGE_ROOT;
   if (copyHomeOf(packageRoot) !== null) {
     // The copy has no package manager. A setup from it would record the copy as the source.
@@ -129,7 +115,7 @@ export async function installFlow(ctx: SetupCtx): Promise<void> {
   }
   const launcher = makeLauncherStep(ctx);
   await mcpStep(ctx, launcher);
-  await skillStep(ctx);
+  await installSkill(ctx);
   await hookStep(ctx, launcher);
   if (launcher.installed) await launcher.check();
 }

@@ -15,7 +15,6 @@
   --g-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Type scale (1.200 ratio, rem). */
-  --g-text-xs: 0.75rem;
   --g-text-sm: 0.875rem;
   --g-text-base: 1.0625rem;
   --g-text-md: 1.25rem;
@@ -28,7 +27,6 @@
   --g-leading-tight: 1.15;
   --g-leading-snug: 1.3;
   --g-leading-body: 1.65;
-  --g-measure: 68ch;
 
   /* Spacing scale (4px base). */
   --g-space-1: 0.25rem;

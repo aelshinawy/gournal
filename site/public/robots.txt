@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://gournal.aelshinawy.com/sitemap-index.xml

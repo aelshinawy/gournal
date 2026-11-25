@@ -1,7 +1,45 @@
-// Expressive Code plugin. Makes every code block keyboard focusable without client JS,
+// Two plugins that make every code block keyboard focusable in the static HTML,
 // so keyboard users can scroll wide code. WCAG 2.1.1 and axe "scrollable-region-focusable".
-// Each block gets a unique name: "<nearest heading>, <language> code", plus a counter on repeats.
-import fs from 'node:fs';
+// The built-in tabindex needs client JS. Expressive Code's script later removes tabindex from blocks that do not scroll.
+// The name is "<nearest heading>, <language> code". A repeat of the same name gets " 2", " 3", and so on.
+//
+// Expressive Code gives its hook no heading, so the two plugins work as a pair.
+// 1. codeLabelMeta is a Satteri hast plugin. It runs before Expressive Code in the same tree.
+//    It tracks the nearest heading, builds the name, and adds it to the fence meta as glabel="<encoded name>".
+// 2. ecFocusable is the Expressive Code plugin. It reads glabel from the block meta and sets the attributes.
+
+const HEADINGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+const META_KEY = 'glabel';
+
+const languageName = (language) => (language && language !== 'plaintext' ? language : 'text');
+
+export function codeLabelMeta() {
+  return () => {
+    let heading = '';
+    const seen = new Map();
+    return {
+      name: 'gournal-code-label',
+      element: {
+        filter: [...HEADINGS, 'pre'],
+        visit(node, ctx) {
+          if (node.tagName !== 'pre') {
+            heading = ctx.textContent(node).trim();
+            return;
+          }
+          const code = node.children?.find((c) => c.type === 'element' && c.tagName === 'code');
+          if (!code) return;
+          const name = heading || ctx.data.astro?.frontmatter?.title;
+          const language = `${languageName(code.data?.lang)} code`;
+          const base = name ? `${name}, ${language}` : language;
+          const n = (seen.get(base) ?? 0) + 1;
+          seen.set(base, n);
+          const label = encodeURIComponent(n === 1 ? base : `${base} ${n}`);
+          ctx.setField(code, 'data', { ...code.data, meta: `${code.data?.meta ?? ''} ${META_KEY}="${label}"`.trim() });
+        }
+      }
+    };
+  };
+}
 
 function findPre(node) {
   if (node.type === 'element' && node.tagName === 'pre') return node;
@@ -12,70 +50,18 @@ function findPre(node) {
   return undefined;
 }
 
-// Expressive Code gives the hook no heading context, only the source path and the block index.
-// So read the Markdown source and list the nearest preceding heading for each fenced block.
-export function headingsPerBlock(source) {
-  const front = source.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
-  const lines = (front ? source.slice(front[0].length) : source).split(/\r?\n/);
-  const title = front?.[1].match(/^title:\s*['"]?(.+?)['"]?\s*$/m)?.[1] ?? '';
-  const out = [];
-  let heading = title;
-  let fence = null;
-  for (const line of lines) {
-    const f = line.match(/^\s*(`{3,}|~{3,})/);
-    if (f) {
-      if (!fence) {
-        fence = f[1];
-        out.push(heading);
-      } else if (f[1][0] === fence[0] && f[1].length >= fence.length) {
-        fence = null;
-      }
-      continue;
-    }
-    if (fence) continue;
-    const h = line.match(/^#{1,6}\s+(.+?)\s*#*\s*$/);
-    if (h) heading = h[1].replace(/[`*]/g, '');
-  }
-  return out;
-}
-
 export function ecFocusable() {
-  const headings = new Map();
-  const names = new Map();
   return {
     name: 'gournal-focusable-code',
     hooks: {
       postprocessRenderedBlock: ({ codeBlock, renderData }) => {
         const pre = findPre(renderData.blockAst);
         if (!pre) return;
-        const file = codeBlock.parentDocument?.sourceFilePath;
-        const groupIndex = codeBlock.parentDocument?.positionInDocument?.groupIndex;
-        // A new render of a document starts at block 0. Drop its state so dev re-renders get the same names.
-        if (groupIndex === 0) {
-          headings.delete(file);
-          names.delete(file);
-        }
-        let heading = '';
-        if (file) {
-          if (!headings.has(file)) {
-            try {
-              headings.set(file, headingsPerBlock(fs.readFileSync(file, 'utf8')));
-            } catch {
-              headings.set(file, []);
-            }
-          }
-          heading = headings.get(file)[groupIndex ?? -1] ?? '';
-        }
-        const language = codeBlock.language && codeBlock.language !== 'plaintext' ? codeBlock.language : 'text';
-        const base = heading ? `${heading}, ${language} code` : `${language} code`;
-        const docNames = names.get(file) ?? new Map();
-        names.set(file, docNames);
-        const n = (docNames.get(base) ?? 0) + 1;
-        docNames.set(base, n);
+        const label = codeBlock.metaOptions?.getString(META_KEY);
         pre.properties = pre.properties ?? {};
         pre.properties.tabindex = '0';
         pre.properties.role = 'region';
-        pre.properties.ariaLabel = n === 1 ? base : `${base} ${n}`;
+        pre.properties.ariaLabel = label ? decodeURIComponent(label) : `${languageName(codeBlock.language)} code`;
       }
     }
   };

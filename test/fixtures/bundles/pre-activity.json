@@ -165,23 +165,5 @@
       ],
       "refs": []
     }
-  ],
-  "legacyMap": [
-    {
-      "legacyIndex": 0,
-      "timestamp": "2026-07-29T10:00:00.000Z",
-      "messageHash": "da2cfe9ee0afe5bf1f8e5fad1bb064622db06039236d69fc1c62763b92306b4c",
-      "occurrence": 0,
-      "entryId": "01KYPN2580C40ZCZQWSVH629N8",
-      "importedAt": "2026-11-20T01:28:05.688Z"
-    },
-    {
-      "legacyIndex": 1,
-      "timestamp": "2026-07-30T11:30:00.000Z",
-      "messageHash": "58604603980e543504431610c8bcdec761752522f2fd909af47ed7667c50f21e",
-      "occurrence": 0,
-      "entryId": "01KYSCKNP0ZC6XTNNQ245CE4HG",
-      "importedAt": "2026-11-20T01:28:05.688Z"
-    }
   ]
 }

@@ -1,32 +1,17 @@
-import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { pathToFileURL } from 'url';
-import { makeTmp } from './helpers/tmp';
 
 const plugins = path.resolve(__dirname, '../site/plugins');
 
 // An import specifier must be a file URL. A bare Windows path such as D:\a\x reads as a URL scheme.
 const moduleUrl = (name: string): string => pathToFileURL(path.join(plugins, name)).href;
 
-// A fake page path as a file URL. A file URL needs a drive letter on Windows, so build it from a real absolute path.
-const pageUrl = (rel: string): string => pathToFileURL(path.resolve('/site', rel)).href;
-
 // The plugins are ES modules, so run them in a node child process.
 function runModule(script: string): unknown {
   const out = execFileSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8' });
   return JSON.parse(out);
 }
-
-test('code block headings keep underscores', () => {
-  const src = '---\ntitle: T\n---\n\n## `update_entry` tool\n\n```json\n{}\n```\n';
-  const mod = moduleUrl('ec-focusable.mjs');
-  const result = runModule(
-    `import { headingsPerBlock } from ${JSON.stringify(mod)};` +
-      `console.log(JSON.stringify(headingsPerBlock(${JSON.stringify(src)})));`
-  );
-  expect(result).toEqual(['update_entry tool']);
-});
 
 test('two tables under one heading get distinct region names', () => {
   const mod = moduleUrl('rehype-table-region.mjs');
@@ -45,156 +30,53 @@ test('two tables under one heading get distinct region names', () => {
   expect(result).toEqual(['Options table', 'Options table 2', 'Other table']);
 });
 
-test('overview class comes from the page path, not the header', () => {
-  const mod = moduleUrl('rehype-table-region.mjs');
+test('code block names carry the nearest heading and stay unique', () => {
+  const mod = moduleUrl('ec-focusable.mjs');
   const result = runModule(
-    `import { rehypeTableRegion } from ${JSON.stringify(mod)};` +
-      `const classes = [];` +
-      `const ctx = (t, url) => ({ textContent: () => t, data: {}, fileURL: url && new URL(url), wrapNode: (n, w) => classes.push(w.properties.className) });` +
-      `const visit = (t, c) => rehypeTableRegion()().element.visit(t, c);` +
-      `const overview = ${JSON.stringify(pageUrl('src/content/docs/docs/reference/index.md'))};` +
-      `const other = ${JSON.stringify(pageUrl('src/content/docs/docs/reference/cli.md'))};` +
-      `visit({ tagName: 'table' }, ctx('OptionMeaning', overview));` +
-      `visit({ tagName: 'table' }, ctx('Task\\nCLI\\nMCP tool', other));` +
-      `visit({ tagName: 'table' }, ctx('Task\\nCLI\\nMCP tool'));` +
-      `console.log(JSON.stringify(classes));`
+    `import { codeLabelMeta } from ${JSON.stringify(mod)};` +
+      `const v = codeLabelMeta()().element;` +
+      `const metas = [];` +
+      `const ctx = (t, title) => ({ textContent: () => t, data: { astro: { frontmatter: { title } } }, setField: (n, k, d) => metas.push(d.meta) });` +
+      `const pre = (lang, meta) => ({ tagName: 'pre', children: [{ type: 'element', tagName: 'code', data: { lang, meta } }] });` +
+      `v.visit(pre('json'), ctx('', 'Page title'));` +
+      `v.visit({ tagName: 'h2' }, ctx('Options'));` +
+      `v.visit(pre('bash', 'title="x"'), ctx('', 'Page title'));` +
+      `v.visit(pre('bash'), ctx('', 'Page title'));` +
+      `v.visit(pre('plaintext'), ctx('', 'Page title'));` +
+      `v.visit({ tagName: 'h2' }, ctx('Say "hi"'));` +
+      `v.visit(pre('bash'), ctx('', 'Page title'));` +
+      `console.log(JSON.stringify(metas));`
   );
-  expect(result).toEqual([['g-table', 'g-table--overview'], ['g-table'], ['g-table']]);
+  const names = (result as string[]).map((m) => decodeURIComponent(m.match(/glabel="([^"]+)"/)![1]));
+  expect(names).toEqual(['Page title, json code', 'Options, bash code', 'Options, bash code 2', 'Options, text code', 'Say "hi", bash code']);
+  expect((result as string[])[1]).toMatch(/^title="x" glabel=/);
 });
 
-test('overview match is anchored to docs/reference/index.md', () => {
-  const mod = moduleUrl('rehype-table-region.mjs');
+test('the Expressive Code hook turns the block name into a focusable region', () => {
+  const mod = moduleUrl('ec-focusable.mjs');
   const result = runModule(
-    `import { rehypeTableRegion } from ${JSON.stringify(mod)};` +
-      `const classOf = (url) => {` +
-      `  const v = rehypeTableRegion()().element;` +
-      `  let cls;` +
-      `  v.visit({ tagName: 'table' }, { textContent: () => '', data: {}, fileURL: new URL(url), wrapNode: (n, w) => { cls = w.properties.className; } });` +
-      `  return cls;` +
+    `import { ecFocusable } from ${JSON.stringify(mod)};` +
+      `const hook = ecFocusable().hooks.postprocessRenderedBlock;` +
+      `const label = (language, name) => {` +
+      `  const pre = { type: 'element', tagName: 'pre', children: [] };` +
+      `  const metaOptions = { getString: () => name && encodeURIComponent(name) };` +
+      `  hook({ codeBlock: { language, metaOptions }, renderData: { blockAst: { type: 'root', children: [{ type: 'element', tagName: 'div', children: [pre] }] } } });` +
+      `  return [pre.properties.tabindex, pre.properties.role, pre.properties.ariaLabel];` +
       `};` +
-      `console.log(JSON.stringify([` +
-      `  classOf(${JSON.stringify(pageUrl('src/content/docs/docs/guides/reference/index.md'))}),` +
-      `  classOf('file:///C:/site/src/content/docs/docs/reference/index.md'),` +
-      `  classOf(${JSON.stringify(pageUrl('src/content/docs/docs/reference/index.md'))})` +
-      `]));`
-  );
-  const overview = ['g-table', 'g-table--overview'];
-  // The C: URL is a drive path on Windows and a plain path on POSIX. The plugin matches both.
-  expect(result).toEqual([['g-table'], overview, overview]);
-});
-
-test('the overview check runs once per document', () => {
-  const mod = moduleUrl('rehype-table-region.mjs');
-  const result = runModule(
-    `import { rehypeTableRegion } from ${JSON.stringify(mod)};` +
-      `const v = rehypeTableRegion()().element;` +
-      `let reads = 0;` +
-      `const ctx = { textContent: () => '', data: {}, get fileURL() { reads++; return new URL(${JSON.stringify(pageUrl('x/docs/reference/index.md'))}); }, wrapNode: () => {} };` +
-      `v.visit({ tagName: 'table' }, ctx);` +
-      `v.visit({ tagName: 'table' }, ctx);` +
-      `v.visit({ tagName: 'table' }, ctx);` +
-      `console.log(JSON.stringify(reads));`
-  );
-  expect(result).toBe(1);
-});
-
-// Run the focusable plugin hook over a Markdown source: one render pass per entry in `passes`.
-function renderNames(source: string, blocks: number, passes: number): string[][] {
-  const dir = makeTmp('ecf-');
-  const file = path.join(dir, 'doc.md');
-  fs.writeFileSync(file, source);
-  const mod = moduleUrl('ec-focusable.mjs');
-  try {
-    return runModule(
-      `import { ecFocusable } from ${JSON.stringify(mod)};` +
-        `const hook = ecFocusable().hooks.postprocessRenderedBlock;` +
-        `const passes = [];` +
-        `for (let p = 0; p < ${passes}; p++) {` +
-        `  const names = [];` +
-        `  for (let i = 0; i < ${blocks}; i++) {` +
-        `    const pre = { type: 'element', tagName: 'pre', children: [] };` +
-        `    hook({ codeBlock: { language: 'json', parentDocument: { sourceFilePath: ${JSON.stringify(file)}, positionInDocument: { groupIndex: i } } }, renderData: { blockAst: pre } });` +
-        `    names.push(pre.properties.ariaLabel);` +
-        `  }` +
-        `  passes.push(names);` +
-        `}` +
-        `console.log(JSON.stringify(passes));`
-    ) as string[][];
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-}
-
-test('rendering the same document twice gives the same names', () => {
-  const src = '---\ntitle: T\n---\n\n## Setup\n\n```json\n{}\n```\n\n```json\n{}\n```\n';
-  const [first, second] = renderNames(src, 2, 2);
-  expect(first).toEqual(['Setup, json code', 'Setup, json code 2']);
-  expect(second).toEqual(first);
-});
-
-test('a title line outside frontmatter is ignored', () => {
-  const mod = moduleUrl('ec-focusable.mjs');
-  const src = '---\ntitle: Real\n---\n\n```json\n{}\n```\n\ntitle: Fake\n\n```json\n{}\n```\n';
-  const noFront = 'Intro\n\ntitle: Fake\n\n```json\n{}\n```\n';
-  const result = runModule(
-    `import { headingsPerBlock } from ${JSON.stringify(mod)};` +
-      `console.log(JSON.stringify([headingsPerBlock(${JSON.stringify(src)}), headingsPerBlock(${JSON.stringify(noFront)})]));`
-  );
-  expect(result).toEqual([['Real', 'Real'], ['']]);
-});
-
-test('frontmatter with CRLF line endings is read', () => {
-  const mod = moduleUrl('ec-focusable.mjs');
-  const src = '---\r\ntitle: Real\r\n---\r\n\r\n```json\r\n{}\r\n```\r\n';
-  const result = runModule(
-    `import { headingsPerBlock } from ${JSON.stringify(mod)};` +
-      `console.log(JSON.stringify(headingsPerBlock(${JSON.stringify(src)})));`
-  );
-  expect(result).toEqual(['Real']);
-});
-
-test('base links plugin prefixes root-relative links and leaves other URLs alone', () => {
-  const mod = moduleUrl('rehype-base-links.mjs');
-  const result = runModule(
-    `import { withBase } from ${JSON.stringify(mod)};` +
-      `const urls = ['/docs/a/', '/gournal/docs/a/', '/gournal', '//cdn.x/y', 'https://x.y/z', '#frag', 'rel/path', '/docs/a/#h'];` +
-      `console.log(JSON.stringify({ sub: urls.map((u) => withBase(u, '/gournal/')), root: urls.map((u) => withBase(u, '/')) }));`
-  );
-  expect(result).toEqual({
-    sub: ['/gournal/docs/a/', '/gournal/docs/a/', '/gournal', '//cdn.x/y', 'https://x.y/z', '#frag', 'rel/path', '/gournal/docs/a/#h'],
-    root: ['/docs/a/', '/gournal/docs/a/', '/gournal', '//cdn.x/y', 'https://x.y/z', '#frag', 'rel/path', '/docs/a/#h']
-  });
-});
-
-test('base links plugin rewrites href and src through ctx.setProperty', () => {
-  const mod = moduleUrl('rehype-base-links.mjs');
-  const result = runModule(
-    `import { rehypeBaseLinks } from ${JSON.stringify(mod)};` +
-      `const v = rehypeBaseLinks('/gournal/')().element;` +
-      `const calls = [];` +
-      `const ctx = { setProperty: (n, k, val) => calls.push([n.tagName, k, val]) };` +
-      `const nodes = [` +
-      `  { tagName: 'a', properties: { href: '/docs/x/' } },` +
-      `  { tagName: 'img', properties: { src: '/demo/p.png' } },` +
-      `  { tagName: 'a', properties: { href: 'https://x.y/' } },` +
-      `  { tagName: 'a', properties: { href: '/gournal/docs/x/' } },` +
-      `  { tagName: 'a', properties: {} }` +
-      `];` +
-      `for (const n of nodes) v.visit(n, ctx);` +
-      `console.log(JSON.stringify(calls));`
+      `console.log(JSON.stringify([label('json', 'Options, json code'), label('plaintext', undefined)]));`
   );
   expect(result).toEqual([
-    ['a', 'href', '/gournal/docs/x/'],
-    ['img', 'src', '/gournal/demo/p.png']
+    ['0', 'region', 'Options, json code'],
+    ['0', 'region', 'text code']
   ]);
 });
 
-test('site config builds absolute URLs from the site URL and base', () => {
+test('site config builds absolute URLs from the site URL', () => {
   const mod = pathToFileURL(path.resolve(__dirname, '../site/site.config.mjs')).href;
   const result = execFileSync(
     process.execPath,
     ['--input-type=module', '-e', `import { siteUrl } from ${JSON.stringify(mod)}; console.log(JSON.stringify([siteUrl(), siteUrl('og.png'), siteUrl('/og.png')]));`],
-    { encoding: 'utf8', env: { ...process.env, SITE_URL: 'https://example.com', SITE_BASE: '/sub/' } }
+    { encoding: 'utf8', env: { ...process.env, SITE_URL: 'https://example.com' } }
   );
-  expect(JSON.parse(result)).toEqual(['https://example.com/sub/', 'https://example.com/sub/og.png', 'https://example.com/sub/og.png']);
+  expect(JSON.parse(result)).toEqual(['https://example.com/', 'https://example.com/og.png', 'https://example.com/og.png']);
 });

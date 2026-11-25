@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
 import type { z } from 'zod';
-import { formatMonthDay, InvalidQueryError, parseBound } from '../core';
+import { firstLine, formatMonthDay, InvalidQueryError, parseBound } from '../core';
 import type { SyncReportSchema } from '../render';
 import { fetchActivity, GhError, type GhRunner } from '../sources';
 import type { Journal } from '../storage';
@@ -17,7 +17,6 @@ export const AUTO_SYNC_BUDGET_MS = 10_000;
 const LEASE_TTL_MS = 120_000;
 const AUTO_CALL_TIMEOUT_MS = 10_000;
 const MANUAL_CALL_TIMEOUT_MS = 60_000;
-const MAX_REASON = 100;
 const DAY_MS = 86_400_000;
 
 export type SyncReport = z.infer<typeof SyncReportSchema>;
@@ -39,11 +38,6 @@ function reasonOf(err: unknown, auto: boolean): Reason {
   return { kind: 'other', text: firstLine(err instanceof Error ? err.message : String(err)) };
 }
 
-function firstLine(text: string): string {
-  const line = text.split('\n').find((l) => l.trim() !== '')?.trim() ?? 'unknown error';
-  return line.slice(0, MAX_REASON);
-}
-
 const skippedLine = (reason: string): string => `gournal: GitHub sync skipped (${reason}); showing stored activity`;
 
 const stoppedLine = (reason: string): string => `gournal: GitHub sync stopped early (${reason}); run gournal sync to catch up`;
@@ -62,10 +56,20 @@ export function syncSummaryLine(r: Pick<SyncReport, 'since' | 'inserted' | 'upda
   return `Synced GitHub activity since ${formatMonthDay(new Date(r.since))}: ${r.inserted} new, ${r.updated} updated, ${r.linked} links.`;
 }
 
-function maxIso(a: string | null, b: string): string {
-  if (a === null) return b;
-  const x = Date.parse(a);
-  return Number.isFinite(x) && x > Date.parse(b) ? a : b;
+/** The ISO cursor to store after a sync, or null to leave it alone. Pure. */
+export function nextCursor(cursor: Date | null, since: Date, complete: boolean, progressAt: string | null, now: Date): string | null {
+  // A --since later than the cursor must leave it, or the gap before --since is never fetched.
+  const cursorOk = cursor === null || since.getTime() <= cursor.getTime();
+  if (complete) {
+    if (!cursorOk) return null;
+    return (cursor !== null && cursor.getTime() > now.getTime() ? cursor : now).toISOString();
+  }
+  if (!cursorOk || progressAt === null) return null;
+  // A partial sync moves the cursor to the last PR that finished, and never back.
+  // The PRs come in ascending updated order, so the next sync continues there.
+  const at = Date.parse(progressAt);
+  const stored = cursor === null ? NaN : cursor.getTime();
+  return Number.isFinite(at) && !(at <= stored) ? progressAt : null;
 }
 
 /** Never throws. The result says what happened. */
@@ -86,10 +90,10 @@ export async function runSync(
         : { ...report, warning: 'Another GitHub sync is running; try again in a minute.' };
     }
     repo.setState(SYNC_STATE.lastAttemptAt, opts.now.toISOString());
-    const cursor = repo.getState(SYNC_STATE.cursor);
-    const cursorDate = cursor === null ? null : new Date(cursor);
-    const since = opts.since
-      ?? (cursorDate !== null && !isNaN(cursorDate.getTime()) ? cursorDate : new Date(opts.now.getTime() - config.github.initialSyncDays * DAY_MS));
+    const stored = repo.getState(SYNC_STATE.cursor);
+    const parsed = stored === null ? null : new Date(stored);
+    const cursorDate = parsed !== null && !isNaN(parsed.getTime()) ? parsed : null;
+    const since = opts.since ?? cursorDate ?? new Date(opts.now.getTime() - config.github.initialSyncDays * DAY_MS);
     report.since = since.toISOString();
 
     const fetched = await fetchActivity(gh, {
@@ -105,18 +109,9 @@ export async function runSync(
       report.updated = up.updated;
       report.linked = activity.relinkActivity(up.ids);
       repo.setState(SYNC_STATE.login, fetched.login);
-      // A --since later than the cursor must leave it, or the gap before --since is never fetched.
-      const cursorOk = cursorDate === null || isNaN(cursorDate.getTime()) || since.getTime() <= cursorDate.getTime();
-      if (fetched.complete) {
-        if (cursorOk) repo.setState(SYNC_STATE.cursor, maxIso(cursor, opts.now.toISOString()));
-        repo.setState(SYNC_STATE.lastSyncAt, opts.now.toISOString());
-      } else if (cursorOk && fetched.progressAt !== null) {
-        // A partial sync moves the cursor to the last PR that finished, and never back.
-        // The PRs come in ascending updated order, so the next sync continues there.
-        const at = Date.parse(fetched.progressAt);
-        const stored = cursorDate === null ? NaN : cursorDate.getTime();
-        if (Number.isFinite(at) && !(at <= stored)) repo.setState(SYNC_STATE.cursor, fetched.progressAt);
-      }
+      const next = nextCursor(cursorDate, since, fetched.complete, fetched.progressAt, opts.now);
+      if (next !== null) repo.setState(SYNC_STATE.cursor, next);
+      if (fetched.complete) repo.setState(SYNC_STATE.lastSyncAt, opts.now.toISOString());
     });
     if (fetched.complete) return { ...report, status: 'ok' };
     const why = reasonOf(new GhError(fetched.stoppedBy ?? 'other', 'stopped'), opts.auto).text;
@@ -147,19 +142,5 @@ export async function maybeAutoSync(journal: SyncJournal, gh: GhRunner, now: Dat
     return (await runSync(journal, gh, { auto: true, now })).warning;
   } catch {
     return null;
-  }
-}
-
-let relinkWarned = false;
-
-/** Call after the entry write has committed. Never throws. On failure it writes one stderr warning per process. */
-export function relinkAfterWrite(journal: Pick<Journal, 'activity'>, entryIds: string[]): void {
-  if (entryIds.length === 0) return;
-  try {
-    journal.activity.relinkEntries(entryIds);
-  } catch (err) {
-    if (relinkWarned) return;
-    relinkWarned = true;
-    try { process.stderr.write(`gournal: relink after write failed (${firstLine(err instanceof Error ? err.message : String(err))})\n`); } catch { /* ignore */ }
   }
 }

@@ -1,10 +1,11 @@
 import type { DatabaseSync } from 'node:sqlite';
+import { immediate } from './transaction';
 
 const SCHEMA_VERSION = 2;
 
 // Timestamp columns are INTEGER epoch milliseconds. Tables are STRICT, so ISO text is rejected.
 // Repository code converts ISO strings to and from ms at its boundary.
-// legacy_map.timestamp stays TEXT: it holds the original ISO string from entries.json.
+// legacy_map is unused. Code no longer reads or writes it. It stays for existing databases, and nothing drops it.
 // activity.payload is TEXT (JSON). activity.repo and external_id default to '' so UNIQUE dedupes.
 // entry_tags and entry_refs are attributes of their entry and are replaced as a whole when the
 // entry changes; the entry's updated_at is the sync marker.
@@ -100,8 +101,7 @@ CREATE TABLE IF NOT EXISTS schema_version (
 ) STRICT;
 `;
 
-// v2: legacy_map.imported_at is the updated_at (ms) of the entry when the legacy import made it.
-// An entry is pristine while its updated_at still equals imported_at. NULL means unknown, so not pristine.
+// v2: adds legacy_map.imported_at. Kept so existing databases and new ones have the same schema.
 const SCHEMA_V2 = `
 ALTER TABLE legacy_map ADD COLUMN imported_at INTEGER;
 `;
@@ -125,17 +125,12 @@ export function migrateSchema(db: DatabaseSync): void {
   const before = readVersion(db);
   checkNotNewer(before);
   if (before === SCHEMA_VERSION) return;
-  db.exec('BEGIN IMMEDIATE');
-  try {
+  immediate(db, () => {
     const current = readVersion(db);
     checkNotNewer(current);
     for (let v = current + 1; v <= SCHEMA_VERSION; v++) {
       db.exec(MIGRATIONS[v]);
       db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(v);
     }
-    db.exec('COMMIT');
-  } catch (err) {
-    try { db.exec('ROLLBACK'); } catch { /* ignore */ }
-    throw err;
-  }
+  });
 }

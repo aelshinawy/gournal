@@ -1,13 +1,23 @@
-// The Entry writer: the single place for every adapter-level entry change (add, update, resolve, delete, restore, undo, clear).
-// Bulk import and migration write through storage.
-// An adapter (CLI or MCP) parses its input, resolves the identity, and calls this module.
-// The summary rule, the resolves policy, the similar-tag check, and the relink live here.
-// The repository keeps `cleanSummary` as an invariant guard, so a bad summary never reaches the database.
-// The module returns Write notes (facts about a write that did not stop it). write-note-text.ts holds the wording that the adapters share.
-import { canResolve, checkSummary, closeTags, noEntryMessage, normalizeTags, NOT_RESOLVABLE } from '../core';
+// The one place for adapter-level entry changes. Bulk import writes through storage.
+// The repository keeps `cleanSummary` as a guard, so a bad summary never reaches the database.
+// Write notes are facts about a write that did not stop it. write-note-text.ts holds their shared wording.
+import { canResolve, checkSummary, closeTags, firstLine, noEntryMessage, normalizeTags, NOT_RESOLVABLE } from '../core';
 import type { Entry, EntryPatch, Kind, NewEntryInput, Ref, RepoIdentity, Source } from '../core';
 import type { Journal } from '../storage';
-import { relinkAfterWrite } from './sync';
+
+let relinkWarned = false;
+
+/** Call after the entry write has committed. Never throws. On failure it writes one stderr warning per process. */
+export function relinkAfterWrite(journal: Pick<Journal, 'activity'>, entryIds: string[]): void {
+  if (entryIds.length === 0) return;
+  try {
+    journal.activity.relinkEntries(entryIds);
+  } catch (err) {
+    if (relinkWarned) return;
+    relinkWarned = true;
+    try { process.stderr.write(`gournal: relink after write failed (${firstLine(err instanceof Error ? err.message : String(err))})\n`); } catch { /* ignore */ }
+  }
+}
 
 export const RETRY_WINDOW_MS = 10 * 60 * 1000;
 const RETRY_PREFIX = 60;
@@ -47,10 +57,10 @@ export interface EntryWriter {
   add(input: AddInput): WriteResult;
   update(id: string, input: UpdateInput): WriteResult;
   resolve(id: string, by?: string): Entry;
-  delete(id: string): Entry;      // soft delete
+  delete(id: string): Entry;
   restore(id: string): Entry;
   undo(): Entry | null;           // latest live entry of this device, soft-deleted
-  clear(): number;                // softDeleteAll
+  clear(): number;
 }
 
 export function createEntryWriter(

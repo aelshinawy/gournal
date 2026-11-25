@@ -9,22 +9,17 @@ const FILE_MODE = 0o600;
 /**
  * Mode changes are best effort. These codes mean the change cannot or need not happen:
  * no mode support (ENOTSUP, EINVAL), another owner (EPERM), a read-only file system (EROFS),
- * or a file that another process removed meanwhile (ENOENT). Any other code is a real fault and must surface.
+ * or a file that another process removed (ENOENT). Any other code is a real fault.
  */
 const CHMOD_IGNORED = new Set(['ENOTSUP', 'EPERM', 'EINVAL', 'EROFS', 'ENOENT']);
-/**
- * Creating a file with a mode can fail for the same reasons, except ENOENT: a missing folder is a real fault.
- * A read-only file system is ignored, so that SQLite can report it with its own message.
- */
+/** Same as above, except ENOENT: a missing folder is a real fault. EROFS is ignored so SQLite can report it. */
 const CREATE_IGNORED = new Set(['ENOTSUP', 'EPERM', 'EINVAL', 'EROFS']);
 const hasCode = (err: unknown, codes: Set<string>): boolean => codes.has((err as NodeJS.ErrnoException).code ?? '');
 
-/** Mode calls fail on a file system without modes (FAT, some network mounts). That is not an error. */
 function bestEffortChmod(target: string, mode: number): void {
   try {
     fs.chmodSync(target, mode);
   } catch (err) {
-    // The file system has no mode support, another user owns the file, or the file is gone. Keep going. Rethrow anything else.
     if (!hasCode(err, CHMOD_IGNORED)) throw err;
   }
 }
@@ -47,11 +42,8 @@ export function ensurePrivateFile(file: string): void {
   try {
     fs.closeSync(fs.openSync(file, 'wx', FILE_MODE));
   } catch (err) {
-    if (hasCode(err, CREATE_IGNORED)) {
-      // A file system without file creation modes still lets SQLite create the file later.
-      return;
-    }
-    // EEXIST means the file is already there. Rethrow every other error, such as EACCES or ENOENT.
+    // SQLite can still create the file later on such a file system.
+    if (hasCode(err, CREATE_IGNORED)) return;
     if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
   }
   tightenFile(file);
@@ -85,9 +77,7 @@ export function tightenBackups(home: string): void {
   bestEffortChmod(dir, DIR_MODE);
   try {
     for (const name of fs.readdirSync(dir)) tightenFile(path.join(dir, name));
-  } catch {
-    // The folder cannot be listed. Keep going.
-  }
+  } catch { /* the folder cannot be listed */ }
 }
 
 /**
@@ -101,12 +91,12 @@ function createPrivateTemp(target: string, mode = FILE_MODE): string {
   return tmp;
 }
 
-/** Windows can refuse a rename for a short time: a virus scanner or an indexer holds one of the files. */
+/** Windows can refuse a rename for a short time: a virus scanner or an indexer holds a file. */
 const RENAME_RETRY_CODES = new Set(['EPERM', 'EBUSY']);
 const RENAME_ATTEMPTS = 3;
 const RENAME_DELAY_MS = 50;
 
-/** Block the thread for a short time. It needs no dependency. */
+/** Block the thread. Atomics.wait needs no dependency. */
 export function sleepSync(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
@@ -120,10 +110,7 @@ export interface RenameDeps {
   sleep?: (ms: number) => void;
 }
 
-/**
- * Rename a temp file onto its final path. On Windows, try up to 3 times, 50 ms apart, when the error
- * is EPERM or EBUSY. On other platforms, or for any other error code, rename once and rethrow.
- */
+/** Rename a temp file onto its final path. Only on Windows, and only for EPERM or EBUSY, retry up to 3 times. */
 export function renameWithRetry(from: string, to: string, deps: RenameDeps = {}): void {
   const platform = deps.platform ?? process.platform;
   const rename = deps.rename ?? ((a: string, b: string) => fs.renameSync(a, b));
@@ -142,25 +129,24 @@ export function renameWithRetry(from: string, to: string, deps: RenameDeps = {})
 
 /**
  * Publish a finished temp file at target, and never replace an existing target: it throws EEXIST.
- * It returns 'link' when a hard link published the file.
- * It returns 'rename' on a file system without hard links (some network and FAT mounts, some Windows set-ups).
- * The fallback first claims the target with an exclusive create, which is atomic. Only the process
- * that wins the claim renames the temp file onto it. A loser gets EEXIST and never overwrites the winner.
+ * It returns 'link' for a hard link, or 'rename' on a file system without hard links.
+ * The fallback first claims the target with an exclusive create, which is atomic. Only the winner
+ * of the claim renames, so a loser never overwrites the winner.
  */
 export function publishExclusive(tmp: string, target: string, deps: RenameDeps = {}): 'link' | 'rename' {
   try {
-    // link() is atomic. It fails with EEXIST if the target exists, also if another process made it a moment ago.
+    // link() is atomic. It fails with EEXIST even if another process made the target a moment ago.
     fs.linkSync(tmp, target);
     return 'link';
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'EEXIST') throw err;
-    // This file system has no hard links. Fall back to claim and rename.
+    // No hard links on this file system. Fall back to claim and rename.
   }
   fs.closeSync(fs.openSync(target, 'wx', FILE_MODE));
   try {
     renameWithRetry(tmp, target, deps);
   } catch (err) {
-    // Remove our empty claim, so that it does not block the next run.
+    // Remove the empty claim, so it does not block the next run.
     fs.rmSync(target, { force: true });
     throw err;
   }
@@ -176,11 +162,7 @@ export interface WriteViaTempOptions<T> {
   rename?: RenameDeps;
 }
 
-/**
- * Write a file by temp file and publish, so a reader never sees a partial file.
- * The temp file is next to target, has a random name, and is created with "wx".
- * The temp file is always removed at the end, also on failure.
- */
+/** Write a file by temp file and publish, so a reader never sees a partial file. The temp file is always removed. */
 export function writeViaTemp<T = void>(target: string, fill: (tmp: string) => void, opts: WriteViaTempOptions<T> = {}): T {
   const tmp = createPrivateTemp(target, opts.mode);
   try {
@@ -193,16 +175,13 @@ export function writeViaTemp<T = void>(target: string, fill: (tmp: string) => vo
   }
 }
 
-/**
- * Write a 0600 file by temp file and rename, so a reader never sees a partial file.
- * With exclusive set, an existing target is never replaced: the call throws EEXIST.
- */
+/** Write a 0600 file through writeViaTemp. With exclusive set, an existing target throws EEXIST. */
 export function writePrivateFile(target: string, data: string, opts: { exclusive?: boolean } = {}): void {
   writeViaTemp(target, (tmp) => fs.writeFileSync(tmp, data), opts.exclusive ? { publish: (from, to) => void publishExclusive(from, to) } : {});
 }
 
 /** Check that the folder of an output file exists and is a folder. It throws a plain message for each refusal. */
-export function assertTargetDir(target: string): void {
+function assertTargetDir(target: string): void {
   const dir = path.dirname(path.resolve(target));
   let dirStat: fs.Stats | undefined;
   try {

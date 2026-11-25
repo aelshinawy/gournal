@@ -28,10 +28,6 @@ test('add stores a v2 entry with defaults', () => {
     refs: [{ type: 'jira', value: 'SBDC-1' }], deviceId: config.deviceId, deletedAt: null });
   expect(repo.get(e.id)).toEqual(e);
 });
-test('project aliases apply on write', () => {
-  config.projectAliases['collection-app-v2'] = 'collection-app';
-  expect(repo.add({ summary: 's', project: 'collection-app-v2', source: 'cli' }).project).toBe('collection-app');
-});
 test('project aliases match case-insensitively on add and update', () => {
   config.projectAliases['gournal'] = 'Gournal App';
   expect(repo.add({ summary: 's', project: 'Gournal', source: 'cli' }).project).toBe('Gournal App');
@@ -49,9 +45,6 @@ test('resolve refuses a done entry', () => {
   const e = repo.add({ summary: 's', ...base });
   expect(() => repo.resolve(e.id)).toThrow('only an open blocker or next can be resolved');
 });
-test('resolve on an unknown id throws', () => {
-  expect(() => repo.resolve('NOPE-NOPE')).toThrow('No entry with id "NOPE-NOPE"');
-});
 test('add with a bad resolves id writes nothing', () => {
   const done = repo.add({ summary: 'done one', ...base });
   const b = repo.add({ summary: 'blocked', kind: 'blocker', ...base });
@@ -61,7 +54,7 @@ test('add with a bad resolves id writes nothing', () => {
 });
 test('softDelete hides and restore returns', () => {
   const e = repo.add({ summary: 's', ...base });
-  repo.softDelete(e.id);
+  expect(repo.softDelete(e.id).deletedAt).not.toBeNull();
   expect(repo.find()).toEqual([]);
   expect(repo.find({ includeDeleted: true })[0].deletedAt).not.toBeNull();
   expect(repo.restore(e.id).deletedAt).toBeNull();
@@ -80,9 +73,6 @@ test('update changes fields and updated_at', () => {
   expect(u).toMatchObject({ summary: 't', tags: ['x'] });
   expect(u.updatedAt > new Date(1).toISOString()).toBe(true);
 });
-test('update on an unknown id throws', () => {
-  expect(() => repo.update('missing-id', { summary: 'x' })).toThrow('No entry with id "missing-id"');
-});
 test('get accepts a unique suffix', () => {
   const e = repo.add({ summary: 's', ...base });
   expect(repo.get(e.id.slice(-8))?.id).toBe(e.id);
@@ -91,13 +81,6 @@ test('get returns null for a short non-id and for no match', () => {
   const e = repo.add({ summary: 's', ...base });
   expect(repo.get(e.id.slice(-5))).toBeNull();
   expect(repo.get('ZZZZZZZZ')).toBeNull();
-});
-test('get throws AmbiguousIdError when a suffix matches two entries', () => {
-  const ins = (id: string) => db.prepare('INSERT INTO entries (id, created_at, updated_at, device_id, summary) VALUES (?, 1, 1, ?, ?)').run(id, 'D', 's');
-  ins('AAAAAAAAAA-SHARED1');
-  ins('BBBBBBBBBB-SHARED1');
-  expect(() => repo.get('SHARED1')).toThrow(AmbiguousIdError);
-  expect(() => repo.get('SHARED1')).toThrow('Id "SHARED1" matches more than one entry; use more characters.');
 });
 test('list filters by project, tags, and bounds, oldest first', () => {
   const a = repo.add({ summary: 'a', project: 'a', source: 'cli', tags: ['x'], createdAt: '2026-07-03T10:00:00.000Z' });
@@ -167,6 +150,9 @@ test('update kind change resets status and resolved fields', () => {
   expect(repo.get(e.id)).toMatchObject({ status: 'resolved', resolvedByEntryId: by.id });
   expect(repo.update(e.id, { kind: 'done' })).toMatchObject({ kind: 'done', status: null, resolvedAt: null, resolvedByEntryId: null });
   expect(repo.update(e.id, { kind: 'next' })).toMatchObject({ kind: 'next', status: 'open' });
+  repo.update(e.id, { kind: 'blocker' });
+  repo.resolve(e.id, by.id);
+  expect(repo.update(e.id, { kind: 'next' })).toMatchObject({ kind: 'next', status: 'open', resolvedAt: null, resolvedByEntryId: null });
 });
 test('resolve(id, byEntryId) stores the resolver', () => {
   const a = repo.add({ summary: 'a', kind: 'next', ...base });
@@ -174,6 +160,11 @@ test('resolve(id, byEntryId) stores the resolver', () => {
   const r = repo.resolve(a.id, b.id);
   expect(r).toMatchObject({ status: 'resolved', resolvedByEntryId: b.id });
   expect(r.resolvedAt).not.toBeNull();
+  const c = repo.add({ summary: 'c', kind: 'next', ...base });
+  const d = repo.add({ summary: 'd', ...base });
+  expect(repo.resolve(c.id.slice(-8), d.id.slice(-8))).toMatchObject({ status: 'resolved', resolvedByEntryId: d.id });
+  const e = repo.add({ summary: 'e', kind: 'blocker', ...base });
+  expect(repo.resolve(e.id)).toMatchObject({ status: 'resolved', resolvedByEntryId: null });
 });
 test('list tags use AND semantics', () => {
   repo.add({ summary: 'xy', ...base, tags: ['x', 'y'] });
@@ -191,43 +182,41 @@ test('find rejects a limit that is not a positive integer', () => {
   repo.add({ summary: 'b', ...base });
   for (const limit of [0, -1, 1.5, NaN]) expect(() => repo.find({ limit })).toThrow(InvalidQueryError);
 });
-test('update with tags only keeps refs, with refs only keeps tags', () => {
+test('update with tags only keeps refs, with refs only keeps tags, and never drops refs from old tags', () => {
   const e = repo.add({ summary: 's', ...base, tags: ['a'], refs: [{ type: 'url', value: 'https://x.test' }] });
   expect(repo.update(e.id, { tags: ['b'] })).toMatchObject({ tags: ['b'], refs: [{ type: 'url', value: 'https://x.test' }] });
   expect(repo.update(e.id, { refs: [{ type: 'pr', value: '5' }] })).toMatchObject({ tags: ['b'], refs: [{ type: 'pr', value: '5' }] });
+  const j = repo.add({ summary: 's', ...base, tags: ['sbdc-1'] });
+  expect(j.refs).toEqual([{ type: 'jira', value: 'SBDC-1' }]);
+  expect(repo.update(j.id, { tags: ['bug'] })).toMatchObject({ tags: ['bug'], refs: [{ type: 'jira', value: 'SBDC-1' }] });
 });
-test('update never drops refs that came from old tags', () => {
-  const e = repo.add({ summary: 's', ...base, tags: ['sbdc-1'] });
-  expect(e.refs).toEqual([{ type: 'jira', value: 'SBDC-1' }]);
-  expect(repo.update(e.id, { tags: ['bug'] })).toMatchObject({ tags: ['bug'], refs: [{ type: 'jira', value: 'SBDC-1' }] });
-});
-test('softDelete, restore, and resolve throw on an unknown id', () => {
+test('softDelete, restore, resolve, and update throw on an unknown id', () => {
   for (const fn of [repo.softDelete, repo.restore, repo.resolve]) {
     expect(() => fn('missing-id')).toThrow('No entry with id "missing-id"');
   }
+  expect(() => repo.update('missing-id', { summary: 'x' })).toThrow('No entry with id "missing-id"');
 });
-test('resolve and update surface AmbiguousIdError', () => {
+test('get, resolve, and update surface AmbiguousIdError when a suffix matches two entries', () => {
   forceAmbiguous();
+  expect(() => repo.get('SHARED1')).toThrow(AmbiguousIdError);
+  expect(() => repo.get('SHARED1')).toThrow('Id "SHARED1" matches more than one entry; use more characters.');
   expect(() => repo.resolve('SHARED1')).toThrow(AmbiguousIdError);
   expect(() => repo.update('SHARED1', { summary: 'x' })).toThrow(AmbiguousIdError);
 });
-test('add and update reject a summary over 120 characters', () => {
-  const long = 'x'.repeat(121);
-  expect(() => repo.add({ summary: long, ...base })).toThrow('summary is over 120 characters');
-  const e = repo.add({ summary: 'x'.repeat(120), ...base });
-  expect(() => repo.update(e.id, { summary: long })).toThrow('summary is over 120 characters');
-});
-test('add dedupes resolves', () => {
-  const b = repo.add({ summary: 'blk', kind: 'blocker', ...base });
-  expect(() => repo.add({ summary: 'fix', ...base, resolves: [b.id, b.id] })).not.toThrow();
-  expect(repo.get(b.id)?.status).toBe('resolved');
-});
-
-test('add and update reject an empty summary', () => {
-  expect(() => repo.add({ summary: '   ', ...base })).toThrow('summary is empty');
-  const e = repo.add({ summary: 'ok', ...base });
-  expect(() => repo.update(e.id, { summary: '' })).toThrow('summary is empty');
-  expect(repo.get(e.id)!.summary).toBe('ok');
+test.each([
+  ['over 120 characters', 'x'.repeat(121), 'summary is over 120 characters'],
+  ['empty', '', 'summary is empty'],
+  ['blank', '   ', 'summary is empty'],
+  ['a newline', 'one\ntwo', 'summary must be one line'],
+  ['a CR', 'one\rtwo', 'summary must be one line'],
+  ['U+2028', 'one\u2028two', 'summary must be one line'],
+  ['U+2029', 'one\u2029two', 'summary must be one line'],
+])('add and update reject a summary that is %s', (_label, summary, message) => {
+  expect(() => repo.add({ summary, ...base })).toThrow(message);
+  const ok = 'x'.repeat(120);
+  const e = repo.add({ summary: ok, ...base });
+  expect(() => repo.update(e.id, { summary })).toThrow(message);
+  expect(repo.get(e.id)!.summary).toBe(ok);
 });
 
 test('transaction commits nested writes together', () => {
@@ -241,22 +230,10 @@ test('transaction rolls back every nested write on error and stays usable', () =
   expect(repo.find()).toHaveLength(1);
 });
 
-test('add and update reject a summary with a newline', () => {
-  expect(() => repo.add({ summary: 'one\ntwo', ...base })).toThrow('summary must be one line');
-  const e = repo.add({ summary: 'ok', ...base });
-  expect(() => repo.update(e.id, { summary: 'one\ntwo' })).toThrow('summary must be one line');
-  expect(repo.get(e.id)!.summary).toBe('ok');
-});
 test('add dedupes resolves by the resolved id, not the raw string', () => {
   const b = repo.add({ summary: 'blk', kind: 'blocker', ...base });
   expect(() => repo.add({ summary: 'fix', ...base, resolves: [b.id, b.id.slice(-8)] })).not.toThrow();
   expect(repo.get(b.id)?.status).toBe('resolved');
-});
-
-test.each([['CR', '\r'], ['U+2028', '\u2028'], ['U+2029', '\u2029']])('the repository rejects a %s inside a summary', (_n, br) => {
-  expect(() => repo.add({ summary: `one${br}two`, ...base })).toThrow('summary must be one line');
-  const e = repo.add({ summary: 'fine', ...base });
-  expect(() => repo.update(e.id, { summary: `one${br}two` })).toThrow('summary must be one line');
 });
 
 describe('control characters are stripped on write', () => {
@@ -293,8 +270,7 @@ describe('control characters are stripped on write', () => {
     expect(repo.update(other.id, { project: '\x1b\x9b' }).project).toBe('uncategorized');
   });
 
-  test('a summary of only control characters is empty, and a line break still fails', () => {
+  test('a summary of only control characters is empty', () => {
     expect(() => repo.add({ ...base, summary: '\x1b\x07' })).toThrow('summary is empty');
-    expect(() => repo.add({ ...base, summary: 'one\ntwo' })).toThrow('summary must be one line');
   });
 });

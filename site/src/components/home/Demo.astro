@@ -1,12 +1,11 @@
 ---
-const base = import.meta.env.BASE_URL;
-const poster = `${base}demo/standup-poster.png`;
+const poster = '/demo/standup-poster.png';
 // Proof marks beside the plate. Each top value is the line's place in the last frame of the recording.
 const marks = [
-  { top: 16.3, text: 'Done, grouped by project' },
-  { top: 27.5, text: 'A PR and its commits, from GitHub' },
-  { top: 57.5, text: 'Open items carry forward' },
-  { top: 80, text: 'GitHub activity not linked to a done entry' }
+  { top: 13.9, text: 'Done, grouped by project' },
+  { top: 26.8, text: 'A PR and its commits, from GitHub' },
+  { top: 56.2, text: 'Open items carry forward' },
+  { top: 81.7, text: 'GitHub activity not linked to a done entry' }
 ];
 ---
 
@@ -21,16 +20,15 @@ const marks = [
         playsinline
         preload="metadata"
         poster={poster}
-        width="1200"
-        height="1000"
+        width="1080"
+        height="900"
         aria-label="Demo: the gournal standup command printing a report"
         aria-describedby="g-demo-caption"
         data-demo-video
       >
-        <source src={`${base}demo/standup.webm`} type="video/webm" />
-        <source src={`${base}demo/standup.mp4`} type="video/mp4" />
+        <source src="/demo/standup.mp4" type="video/mp4" />
       </video>
-      <img class="g-demo__still" src={poster} width="1200" height="1000" alt="" loading="lazy" />
+      <img class="g-demo__still" src={poster} width="1080" height="900" alt="" loading="lazy" />
     </div>
       <button class="g-demo__toggle" type="button" data-demo-toggle hidden>
         <svg class="g-demo__icon g-demo__icon--pause" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">

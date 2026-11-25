@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import type { Command } from 'commander';
 import type { GhRunner } from '../../sources';
 import type { CommandRunner } from '../setup';
@@ -28,7 +30,7 @@ export interface CliIo {
 export interface CliContext {
   io: CliIo;
   /** Open the journal once for a command and close it when the command ends. */
-  withJournal<T>(fn: (journal: Journal) => T | Promise<T>, opts?: { legacyImport?: boolean }): Promise<T>;
+  withJournal<T>(fn: (journal: Journal) => T | Promise<T>): Promise<T>;
   /** A failed daily backup warns and never stops the command. */
   backupWithWarning(journal: Journal): void;
   writerFor(journal: Journal): EntryWriter;
@@ -40,9 +42,13 @@ export type RegisterCommand = (program: Command, ctx: CliContext) => void;
 export function createCliContext(io: CliIo): CliContext {
   return {
     io,
-    withJournal: async (fn, opts = {}) => {
-      const journal = openJournal(io.home, opts);
+    withJournal: async (fn) => {
+      const journal = openJournal(io.home);
       try {
+        // Only the CLI prints this. A migrated journal has entries (even soft-deleted ones), so it never sees it.
+        if (fs.existsSync(path.join(io.home, 'entries.json')) && journal.repo.find({ includeDeleted: true, limit: 1 }).length === 0) {
+          io.err('gournal: entries.json from 0.x is no longer read. Install gournal@0.10, run gournal migrate, then upgrade.');
+        }
         return await fn(journal);
       } finally {
         journal.close();

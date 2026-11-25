@@ -60,8 +60,6 @@ try {
     refs: [{ type: 'pr', value: '412' }], createdAt: at(10, 42) }).id);
   ids.push(repo.add({ ...worker, summary: 'Added retry with backoff to webhooks', source: 'mcp', agent: 'claude-code',
     tags: ['webhooks'], createdAt: at(14, 5) }).id);
-  ids.push(repo.add({ ...worker, summary: 'Wrote tests for the retry policy', source: 'mcp', agent: 'claude-code',
-    tags: ['webhooks', 'testing'], createdAt: at(16, 10) }).id);
   repo.add({ project: 'api', repo: 'acme/api', summary: 'Waiting on staging keys', kind: 'blocker', source: 'cli',
     createdAt: daysAgo(1, 16, 20) });
   repo.add({ ...worker, summary: 'Ship retry metrics', kind: 'next', source: 'mcp', agent: 'claude-code',
@@ -83,12 +81,9 @@ try {
     // Branch commits within two hours of the webhook entries link by branch and time.
     commit('acme/worker', worker.branch, 'd1f0e9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2', 'Add exponential backoff', at(13, 40), null),
     commit('acme/worker', worker.branch, 'e2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3', 'Cap retries at five', at(13, 58), null),
-    // Unlinked activity goes to the Also section.
-    { type: 'review', occurredAt: at(12, 15), repo: 'octo/web', branch: null, externalId: '9001',
-      title: 'Dark mode tokens', url: url('octo/web', 'pull', 88), pr: 88, payload: { state: 'APPROVED' } },
+    // Unlinked activity goes to the Also section. One merged PR keeps the line short for the recording.
     { type: 'pr_merged', occurredAt: at(16, 2), repo: 'acme/docs', branch: 'docs/webhooks', externalId: '57',
       title: 'Document webhook retries', url: url('acme/docs', 'pull', 57), pr: 57, payload: {} },
-    commit('acme/docs', 'docs/webhooks', 'f3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4', 'Webhook retry page', at(15, 50), 57),
   ];
   activity.upsert(items);
   activity.relinkEntries(ids);

@@ -4,7 +4,7 @@ export {
 } from './entries/entry';
 export { newId, shortId } from './ids';
 export { MAX_SUMMARY, summaryLength, splitSummary, checkSummary, hasLineBreak } from './entries/summary';
-export { stripControl, cleanProject, cleanOpt, cleanDetails, cleanRefs, DEFAULT_PROJECT } from './entries/sanitize';
+export { stripControl, firstLine, cleanProject, cleanOpt, cleanDetails, cleanRefs, DEFAULT_PROJECT } from './entries/sanitize';
 export { REF_TYPES, mergeRefs, extractRefs, type Ref } from './labels/refs';
 export { normalizeTags, closeTags } from './labels/tags';
 export { CONFIG_DEFAULTS, normalizeConfig, invalidConfig, isPlainObject, type Config } from './config';
@@ -15,7 +15,7 @@ export {
 export { resolvePeriod } from './reports/periods';
 export { groupBy } from './reports/group';
 export { parseRemoteUrl, projectFor, resolveProjectAlias, type RepoIdentity } from './labels/project';
-export { buildStandup, isEmptyStandup, type StandupModel } from './reports/standup';
+export { buildStandup, filterActivity, isEmptyStandup, type StandupModel } from './reports/standup';
 export { buildWorkLog, type WorkLogModel } from './reports/worklog';
 export { buildStats, type StatsModel } from './reports/stats';
 export { EntrySchema, type EntryJson } from './entries/entry-schema';

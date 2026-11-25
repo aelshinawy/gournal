@@ -21,31 +21,25 @@ const full = () => read('current-full.json');
 test.each([
   ['current-full.json', () => full()],
   ['pre-activity.json', () => ({ ...full(), activity: [] })],
-  ['pre-legacy-map.json', () => ({ ...full(), activity: [], legacyMap: [] })],
-  ['map-without-imported-at.json', () => {
-    // The import time of a row with no importedAt is unknown. It reads back as null.
-    const b = full();
-    b.legacyMap = b.legacyMap.map((r: Record<string, unknown>, i: number) => (i < 2 ? { ...r, importedAt: null } : r));
-    return b;
-  }],
   ['extra-keys.json', () => full()],
 ])('imports %s and exports the same data', (name, expected) => {
   const fixture = read(name);
   const want = expected();
   expect(fixture.entries.length).toBeGreaterThanOrEqual(6);
-  expect(importBundle(db, fixture)).toMatchObject({ inserted: fixture.entries.length, updated: 0, skipped: 0, deduplicated: 0 });
+  expect(importBundle(db, fixture)).toMatchObject({ inserted: fixture.entries.length, updated: 0, skipped: 0 });
   const out = JSON.parse(JSON.stringify(exportBundle(db, config)));
   expect(out.entries).toEqual(want.entries);
   expect(out.activity).toEqual(want.activity);
-  expect(out.legacyMap).toEqual(want.legacyMap);
+  // The extra-keys fixture still carries a legacyMap key. Import ignores it, so export never has one.
+  expect(out).not.toHaveProperty('legacyMap');
 });
 
-test('the extra-keys fixture really holds an extra key at every level', () => {
+test('the extra-keys fixture really holds an extra key at every level, and an ignored legacyMap', () => {
   const b = read('extra-keys.json');
   expect(JSON.stringify(b)).toEqual(expect.stringContaining('extraTop'));
   expect(b.entries.some((e: Record<string, unknown>) => 'extraEntry' in e)).toBe(true);
   expect(b.entries.some((e: { refs: Record<string, unknown>[] }) => e.refs.some((r) => 'extraRef' in r))).toBe(true);
   expect(b.activity.some((a: Record<string, unknown>) => 'extraActivity' in a)).toBe(true);
   expect(b.activity.some((a: Record<string, unknown>) => !('capturedBy' in a))).toBe(true);
-  expect(b.legacyMap.some((r: Record<string, unknown>) => 'extraRow' in r)).toBe(true);
+  expect(Array.isArray(b.legacyMap)).toBe(true);
 });
